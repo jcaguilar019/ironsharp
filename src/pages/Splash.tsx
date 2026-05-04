@@ -1,8 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 const Splash = () => {
   const navigate = useNavigate();
+  const { isDemo } = useAuth();
+
+  useEffect(() => {
+    if (isDemo) {
+      // Auto-redirect to home in demo mode after a brief splash
+      const timer = setTimeout(() => navigate("/home", { replace: true }), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isDemo, navigate]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-8 text-center">
@@ -22,19 +33,30 @@ const Splash = () => {
       </p>
 
       <div className="flex w-full max-w-xs flex-col gap-3">
-        <Button
-          onClick={() => navigate("/signup")}
-          className="h-12 rounded-xl text-base font-semibold"
-        >
-          Sign Up
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/login")}
-          className="h-12 rounded-xl text-base font-semibold"
-        >
-          Log In
-        </Button>
+        {isDemo ? (
+          <Button
+            onClick={() => navigate("/home", { replace: true })}
+            className="h-12 rounded-xl text-base font-semibold"
+          >
+            Enter App
+          </Button>
+        ) : (
+          <>
+            <Button
+              onClick={() => navigate("/signup")}
+              className="h-12 rounded-xl text-base font-semibold"
+            >
+              Sign Up
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/login")}
+              className="h-12 rounded-xl text-base font-semibold"
+            >
+              Log In
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
