@@ -20,12 +20,12 @@ const ThemeContext = createContext<ThemeContextType>({ theme: "parchment", setTh
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<ThemeName>(() => {
     const saved = localStorage.getItem("ironsharp-theme");
-    return (saved as ThemeName) || "parchment";
+    return (saved as ThemeName) || "vesper";
   });
 
   useEffect(() => {
     localStorage.setItem("ironsharp-theme", theme);
-    if (theme === "parchment") {
+    if (theme === "vesper") {
       document.documentElement.removeAttribute("data-theme");
     } else {
       document.documentElement.setAttribute("data-theme", theme);
