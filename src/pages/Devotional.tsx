@@ -3,7 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Headphones, ChevronLeft, Mic, Square, Play, Smile, Heart, ShieldCheck } from "lucide-react";
+import { Headphones, ChevronLeft, Mic, Square, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,9 +41,6 @@ const Devotional = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [hasRecording, setHasRecording] = useState(false);
-  const [mood, setMood] = useState<string | null>(null);
-  const [gratitude, setGratitude] = useState("");
-  const [accountability, setAccountability] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -177,66 +174,6 @@ const Devotional = () => {
                 <p className="text-sm text-muted-foreground">Record a voice reflection</p>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Expanded Submissions */}
-        <div className="mb-6">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Daily Check-In</h3>
-
-          {/* Mood */}
-          <div className="mb-4">
-            <p className="mb-2 text-sm text-muted-foreground">How are you feeling today?</p>
-            <div className="flex gap-2">
-              {[
-                { emoji: "😊", label: "Great" },
-                { emoji: "🙂", label: "Good" },
-                { emoji: "😐", label: "Okay" },
-                { emoji: "😔", label: "Low" },
-                { emoji: "🥲", label: "Struggling" },
-              ].map(m => (
-                <button
-                  key={m.label}
-                  onClick={() => setMood(m.label)}
-                  className={`flex flex-1 flex-col items-center gap-1 rounded-xl border p-2 transition-all ${
-                    mood === m.label
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                >
-                  <span className="text-lg">{m.emoji}</span>
-                  <span className="text-[10px] text-muted-foreground">{m.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Gratitude */}
-          <div className="mb-4">
-            <div className="mb-2 flex items-center gap-1.5">
-              <Heart className="h-3.5 w-3.5 text-primary" />
-              <p className="text-sm text-muted-foreground">One thing you're grateful for</p>
-            </div>
-            <Textarea
-              value={gratitude}
-              onChange={e => setGratitude(e.target.value)}
-              placeholder="Today I'm thankful for..."
-              className="min-h-[60px] rounded-xl"
-            />
-          </div>
-
-          {/* Accountability */}
-          <div>
-            <div className="mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              <p className="text-sm text-muted-foreground">Accountability check-in</p>
-            </div>
-            <Textarea
-              value={accountability}
-              onChange={e => setAccountability(e.target.value)}
-              placeholder="How did you do with yesterday's commitment?"
-              className="min-h-[60px] rounded-xl"
-            />
           </div>
         </div>
 
