@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
+import DevotionalHub from "@/components/devotional/DevotionalHub";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,6 +42,7 @@ const Devotional = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [hasRecording, setHasRecording] = useState(false);
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -60,12 +62,22 @@ const Devotional = () => {
     navigate("/waiting");
   };
 
+  // Hub view
+  if (!activePlanId) {
+    return (
+      <AppLayout>
+        <DevotionalHub onOpenPlan={(id) => setActivePlanId(id)} />
+      </AppLayout>
+    );
+  }
+
+  // Reading view (existing)
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg px-6 py-6">
         {/* Top bar */}
         <div className="mb-4 flex items-center justify-between">
-          <button onClick={() => navigate("/home")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <button onClick={() => setActivePlanId(null)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-4 w-4" /> Back
           </button>
           <Select value={translation} onValueChange={setTranslation}>
