@@ -1,7 +1,7 @@
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Flame, CheckCircle2, Circle, BookOpen, Globe } from "lucide-react";
+import { Flame, CheckCircle2, Circle, BookOpen, Globe, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const sampleMembers = [
@@ -44,6 +44,21 @@ const Home = () => {
             <BookOpen className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary">Start today's reading</span>
           </div>
+        </button>
+
+        {/* Personal Devotional */}
+        <button
+          onClick={() => navigate("/devotional")}
+          className="mb-6 w-full rounded-2xl border border-border bg-card p-5 text-left shadow-sm hover:shadow-md transition-shadow"
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <Sun className="h-5 w-5 text-primary" />
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">My Time with God</h3>
+          </div>
+          <p className="mb-3 font-serif text-sm italic text-muted-foreground">
+            "Be still, and know that I am God." — Psalm 46:10
+          </p>
+          <span className="text-sm font-medium text-primary">Begin Reading →</span>
         </button>
 
         {/* Group Progress */}
