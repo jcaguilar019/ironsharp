@@ -1,26 +1,48 @@
 
-## Home Screen Changes (`src/pages/Home.tsx`)
+## Overview
 
-1. **Remove** the "Today's Devotional" group reading card (Day 5 of 7 / Proverbs 27)
-2. **Promote "My Time with God"** as the main, prominent card at the top (below greeting/streak) with:
-   - Larger, more prominent styling
-   - A scripture preview snippet (a few opening verses from the current reading) so there's substance
-3. **Move the "Iron sharpens iron" quote** to sit directly below the personal devotional card
-4. **Remove** the Group Progress section entirely
-5. **Replace** the full-width Community button with two half-width tiles side by side:
-   - **Community Devotional** (renamed from "Community") -- navigates to `/community`
-   - **Podcast** -- a new tile (placeholder/coming soon for now)
+Reorganize the bottom navigation to 5 tabs and create a new Plans page that displays devotional plan categories in a 2-column image card grid (inspired by the WHOOP screenshot).
 
-**New Home layout order:**
-1. Greeting + streak
-2. Personal Devotional (prominent, with verse preview)
-3. Daily quote ("Iron sharpens iron")
-4. Two tiles: Community Devotional | Podcast
+## Bottom Navigation Changes (`src/components/BottomNav.tsx`)
 
-## Profile Changes (`src/pages/Profile.tsx`)
+Update to 5 tabs in this order (left to right):
+1. **Devotional** (BookOpen icon) — `/devotional`
+2. **Groups** (Users icon) — `/groups`
+3. **Home** (Home icon, center) — `/home`
+4. **Plans** (Library icon) — `/plans`
+5. **Profile** (User icon) — `/profile`
 
-1. **Remove** the "My Groups" section entirely
-2. **Remove** the standalone "Themes" button (Themes is already accessible from Settings page)
+## New Plans Page (`src/pages/Plans.tsx`)
 
-## No changes needed to Settings
-The Themes button already exists inside `SettingsPage.tsx`, so that flow is already correct.
+Create a new page with a 2-column grid of plan category cards. Each card features:
+- A themed gradient/color background (placeholder for future thumbnails)
+- Category label badge (e.g. "7 Day", "14 Day", "30 Day")
+- Plan title in bold serif font
+- Subtitle with plan count
+
+Mock categories:
+- Men's Devotional
+- Women's Devotional
+- Husbands & Fathers
+- Wives & Mothers
+- Family Devotional
+- Marriage
+- Youth
+- New Believer
+
+Layout styled after the reference screenshot: tall image-style cards in a `grid-cols-2` grid with rounded corners, overlay text, and duration/level badges.
+
+## Devotional Hub Cleanup (`src/components/devotional/DevotionalHub.tsx`)
+
+Remove the "Browse Plans" dashed button at the bottom since plans now have their own tab.
+
+## Routing (`src/App.tsx`)
+
+Add route: `/plans` → `Plans` component.
+
+## Technical Details
+
+- New file: `src/pages/Plans.tsx`
+- Modified files: `src/components/BottomNav.tsx`, `src/components/devotional/DevotionalHub.tsx`, `src/App.tsx`
+- Uses themed gradient backgrounds for cards since no real images exist yet
+- Tapping a card is a placeholder (no-op or toast) for now
