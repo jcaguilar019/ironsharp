@@ -1,7 +1,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Flame, BookOpen, Users, Settings } from "lucide-react";
-import { LogOut, Palette } from "lucide-react";
+import { Flame, BookOpen, Settings } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -36,27 +36,10 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Groups */}
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">My Groups</h3>
-        <div className="mb-6 rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <Users className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">Men's Morning Crew</p>
-              <p className="text-xs text-muted-foreground">Accountability Partner</p>
-            </div>
-          </div>
-        </div>
-
         {/* Actions */}
         <div className="space-y-2">
           <Button variant="outline" onClick={() => navigate("/settings")} className="h-12 w-full rounded-xl justify-start">
             <Settings className="mr-3 h-4 w-4" /> Settings
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/themes")} className="h-12 w-full rounded-xl justify-start">
-            <Palette className="mr-3 h-4 w-4" /> Themes
           </Button>
           <Button variant="outline" onClick={async () => { await signOut(); navigate("/"); }} className="h-12 w-full rounded-xl justify-start text-destructive hover:text-destructive">
             <LogOut className="mr-3 h-4 w-4" /> Log Out
