@@ -1,45 +1,33 @@
 
-## Load Launch Devotionals into IronSharp
+## Problem
 
-Your document contains three complete 7-day devotional plans ready to go. Here's what I'll do:
+Tapping a category tile (e.g. Men's Devotional) on the Plans page jumps straight into the devotional reading view. You want an intermediate listing page showing all plans in that category with title and short description.
 
-### 1. Create Database Tables
+## Plan
 
-**`devotional_plans`** — stores each plan:
-- id, title, subtitle, description, category (men/husband/general), total_days, how_to_use text, image_url, created_at
+### 1. Create a new `PlanList` page (`src/pages/PlanList.tsx`)
 
-**`devotional_days`** — stores each day's content:
-- id, plan_id (FK), day_number, chapter (e.g. "Proverbs 27"), theme (short intro), commentary (full text), reflection_q1, reflection_q2
+- Route: `/plans/:category`
+- Fetches all `devotional_plans` where `category` matches the URL param
+- Displays each plan as a card/row with:
+  - Plan title (e.g. "Being a Man")
+  - 1-2 sentence description from `devotional_plans.description`
+  - Duration badge (e.g. "7 Days")
+  - Start / Continue button
+- Tapping a plan navigates to `/devotional?plan=<plan_id>`
+- Back button returns to `/plans`
+- Uses the app's existing theme tokens and serif/sans font pairing
 
-Both tables will have RLS policies allowing authenticated users to read.
+### 2. Update `Plans.tsx`
 
-### 2. Seed All Three Plans (21 days total)
+- Change tile `onClick` to navigate to `/plans/${category}` instead of `/devotional?category=...`
 
-From your document:
-- **Being a Man** (Men's Devotional) — 7 days: Proverbs 27, 1 Corinthians 16, James 1, Psalm 15, 1 Timothy 4, Micah 6, Joshua 1
-- **Being a Husband** (Husbands & Fathers) — 7 days: Ephesians 5, 1 Peter 3, Song of Solomon 2, Colossians 3, Proverbs 31, Genesis 2, Ruth 3
-- **Joy That Doesn't Make Sense** (General) — 7 days: Philippians 1, 2, 3, 4, 1 (return), 2 (return), 4 (return)
+### 3. Update `App.tsx`
 
-Each day includes the full commentary and both reflection questions extracted from your document.
+- Add route: `<Route path="/plans/:category" element={<PlanList />} />`
 
-### 3. Wire Up the UI
+### 4. Ensure plan descriptions exist in the database
 
-- **Plans page**: Show real plan count per category (instead of hardcoded "12 Plans")
-- **Devotional page**: When a user opens a plan, load the actual day's chapter, commentary, and reflection questions from the database instead of the current hardcoded Proverbs 27 content
-- **Home page "My Time with God"**: Show the current day's scripture from the user's active plan
+- Check existing `devotional_plans` rows for `description` values; if null, run a migration to add short descriptions to the 3 seeded plans ("Being a Man", "Being a Husband", "Joy That Doesn't Make Sense").
 
-### 4. User Progress Table
-
-**`user_plan_progress`** — tracks which plan a user has started and what day they're on:
-- id, user_id, plan_id (FK), current_day, started_at, completed_at
-
-RLS: users can only read/write their own rows.
-
-### Technical Details
-
-**Files created/modified:**
-- Database migration with all 4 tables + seed data + RLS policies
-- `src/pages/Plans.tsx` — fetch real plans from database
-- `src/pages/Devotional.tsx` — load day content dynamically
-- `src/pages/Home.tsx` — show active plan's current reading
-- `src/components/devotional/DevotionalHub.tsx` — show real plan progress
+No new tables or schema changes needed — just the existing `description` column on `devotional_plans`.
