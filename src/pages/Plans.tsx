@@ -9,6 +9,7 @@ import familyImg from "@/assets/plans/family-devotional.jpg";
 import marriageImg from "@/assets/plans/marriage.jpg";
 import youthImg from "@/assets/plans/youth.jpg";
 import newBelieverImg from "@/assets/plans/new-believer.jpg";
+import generalImg from "@/assets/plans/general.jpg";
 
 interface PlanCategory {
   id: string;
@@ -27,6 +28,7 @@ const categories: PlanCategory[] = [
   { id: "marriage", title: "Marriage", subtitle: "7 Plans", badge: "14 Day", image: marriageImg },
   { id: "youth", title: "Youth", subtitle: "11 Plans", badge: "7 Day", image: youthImg },
   { id: "new-believer", title: "New Believer", subtitle: "5 Plans", badge: "30 Day", image: newBelieverImg },
+  { id: "general", title: "General", subtitle: "15 Plans", badge: "Popular", image: generalImg },
 ];
 
 const Plans = () => {
