@@ -2,7 +2,7 @@ import { Home, BookOpen, Users, User, Library } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const navItems = [
-  { icon: BookOpen, label: "Devotional", path: "/devotional" },
+  { icon: BookOpen, label: "Devotionals", path: "/devotional" },
   { icon: Users, label: "Groups", path: "/groups" },
   { icon: Home, label: "Home", path: "/home" },
   { icon: Library, label: "Plans", path: "/plans" },
