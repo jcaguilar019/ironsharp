@@ -97,6 +97,47 @@ export type Database = {
         }
         Relationships: []
       }
+      study_notes: {
+        Row: {
+          created_at: string
+          day_number: number
+          id: string
+          notes: Json
+          passage_reference: string
+          plan_id: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_number: number
+          id?: string
+          notes?: Json
+          passage_reference: string
+          plan_id: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_number?: number
+          id?: string
+          notes?: Json
+          passage_reference?: string
+          plan_id?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_notes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "devotional_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_plan_progress: {
         Row: {
           completed_at: string | null
