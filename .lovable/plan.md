@@ -1,50 +1,22 @@
 ## Goal
 
-Add a pinned **Completed** tile at the top of the Plans page so users can quickly jump to and re-read any devotional they've finished.
+Restyle the pinned **Completed** tile on `/plans` to match the existing category tiles (image card with gradient overlay, top-right badge, bottom title), but keep it pinned at the top and full-width so it still reads as a system tile, not a category.
 
-## Changes
+## Changes — `src/pages/Plans.tsx`
 
-### 1. `src/pages/Plans.tsx` — pin a Completed tile
+Replace the current bordered icon row with a full-width image tile using the same visual language as the category cards:
 
-- Above the existing 2-column category grid, render a single full-width "Completed" tile.
-- Tile shows: title "Completed", subtitle = `{N} Plan{s}` (or "Nothing yet" when zero), book/check icon, themed background (no photo — uses `bg-card` + accent border so it visually reads as system, not a category).
-- Always visible, even when count is 0 (in that case it's not clickable and shows "Nothing yet").
-- Count loaded from `user_plan_progress` where `user_id = current user` and `completed_at IS NOT NULL`. Demo user UUID already supported by RLS.
-- Clicking → `navigate("/plans/completed")`.
-
-### 2. New page `src/pages/CompletedPlans.tsx`
-
-- Route added in `src/App.tsx`: `<Route path="/plans/completed" element={<CompletedPlans />} />` (registered **before** `/plans/:category` so it isn't swallowed).
-- Lists every completed plan for the user, newest first:
-  - Query `user_plan_progress` (`plan_id, completed_at`) where `user_id = me` and `completed_at IS NOT NULL`, then join titles/total_days from `devotional_plans`.
-  - Each row: plan title, total days, completion date ("Completed May 9"), chevron right.
-- Tapping a row → `navigate("/plans/completed/:planId")`.
-- Back button to `/plans`.
-
-### 3. New page `src/pages/CompletedPlanReview.tsx` — read-only day list
-
-- Route: `<Route path="/plans/completed/:planId" element={<CompletedPlanReview />} />`.
-- Header: plan title + "Completed {date}".
-- Lists Day 1 … Day N (from `devotional_days` for that plan), each row showing day number + chapter (e.g., "Day 3 · James 1"). Tapping a day → `navigate(\`/devotional?plan={planId}&day={n}&review=1\`)`.
-
-### 4. `src/pages/Devotional.tsx` — review mode
-
-- Read `review` and `day` from `useSearchParams`. When `review=1`:
-  - Skip the today-lock / completion screen short-circuit; render the chapter normally with the requested `day` (override `current_day`).
-  - Hide the reflection textareas, voice memo, and Submit button. Render a small "Review mode · read-only" badge instead.
-  - Keep Scripture + Context drawer + Study Notes drawer fully visible and functional.
-  - Back button returns to `/plans/completed/:planId`.
-
-## Out of scope
-
-- No DB schema changes (uses existing `user_plan_progress.completed_at` and `devotional_days`).
-- No new way to mark complete; relies on existing flow.
-- No edit/delete of past responses (review-only). A future pass can surface their saved reflections.
+- **Container:** full-width `rounded-2xl` button, `aspectRatio: "16/9"` (shorter than category tiles so it doesn't dominate the page).
+- **Background image:** new asset `src/assets/plans/completed.jpg` (generated) — a quiet, finished-feeling photo (open Bible with a ribbon marker, soft warm light, neutral palette so it works in all 5 themes).
+- **Gradient overlay:** identical to category tiles — `bg-gradient-to-t from-black/80 via-black/30 to-transparent`.
+- **Top-right badge:** same chip style as category tiles, label `"{N} Done"` when count > 0, `"Empty"` when count is 0.
+- **Bottom-left text:** title "Completed" (font-serif, uppercase, white) + subtitle "Tap to revisit" / "Nothing yet" (white/70).
+- **Disabled state:** when `completedCount === 0`, button is non-clickable and slightly dimmed (opacity-70).
+- **Behavior:** unchanged — clicking navigates to `/plans/completed`. Still pinned above the 2-col category grid with `mb-3`.
 
 ## Files touched
 
-- `src/pages/Plans.tsx` (add pinned tile + count query)
-- `src/pages/CompletedPlans.tsx` (new)
-- `src/pages/CompletedPlanReview.tsx` (new)
-- `src/pages/Devotional.tsx` (add `review=1` mode)
-- `src/App.tsx` (register two new routes, ordered before `/plans/:category`)
+- `src/pages/Plans.tsx` — swap the tile markup.
+- `src/assets/plans/completed.jpg` — new generated image (matches the look/feel of the other category photos in `src/assets/plans/`).
+
+No DB or routing changes.
