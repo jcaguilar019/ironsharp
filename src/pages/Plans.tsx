@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import completedImg from "@/assets/plans/completed.jpg";
 
 import menImg from "@/assets/plans/mens-devotional.jpg";
 import womenImg from "@/assets/plans/womens-devotional.jpg";
@@ -98,28 +98,37 @@ const Plans = () => {
         </p>
         <h1 className="mb-6 font-serif text-2xl font-bold">Plans</h1>
 
-        {/* Pinned Completed tile */}
+        {/* Pinned Completed tile — matches category tile look */}
         <button
           onClick={() => {
             if (completedCount > 0) navigate("/plans/completed");
           }}
           disabled={completedCount === 0}
-          className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-card p-4 text-left transition-colors hover:bg-accent/10 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-card"
+          className="group relative mb-3 block w-full overflow-hidden rounded-2xl text-left disabled:cursor-default disabled:opacity-70"
+          style={{ aspectRatio: "16/9" }}
         >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
+          <img
+            src={completedImg}
+            alt="Completed plans"
+            loading="lazy"
+            width={1024}
+            height={576}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <div className="absolute right-2 top-2">
+            <span className="rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              {completedCount > 0 ? `${completedCount} Done` : "Empty"}
+            </span>
           </div>
-          <div className="flex-1">
-            <p className="font-serif text-base font-bold">Completed</p>
-            <p className="text-xs text-muted-foreground">
-              {completedCount > 0
-                ? `${completedCount} plan${completedCount !== 1 ? "s" : ""} finished`
-                : "Nothing yet"}
+          <div className="absolute bottom-0 left-0 right-0 p-3">
+            <h3 className="font-serif text-base font-bold uppercase leading-tight text-white">
+              Completed
+            </h3>
+            <p className="mt-0.5 text-xs text-white/70">
+              {completedCount > 0 ? "Tap to revisit" : "Nothing yet"}
             </p>
           </div>
-          {completedCount > 0 && (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
         </button>
 
         <div className="grid grid-cols-2 gap-3">
