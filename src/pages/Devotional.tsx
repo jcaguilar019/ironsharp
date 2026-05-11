@@ -86,6 +86,8 @@ const Devotional = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user } = useAuth();
+  const reviewMode = searchParams.get("review") === "1";
+  const reviewDayParam = parseInt(searchParams.get("day") || "", 10);
 
   // If navigated from Plans page with a category, load the first plan in that category
   useEffect(() => {
@@ -117,7 +119,10 @@ const Devotional = () => {
     }
 
     // Check today-lock: if user already submitted today for this plan, show completion view
-    try {
+    // Skip in review mode — reviewing past plans should always render the chapter.
+    if (reviewMode) {
+      setCompletedToday(false);
+    } else try {
       const last = localStorage.getItem(lockKey(activePlanId));
       if (last === todayKey()) {
         setCompletedToday(true);
@@ -138,7 +143,9 @@ const Devotional = () => {
 
       // Check user progress
       let day = 1;
-      if (user) {
+      if (reviewMode && !Number.isNaN(reviewDayParam) && reviewDayParam > 0) {
+        day = reviewDayParam;
+      } else if (user) {
         const { data: progress } = await supabase
           .from("user_plan_progress")
           .select("current_day")
@@ -167,13 +174,13 @@ const Devotional = () => {
         .single();
       if (dayData) setDayContent(dayData);
       // The day shown for "Day X complete" if locked is the previous (just-finished) day
-      if (localStorage.getItem(lockKey(activePlanId)) === todayKey()) {
+      if (!reviewMode && localStorage.getItem(lockKey(activePlanId)) === todayKey()) {
         setCompletedDay(Math.max(1, day - 1));
       }
     };
 
     loadContent();
-  }, [activePlanId, user]);
+  }, [activePlanId, user, reviewMode, reviewDayParam]);
 
   // Fetch scripture text from free Bible API whenever chapter or translation changes
   useEffect(() => {
@@ -331,7 +338,17 @@ const Devotional = () => {
       <div className="mx-auto max-w-lg px-6 py-6">
         {/* Top bar */}
         <div className="mb-4 flex items-center justify-between">
-          <button onClick={() => { setActivePlanId(null); navigate("/devotional", { replace: true }); }} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <button
+            onClick={() => {
+              if (reviewMode && activePlanId) {
+                navigate(`/plans/completed/${activePlanId}`);
+              } else {
+                setActivePlanId(null);
+                navigate("/devotional", { replace: true });
+              }
+            }}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ChevronLeft className="h-4 w-4" /> Back
           </button>
           <Select value={translation} onValueChange={setTranslation}>
@@ -440,6 +457,19 @@ const Devotional = () => {
           />
         )}
 
+        {reviewMode && (
+          <div className="mb-6 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
+              Review mode · read-only
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              You've already completed this plan. Reflections aren't editable here.
+            </p>
+          </div>
+        )}
+
+        {!reviewMode && (
+          <>
         {/* Questions */}
         <div className="mb-6 space-y-5">
           <div>
@@ -536,6 +566,8 @@ const Devotional = () => {
         >
           {submitted ? "Submitted ✓" : "Submit"}
         </Button>
+          </>
+        )}
       </div>
     </AppLayout>
   );

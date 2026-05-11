@@ -3,6 +3,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 
 import menImg from "@/assets/plans/mens-devotional.jpg";
 import womenImg from "@/assets/plans/womens-devotional.jpg";
@@ -37,7 +39,9 @@ const categories: PlanCategory[] = [
 const Plans = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [planCounts, setPlanCounts] = useState<Record<string, number>>({});
+  const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -55,6 +59,19 @@ const Plans = () => {
     };
     fetchCounts();
   }, []);
+
+  useEffect(() => {
+    const fetchCompleted = async () => {
+      if (!user) return;
+      const { count } = await supabase
+        .from("user_plan_progress")
+        .select("plan_id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("completed_at", "is", null);
+      setCompletedCount(count || 0);
+    };
+    fetchCompleted();
+  }, [user]);
 
   const getCategoryCount = (catId: string) => {
     const mapping: Record<string, string> = {
@@ -80,6 +97,30 @@ const Plans = () => {
           Browse & Start
         </p>
         <h1 className="mb-6 font-serif text-2xl font-bold">Plans</h1>
+
+        {/* Pinned Completed tile */}
+        <button
+          onClick={() => {
+            if (completedCount > 0) navigate("/plans/completed");
+          }}
+          disabled={completedCount === 0}
+          className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-card p-4 text-left transition-colors hover:bg-accent/10 disabled:cursor-default disabled:opacity-70 disabled:hover:bg-card"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="font-serif text-base font-bold">Completed</p>
+            <p className="text-xs text-muted-foreground">
+              {completedCount > 0
+                ? `${completedCount} plan${completedCount !== 1 ? "s" : ""} finished`
+                : "Nothing yet"}
+            </p>
+          </div>
+          {completedCount > 0 && (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
 
         <div className="grid grid-cols-2 gap-3">
           {categories.map((cat) => (

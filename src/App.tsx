@@ -33,6 +33,8 @@ import YouthHome from "./pages/YouthHome";
 import YouthDevotional from "./pages/YouthDevotional";
 import Plans from "./pages/Plans";
 import PlanList from "./pages/PlanList";
+import CompletedPlans from "./pages/CompletedPlans";
+import CompletedPlanReview from "./pages/CompletedPlanReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +64,8 @@ const App = () => (
               <Route path="/compare" element={<CompareNotes />} />
               <Route path="/groups" element={<Groups />} />
               <Route path="/plans" element={<Plans />} />
+              <Route path="/plans/completed" element={<CompletedPlans />} />
+              <Route path="/plans/completed/:planId" element={<CompletedPlanReview />} />
               <Route path="/plans/:category" element={<PlanList />} />
               <Route path="/themes" element={<ThemePicker />} />
               <Route path="/profile" element={<Profile />} />
