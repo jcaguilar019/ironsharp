@@ -11,7 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-const translations = ["NIV", "ESV", "NLT", "KJV", "NKJV", "CSB", "MSG"];
+// Free public-domain translations available via bible-api.com
+const translations = [
+  { id: "kjv", label: "KJV" },
+  { id: "web", label: "WEB" },
+  { id: "asv", label: "ASV" },
+  { id: "bbe", label: "BBE" },
+];
 
 interface DayContent {
   chapter: string;
@@ -31,7 +37,10 @@ interface PlanInfo {
 }
 
 const Devotional = () => {
-  const [translation, setTranslation] = useState("NIV");
+  const [translation, setTranslation] = useState("kjv");
+  const [scriptureVerses, setScriptureVerses] = useState<{ verse: number; text: string }[] | null>(null);
+  const [scriptureLoading, setScriptureLoading] = useState(false);
+  const [scriptureError, setScriptureError] = useState<string | null>(null);
   const [response1, setResponse1] = useState("");
   const [response2, setResponse2] = useState("");
   const [prayer, setPrayer] = useState("");
@@ -119,6 +128,39 @@ const Devotional = () => {
     loadContent();
   }, [activePlanId, user]);
 
+  // Fetch scripture text from free Bible API whenever chapter or translation changes
+  useEffect(() => {
+    if (!dayContent?.chapter) {
+      setScriptureVerses(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchScripture = async () => {
+      setScriptureLoading(true);
+      setScriptureError(null);
+      try {
+        const ref = encodeURIComponent(dayContent.chapter);
+        const res = await fetch(`https://bible-api.com/${ref}?translation=${translation}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const verses = (data.verses || []).map((v: any) => ({
+          verse: v.verse,
+          text: (v.text || "").trim(),
+        }));
+        setScriptureVerses(verses);
+      } catch (e) {
+        if (!cancelled) setScriptureError("Could not load scripture. Try another translation.");
+      } finally {
+        if (!cancelled) setScriptureLoading(false);
+      }
+    };
+    fetchScripture();
+    return () => {
+      cancelled = true;
+    };
+  }, [dayContent?.chapter, translation]);
+
   const toggleRecording = () => {
     if (isRecording) {
       setIsRecording(false);
@@ -197,7 +239,7 @@ const Devotional = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {translations.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              {translations.map(t => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -221,6 +263,32 @@ const Devotional = () => {
           <p className="font-serif text-base italic leading-relaxed text-muted-foreground">{dayContent.theme}</p>
         </div>
         )}
+
+        {/* Scripture */}
+        <div className="mb-6">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Scripture</h3>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Public Domain</span>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-5">
+            {scriptureLoading && (
+              <p className="text-sm italic text-muted-foreground">Loading scripture…</p>
+            )}
+            {scriptureError && !scriptureLoading && (
+              <p className="text-sm italic text-muted-foreground">{scriptureError}</p>
+            )}
+            {!scriptureLoading && !scriptureError && scriptureVerses && (
+              <p className="font-serif text-base leading-relaxed">
+                {scriptureVerses.map((v) => (
+                  <span key={v.verse}>
+                    <sup className="mr-1 text-[10px] font-semibold text-accent">{v.verse}</sup>
+                    {v.text}{" "}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Commentary */}
         <div className="mb-6">

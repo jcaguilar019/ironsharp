@@ -1,11 +1,9 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
-import { Flame, ChevronDown, ChevronUp, UserPlus, Settings, Plus, Check, Minus } from "lucide-react";
+import { ChevronDown, ChevronUp, UserPlus, Settings, Plus, Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
-/* ── colour tokens per group type ── */
 const typeColors: Record<string, string> = {
   "one-on-one": "#A89070",
   family: "#7FAF8A",
@@ -94,163 +92,110 @@ const Groups = () => {
         </p>
         <h1 className="mb-6 font-serif text-2xl font-bold">Groups</h1>
 
-        {/* Group cards */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           {mockGroups.map((group) => {
             const accent = typeColors[group.type];
-            const pct = Math.round((group.day / group.totalDays) * 100);
-            const doneCount = group.members.filter((m) => m.doneToday).length;
             const expanded = expandedId === group.id;
+            const doneCount = group.members.filter((m) => m.doneToday).length;
 
             return (
               <div
                 key={group.id}
-                className="overflow-hidden rounded-2xl border border-border bg-card"
+                className="overflow-hidden rounded-xl border border-border bg-card"
               >
-                {/* Accent bar */}
-                <div className="h-[3px] w-full" style={{ backgroundColor: accent }} />
-
-                <div className="px-4 py-4">
-                  {/* Name + streak */}
-                  <div className="flex items-start justify-between">
-                    <h2 className="font-serif text-lg font-bold leading-tight">
+                {/* Compact row */}
+                <button
+                  onClick={() => setExpandedId(expanded ? null : group.id)}
+                  className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                >
+                  <div
+                    className="h-8 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: accent }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-serif text-sm font-semibold">
                       {group.name}
-                    </h2>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Flame className="h-3.5 w-3.5" />
-                      <span className="font-semibold">{group.streak}</span>
-                    </div>
+                    </p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {typeLabels[group.type]} · {group.reference} · {doneCount}/{group.members.length} today
+                    </p>
                   </div>
+                  {expanded ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
 
-                  {/* Subtitle */}
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {typeLabels[group.type]} · {group.reference} · Day {group.day}/{group.totalDays}
-                  </p>
-
-                  {/* Progress bar */}
-                  <div className="mt-3">
-                    <Progress value={pct} className="h-[2px]" />
-                  </div>
-
-                  {/* Avatars + done count */}
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="flex -space-x-1.5">
+                {expanded && (
+                  <div className="border-t border-border px-4 pb-4 pt-3">
+                    <div className="space-y-2">
                       {group.members.map((m) => (
                         <div
                           key={m.name}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card text-[10px] font-semibold text-white"
-                          style={{
-                            backgroundColor: m.doneToday ? accent : "hsl(var(--muted))",
-                            color: m.doneToday ? "#fff" : "hsl(var(--muted-foreground))",
-                          }}
+                          className="flex items-center justify-between"
                         >
-                          {m.name[0]}
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold"
+                              style={{
+                                backgroundColor: m.doneToday ? accent : "hsl(var(--muted))",
+                                color: m.doneToday ? "#fff" : "hsl(var(--muted-foreground))",
+                              }}
+                            >
+                              {m.name[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{m.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{m.role}</p>
+                            </div>
+                          </div>
+                          {m.doneToday ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Minus className="h-4 w-4 text-muted-foreground" />
+                          )}
                         </div>
                       ))}
                     </div>
-                    <span className="text-xs italic text-muted-foreground">
-                      {doneCount}/{group.members.length} done today
-                    </span>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      className="flex-[3] rounded-xl text-sm font-semibold text-white"
-                      style={{ backgroundColor: accent }}
-                      onClick={() =>
-                        toast({ title: "Opening devotional…" })
-                      }
-                    >
-                      Open Devotional →
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-[1] rounded-xl"
-                      onClick={() =>
-                        setExpandedId(expanded ? null : group.id)
-                      }
-                    >
-                      {expanded ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Expanded state */}
-                  {expanded && (
-                    <div className="mt-4 border-t border-border pt-4">
-                      <div className="space-y-2">
-                        {group.members.map((m) => (
-                          <div
-                            key={m.name}
-                            className="flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold"
-                                style={{
-                                  backgroundColor: m.doneToday ? accent : "hsl(var(--muted))",
-                                  color: m.doneToday ? "#fff" : "hsl(var(--muted-foreground))",
-                                }}
-                              >
-                                {m.name[0]}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium">{m.name}</p>
-                                <p className="text-[11px] text-muted-foreground">
-                                  {m.role}
-                                </p>
-                              </div>
-                            </div>
-                            {m.doneToday ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Minus className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-4 flex gap-2">
-                        <Button
-                          variant="outline"
-                          className="flex-1 rounded-xl text-xs"
-                          onClick={() => {
-                            navigator.clipboard.writeText("IRON2024");
-                            toast({ title: "Invite code copied!" });
-                          }}
-                        >
-                          <UserPlus className="mr-1 h-3.5 w-3.5" />
-                          Invite
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="flex-1 rounded-xl text-xs"
-                          onClick={() =>
-                            toast({ title: "Settings coming soon" })
-                          }
-                        >
-                          <Settings className="mr-1 h-3.5 w-3.5" />
-                          Settings
-                        </Button>
-                      </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-xl text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText("IRON2024");
+                          toast({ title: "Invite code copied!" });
+                        }}
+                      >
+                        <UserPlus className="mr-1 h-3.5 w-3.5" />
+                        Invite
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-xl text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast({ title: "Settings coming soon" });
+                        }}
+                      >
+                        <Settings className="mr-1 h-3.5 w-3.5" />
+                        Settings
+                      </Button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Start a New Group */}
         <button
           onClick={() => toast({ title: "New group flow coming soon" })}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border py-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          className="mt-6 flex w-full items-center justify-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
-          <Plus className="h-4 w-4" />
-          Start a New Group
+          <Plus className="h-3.5 w-3.5" />
+          Start a new group
         </button>
       </div>
     </AppLayout>
