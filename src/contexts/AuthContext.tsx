@@ -6,7 +6,7 @@ import type { User, Session } from "@supabase/supabase-js";
 const DEMO_MODE = true;
 
 const DEMO_USER = {
-  id: "demo-user-id",
+  id: "00000000-0000-0000-0000-000000000001",
   email: "juan@ironsharp.app",
   user_metadata: { full_name: "Juan Aguilar", avatar_url: "" },
   app_metadata: {},
