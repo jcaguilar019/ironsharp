@@ -6,6 +6,22 @@ import { BookOpen, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const typeColors: Record<string, string> = {
   community: "#89B4C9",
@@ -110,15 +126,19 @@ const DevotionalHub = ({ onOpenPlan }: Props) => {
     .map((id) => defaultPlaceholders.find((p) => p.id === id))
     .filter(Boolean) as PlaceholderPlan[];
 
-  const handleDrop = (targetId: string) => {
-    if (!dragId || dragId === targetId) return;
-    const next = [...order];
-    const from = next.indexOf(dragId);
-    const to = next.indexOf(targetId);
-    next.splice(from, 1);
-    next.splice(to, 0, dragId);
-    setOrder(next);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
     setDragId(null);
+    if (!over || active.id === over.id) return;
+    const from = order.indexOf(String(active.id));
+    const to = order.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    setOrder(arrayMove(order, from, to));
   };
 
   return (
@@ -180,45 +200,87 @@ const DevotionalHub = ({ onOpenPlan }: Props) => {
       <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         Shared Plans · Drag to reorder
       </p>
-      <div className="space-y-2">
-        {orderedPlaceholders.map((p) => {
-          const accent = typeColors[p.type];
-          return (
-            <div
-              key={p.id}
-              draggable
-              onDragStart={() => setDragId(p.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(p.id)}
-              onDragEnd={() => setDragId(null)}
-              onClick={() =>
-                toast({
-                  title: "Coming soon",
-                  description: `${p.name} is a preview — shared plans launch soon.`,
-                })
-              }
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 transition-opacity ${
-                dragId === p.id ? "opacity-50" : ""
-              }`}
-            >
-              <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div
-                className="h-8 w-1 shrink-0 rounded-full"
-                style={{ backgroundColor: accent }}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(e) => setDragId(String(e.active.id))}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setDragId(null)}
+      >
+        <SortableContext items={order} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {orderedPlaceholders.map((p) => (
+              <SortablePlanRow
+                key={p.id}
+                plan={p}
+                accent={typeColors[p.type]}
+                isDragging={dragId === p.id}
+                onTap={() =>
+                  toast({
+                    title: "Coming soon",
+                    description: `${p.name} is a preview — shared plans launch soon.`,
+                  })
+                }
               />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-serif text-sm font-semibold">{p.name}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{p.subtitle}</p>
-              </div>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Preview
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 };
 
 export default DevotionalHub;
+
+interface SortablePlanRowProps {
+  plan: PlaceholderPlan;
+  accent: string;
+  isDragging: boolean;
+  onTap: () => void;
+}
+
+const SortablePlanRow = ({ plan, accent, isDragging, onTap }: SortablePlanRowProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: plan.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 ${
+        isDragging ? "opacity-50" : ""
+      }`}
+    >
+      <button
+        type="button"
+        aria-label="Drag to reorder"
+        className="touch-none -m-1 cursor-grab p-1 text-muted-foreground active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onTap}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <div
+          className="h-8 w-1 shrink-0 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-serif text-sm font-semibold">{plan.name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{plan.subtitle}</p>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          Preview
+        </span>
+      </button>
+    </div>
+  );
+};

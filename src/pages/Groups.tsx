@@ -3,6 +3,22 @@ import AppLayout from "@/components/AppLayout";
 import { ChevronDown, ChevronUp, UserPlus, Settings, Plus, Check, Minus, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const typeColors: Record<string, string> = {
   "one-on-one": "#A89070",
@@ -104,16 +120,19 @@ const Groups = () => {
     try { localStorage.setItem(ORDER_KEY, JSON.stringify(next)); } catch {}
   };
 
-  const handleDrop = (targetId: string) => {
-    if (!dragId || dragId === targetId) return;
-    const next = [...order];
-    const from = next.indexOf(dragId);
-    const to = next.indexOf(targetId);
-    if (from < 0 || to < 0) return;
-    next.splice(from, 1);
-    next.splice(to, 0, dragId);
-    persistOrder(next);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
     setDragId(null);
+    if (!over || active.id === over.id) return;
+    const from = order.indexOf(String(active.id));
+    const to = order.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    persistOrder(arrayMove(order, from, to));
   };
 
   const orderedGroups = order
@@ -131,50 +150,30 @@ const Groups = () => {
           Drag to reorder
         </p>
 
-        <div className="space-y-2">
-          {orderedGroups.map((group) => {
-            const accent = typeColors[group.type];
-            const expanded = expandedId === group.id;
-            const doneCount = group.members.filter((m) => m.doneToday).length;
-
-            return (
-              <div
-                key={group.id}
-                draggable={!expanded}
-                onDragStart={() => setDragId(group.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleDrop(group.id)}
-                onDragEnd={() => setDragId(null)}
-                className={`overflow-hidden rounded-xl border border-border bg-card transition-opacity ${
-                  dragId === group.id ? "opacity-50" : ""
-                }`}
-              >
-                {/* Compact row */}
-                <button
-                  onClick={() => setExpandedId(expanded ? null : group.id)}
-                  className="flex w-full items-center gap-3 px-3 py-3 text-left"
-                >
-                  <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div
-                    className="h-8 w-1 shrink-0 rounded-full"
-                    style={{ backgroundColor: accent }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-serif text-sm font-semibold">
-                      {group.name}
-                    </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {typeLabels[group.type]} · {group.reference} · {doneCount}/{group.members.length} today
-                    </p>
-                  </div>
-                  {expanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
-
-                {expanded && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={(e) => setDragId(String(e.active.id))}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setDragId(null)}
+        >
+          <SortableContext items={order} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {orderedGroups.map((group) => {
+                const accent = typeColors[group.type];
+                const expanded = expandedId === group.id;
+                const doneCount = group.members.filter((m) => m.doneToday).length;
+                return (
+                  <SortableGroupRow
+                    key={group.id}
+                    group={group}
+                    accent={accent}
+                    expanded={expanded}
+                    doneCount={doneCount}
+                    isDragging={dragId === group.id}
+                    onToggle={() => setExpandedId(expanded ? null : group.id)}
+                  >
+                    {expanded && (
                   <div className="border-t border-border px-4 pb-4 pt-3">
                     <div className="space-y-2">
                       {group.members.map((m) => (
@@ -232,10 +231,12 @@ const Groups = () => {
                     </div>
                   </div>
                 )}
-              </div>
-            );
-          })}
-        </div>
+                  </SortableGroupRow>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         <button
           onClick={() => toast({ title: "New group flow coming soon" })}
@@ -250,3 +251,75 @@ const Groups = () => {
 };
 
 export default Groups;
+
+interface SortableGroupRowProps {
+  group: GroupData;
+  accent: string;
+  expanded: boolean;
+  doneCount: number;
+  isDragging: boolean;
+  onToggle: () => void;
+  children?: React.ReactNode;
+}
+
+const SortableGroupRow = ({
+  group,
+  accent,
+  expanded,
+  doneCount,
+  isDragging,
+  onToggle,
+  children,
+}: SortableGroupRowProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: group.id,
+    disabled: expanded,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`overflow-hidden rounded-xl border border-border bg-card ${
+        isDragging ? "opacity-50" : ""
+      }`}
+    >
+      <div className="flex w-full items-center gap-3 px-3 py-3 text-left">
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          className="touch-none -m-1 cursor-grab p-1 text-muted-foreground active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <div
+            className="h-8 w-1 shrink-0 rounded-full"
+            style={{ backgroundColor: accent }}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-serif text-sm font-semibold">{group.name}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {typeLabels[group.type]} · {group.reference} · {doneCount}/{group.members.length} today
+            </p>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+};
