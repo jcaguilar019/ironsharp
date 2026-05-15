@@ -1,36 +1,34 @@
-# Updated IronSharp Overview Deck (v2)
+# Help Center
 
-Refresh the existing overview presentation with current product state, fold in the pricing one-pager, and add a slide on additional revenue streams (excluding podcast).
+You're right — the spec itself says "accessible from Settings → Help Center", so we'll house it there rather than as its own bottom-nav tab.
 
-## Deck structure (12 slides)
+## What we'll build
 
-1. **Title** — IronSharp · "Sharpen each other. Every day." · Proverbs 27:17
-2. **The Problem** — Solo devotional apps; no accountability, no community, no depth
-3. **The Solution** — Read together → Reflect honestly → Wait & compare → Stay accountable
-4. **The Daily Flow** — Read · Reflect · Record · Submit · Compare
-5. **Key Features** — Scripture reading, streaks, roles, voice memos, group progress, blind submissions
-6. **Roles & Relationships** — Discipler · Disciple · Accountability Partner
-7. **Now in the App** *(updated)* — Devotional Hub with up to 3 active plans, Plan Library shelves (7/14/30-day), completion celebration, 5 themes (Vesper/Parchment/Sage/Dusk/Slate), Google + email auth
-8. **Plans & Pricing** *(new)* — Four tiers in a card grid: Free · Connect $18/yr · Sharpen $40/yr (most popular) · Family $55/yr
-9. **Pricing At a Glance** *(new)* — Compact feature comparison table
-10. **Beyond Subscriptions** *(new, podcast omitted)* — Church Licensing, Plan Sponsorships, Brand-Sponsored Themed Plans (additional ideas: gift subscriptions, ministry/seminary bulk licenses, branded merch — kept brief)
-11. **On the Roadmap** *(updated, podcast removed)* — Family Plan, Community Feed, Leader Analytics, Discipler Side-Notes
-12. **Closing** — "Ready to sharpen each other?"
+1. **New page `src/pages/HelpCenter.tsx`** at route `/help`
+   - Header: IronSharp wordmark, "Help Center" title, total article count, search bar
+   - Category pills row (hidden during active search)
+   - 8 collapsible section cards, each with an accordion of articles
+   - "Still need help?" footer card with `mailto:support@ironsharp.app`
+   - Real-time client-side search (filters across title + body)
+   - All 8 sections with their accent colors, icons, and article counts per the spec
 
-## Design
+2. **Settings entry point** — add a "Help Center" row in `src/pages/SettingsPage.tsx` (under a new "Support" group, above Delete Account) that navigates to `/help`.
 
-- Reuse the Vesper-inspired dark palette to match the app: deep slate background, warm parchment text, muted gold accent.
-- Playfair Display (serif) for titles/scripture, DM Sans for body — matches IronSharp brand.
-- "Most Popular" pricing card highlighted with the gold accent border.
-- No accent lines under titles; rely on color and whitespace.
+3. **Route registration** in `src/App.tsx`.
 
-## Process
+4. **Article content** — for v1, seed the 47 articles inline as a typed TS array (`src/data/helpArticles.ts`) grouped by section. Keeps it shippable without backend churn; we can migrate to a `help_articles` table later if you want editors to update copy without a deploy.
 
-1. Generate deck with `pptxgenjs` to `/mnt/documents/IronSharp_Overview_v2.pptx`.
-2. Render every slide to JPG and visually QA each one for overflow, contrast, and alignment; fix and re-render until clean.
-3. Deliver via `<presentation-artifact>` tag.
+## Design / theme notes
+
+The spec lists hardcoded hex values (parchment background, warm white cards, Georgia serif) that match the **Parchment** theme only. To stay consistent with the app's 5-theme system, I'll use semantic tokens (`bg-background`, `bg-card`, `border-border`, `text-foreground`, etc.) plus Playfair Display for headings and DM Sans for body — so the Help Center re-skins automatically with whichever theme the user has active. Section accent colors (baby blue, gold, sage, etc.) stay as fixed accents on the section icons/pills since they're identity colors for each topic.
 
 ## Out of scope
 
-- Podcast slide and podcast sponsorship row (per your instruction).
-- No code or app changes.
+- Hosting at `help.ironsharp.app` (web-only, separate)
+- Supabase `help_articles` table (deferred — flat data file for now)
+- Support email auto-responder
+- Writing all 47 final article bodies — I'll stub each with the questions from the spec and short placeholder answers you can edit; let me know if you'd rather I draft full answers for all 47.
+
+## Question
+
+Do you want me to **draft full answers for all 47 articles** now, or **stub them with the questions + short placeholders** so you can fill in voice-accurate answers yourself?
