@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import DevotionalHub from "@/components/devotional/DevotionalHub";
 import StudyNotesDrawer from "@/components/devotional/StudyNotesDrawer";
+import PrivacyToggle from "@/components/devotional/PrivacyToggle";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Headphones, ChevronLeft, Mic, Square, Play, Shield, BookOpen, ChevronDown } from "lucide-react";
+import { Headphones, ChevronLeft, Mic, Square, Play, Shield, BookOpen, ChevronDown, Lock } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -77,6 +78,11 @@ const Devotional = () => {
   const [completedDay, setCompletedDay] = useState<number | null>(null);
   const [encouragement, setEncouragement] = useState(() => encouragementVerses[Math.floor(Math.random() * encouragementVerses.length)]);
   const [contextOpen, setContextOpen] = useState(false);
+  // Privacy flags per field. Defaults per spec: Prayer is private by default; everything else is shared.
+  const [q1Private, setQ1Private] = useState(false);
+  const [q2Private, setQ2Private] = useState(false);
+  const [prayerPrivate, setPrayerPrivate] = useState(true);
+  const [voiceMemoPrivate, setVoiceMemoPrivate] = useState(false);
 
   // Reset context drawer when day changes
   useEffect(() => {
@@ -473,7 +479,10 @@ const Devotional = () => {
         {/* Questions */}
         <div className="mb-6 space-y-5">
           <div>
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Reflect</h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Reflect</h3>
+              <PrivacyToggle isPrivate={q1Private} onChange={setQ1Private} label="Reflection 1" />
+            </div>
             <p className="mb-3 font-serif text-base italic">
               {dayContent?.reflection_q1 || ""}
             </p>
@@ -483,8 +492,13 @@ const Devotional = () => {
               placeholder="Share your honest reflection..."
               className="min-h-[100px] rounded-xl"
             />
+            {q1Private && <PrivacyNote />}
           </div>
           <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Apply</h3>
+              <PrivacyToggle isPrivate={q2Private} onChange={setQ2Private} label="Reflection 2" />
+            </div>
             <p className="mb-3 font-serif text-base italic">
               {dayContent?.reflection_q2 || ""}
             </p>
@@ -494,25 +508,35 @@ const Devotional = () => {
               placeholder="What's the invitation here?"
               className="min-h-[100px] rounded-xl"
             />
+            {q2Private && <PrivacyNote />}
           </div>
         </div>
 
         {/* Prayer */}
         <div className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Prayer / Praise <span className="normal-case font-normal">(optional)</span></h3>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Prayer / Praise <span className="normal-case font-normal">(optional)</span>
+            </h3>
+            <PrivacyToggle isPrivate={prayerPrivate} onChange={setPrayerPrivate} label="Prayer" />
+          </div>
           <Textarea
             value={prayer}
             onChange={e => setPrayer(e.target.value)}
             placeholder="A personal prayer or praise..."
             className="min-h-[80px] rounded-xl"
           />
+          {prayerPrivate && <PrivacyNote />}
         </div>
 
         {/* Voice Memo */}
         <div className="mb-6">
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Voice Memo <span className="normal-case font-normal">(optional)</span>
-          </h3>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Voice Memo <span className="normal-case font-normal">(optional)</span>
+            </h3>
+            <PrivacyToggle isPrivate={voiceMemoPrivate} onChange={setVoiceMemoPrivate} label="Voice memo" />
+          </div>
           <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
             <button
               onClick={toggleRecording}
@@ -545,6 +569,7 @@ const Devotional = () => {
               )}
             </div>
           </div>
+          {voiceMemoPrivate && <PrivacyNote />}
         </div>
 
         {/* Discipler Notes */}
@@ -558,6 +583,15 @@ const Devotional = () => {
           </p>
           <p className="mt-2 text-xs text-muted-foreground">— Marcus, 2 days ago</p>
         </div>
+
+        <PrivacySummaryBanner
+          flags={{
+            "Q1": q1Private,
+            "Q2": q2Private,
+            "Prayer": prayerPrivate,
+            "Voice Memo": voiceMemoPrivate,
+          }}
+        />
 
         <Button
           onClick={handleSubmit}
@@ -574,3 +608,37 @@ const Devotional = () => {
 };
 
 export default Devotional;
+
+// --- Inline helpers ---
+
+const PrivacyNote = () => (
+  <div className="mt-2 flex items-start gap-1.5">
+    <Lock className="mt-[2px] h-3 w-3 shrink-0 text-muted-foreground" strokeWidth={2} />
+    <p className="font-serif text-[10px] italic text-muted-foreground">
+      Only you will see this — your group sees you submitted but not this response.
+    </p>
+  </div>
+);
+
+const PrivacySummaryBanner = ({ flags }: { flags: Record<string, boolean> }) => {
+  const lockedFields = Object.entries(flags).filter(([, v]) => v).map(([k]) => k);
+  if (lockedFields.length === 0) return null;
+  const list =
+    lockedFields.length === 1
+      ? lockedFields[0]
+      : lockedFields.slice(0, -1).join(", ") + " and " + lockedFields.slice(-1);
+  return (
+    <div
+      className="mb-4 flex items-start gap-2 rounded-xl border px-3 py-2.5"
+      style={{
+        backgroundColor: "#D8ECF5",
+        borderColor: "rgba(137,180,201,0.4)",
+      }}
+    >
+      <Lock className="mt-[2px] h-3 w-3 shrink-0" style={{ color: "#3F7A95" }} strokeWidth={2} />
+      <p className="font-serif text-[12px] italic" style={{ color: "#3F7A95" }}>
+        {list} will be kept private — your group sees you submitted but not this content.
+      </p>
+    </div>
+  );
+};
