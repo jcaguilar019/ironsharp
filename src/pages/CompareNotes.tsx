@@ -1,10 +1,10 @@
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
-const responses = [
+const responses: { name: string; q1: string; q2: string; q2Private?: boolean }[] = [
   {
     name: "You",
     q1: "This passage really convicted me about being honest with the people closest to me instead of telling them what they want to hear.",
@@ -14,6 +14,7 @@ const responses = [
     name: "Marcus",
     q1: "The line about faithful wounds hit me hard. I've been too comfortable and need people who will challenge me.",
     q2: "I need to step into vulnerability with my small group and stop performing.",
+    q2Private: true,
   },
 ];
 
@@ -59,7 +60,13 @@ const CompareNotes = () => {
               </div>
               <div className="mb-4">
                 <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Application</p>
-                <p className="text-sm leading-relaxed">{r.q2}</p>
+                {r.q2Private && r.name !== "You" ? (
+                  <p className="flex items-center gap-1.5 text-sm italic text-muted-foreground">
+                    <Lock className="h-3 w-3" strokeWidth={2} /> Kept private
+                  </p>
+                ) : (
+                  <p className="text-sm leading-relaxed">{r.q2}</p>
+                )}
               </div>
 
               <div className="flex gap-2">
