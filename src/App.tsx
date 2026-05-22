@@ -17,6 +17,7 @@ import PlanSelect from "./pages/onboarding/PlanSelect";
 import GroupSetup from "./pages/onboarding/GroupSetup";
 import Home from "./pages/Home";
 import Devotional from "./pages/Devotional";
+import CommuteMode from "./pages/CommuteMode";
 import Waiting from "./pages/Waiting";
 import CompareNotes from "./pages/CompareNotes";
 import Groups from "./pages/Groups";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/onboarding/group" element={<GroupSetup />} />
               <Route path="/home" element={<Home />} />
               <Route path="/devotional" element={<Devotional />} />
+              <Route path="/devotional/commute" element={<CommuteMode />} />
               <Route path="/waiting" element={<Waiting />} />
               <Route path="/compare" element={<CompareNotes />} />
               <Route path="/groups" element={<Groups />} />
