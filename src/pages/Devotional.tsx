@@ -3,6 +3,8 @@ import AppLayout from "@/components/AppLayout";
 import DevotionalHub from "@/components/devotional/DevotionalHub";
 import StudyNotesDrawer from "@/components/devotional/StudyNotesDrawer";
 import PrivacyToggle from "@/components/devotional/PrivacyToggle";
+import AudioOptionsDropdown from "@/components/devotional/AudioOptionsDropdown";
+import { useTTS } from "@/hooks/useSpeech";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -92,6 +94,7 @@ const Devotional = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { speak: speakAloud, cancel: cancelSpeak, speaking } = useTTS();
   const reviewMode = searchParams.get("review") === "1";
   const reviewDayParam = parseInt(searchParams.get("day") || "", 10);
 
@@ -375,9 +378,24 @@ const Devotional = () => {
             </p>
             <h1 className="font-serif text-2xl font-bold">{dayContent?.chapter || "Loading..."}</h1>
           </div>
-          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-            <Headphones className="h-5 w-5" />
-          </button>
+          <AudioOptionsDropdown
+            onListenOnly={() => {
+              if (speaking) { cancelSpeak(); return; }
+              const verses = scriptureVerses?.map(v => v.text).join(" ") || "";
+              const parts = [
+                dayContent?.chapter,
+                verses,
+                dayContent?.commentary ? `Context. ${dayContent.commentary}` : "",
+                dayContent?.reflection_q1 ? `Reflection question one. ${dayContent.reflection_q1}` : "",
+                dayContent?.reflection_q2 ? `Reflection question two. ${dayContent.reflection_q2}` : "",
+              ].filter(Boolean).join(". ");
+              speakAloud(parts);
+            }}
+            onCommuteMode={() => {
+              if (!activePlanId) return;
+              navigate(`/devotional/commute?plan=${activePlanId}&day=${currentDay}`);
+            }}
+          />
         </div>
 
         {/* Scripture */}

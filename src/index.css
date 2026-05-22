@@ -7,6 +7,10 @@
 @layer base {
   :root {
     /* Vesper (default) */
+    /* Commute Mode accents — baby blue #89B4C9 / pale #D8ECF5 */
+    --commute-blue: 200 36% 60%;
+    --commute-blue-pale: 200 60% 91%;
+    --commute-blue-ink: 200 36% 32%;
     --background: 212 32% 17%;
     --foreground: 35 30% 95%;
     --card: 212 30% 22%;
