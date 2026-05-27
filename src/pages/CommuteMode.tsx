@@ -148,7 +148,8 @@ const CommuteMode = () => {
     cancel(); stopSTT();
     if (planId) {
       const { data: { user } } = await supabase.auth.getUser();
-      const uid = user?.id || "00000000-0000-0000-0000-000000000001";
+      if (!user) return;
+      const uid = user.id;
       const { error } = await supabase
         .from("devotional_submissions")
         .upsert(
