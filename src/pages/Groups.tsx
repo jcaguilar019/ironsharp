@@ -361,11 +361,12 @@ const Groups = () => {
                         className="flex-1 rounded-xl text-xs"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toast({ title: "Settings coming soon" });
+                          setEditName(group.name);
+                          setEditGroup(group);
                         }}
                       >
-                        <Settings className="mr-1 h-3.5 w-3.5" />
-                        Settings
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Edit
                       </Button>
                     </div>
                   </div>
