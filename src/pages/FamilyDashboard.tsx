@@ -23,6 +23,9 @@ const FamilyDashboard = () => {
   return (
     <AppLayout>
       <div className="mx-auto max-w-lg px-6 py-8">
+        <div className="mb-4 rounded-xl border border-dashed border-border bg-card-deep px-4 py-3 text-center text-xs text-muted-foreground">
+          Family devotionals are a preview — full functionality coming soon.
+        </div>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-serif text-2xl font-bold">Family</h1>
           <Button variant="outline" size="sm" onClick={() => navigate("/family/parent-dashboard")} className="rounded-xl">

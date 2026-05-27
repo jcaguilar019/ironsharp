@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
-import { ChevronDown, ChevronUp, UserPlus, Settings, Plus, Check, Minus, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronUp, UserPlus, Settings, Plus, Check, Minus, GripVertical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DndContext,
   closestCenter,
@@ -33,6 +35,7 @@ const typeLabels: Record<string, string> = {
 };
 
 interface Member {
+  userId: string;
   name: string;
   role: string;
   doneToday: boolean;
@@ -46,74 +49,111 @@ interface GroupData {
   day: number;
   totalDays: number;
   streak: number;
+  inviteCode: string;
   members: Member[];
 }
 
-const mockGroups: GroupData[] = [
-  {
-    id: "1",
-    name: "Marcus & Me",
-    type: "one-on-one",
-    reference: "James 1",
-    day: 5,
-    totalDays: 7,
-    streak: 5,
-    members: [
-      { name: "You", role: "Partner", doneToday: true },
-      { name: "Marcus", role: "Partner", doneToday: true },
-    ],
-  },
-  {
-    id: "2",
-    name: "Aguilar Family",
-    type: "family",
-    reference: "Psalm 23",
-    day: 3,
-    totalDays: 14,
-    streak: 3,
-    members: [
-      { name: "You", role: "Parent", doneToday: true },
-      { name: "Sarah", role: "Parent", doneToday: true },
-      { name: "Eli", role: "Youth", doneToday: false },
-      { name: "Grace", role: "Youth", doneToday: false },
-    ],
-  },
-  {
-    id: "3",
-    name: "The Forge",
-    type: "small-group",
-    reference: "Romans 8",
-    day: 10,
-    totalDays: 30,
-    streak: 7,
-    members: [
-      { name: "You", role: "Leader", doneToday: true },
-      { name: "Marcus", role: "Member", doneToday: true },
-      { name: "David", role: "Member", doneToday: true },
-      { name: "James", role: "Member", doneToday: false },
-      { name: "Peter", role: "Member", doneToday: false },
-    ],
-  },
-];
-
 const Groups = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [loading, setLoading] = useState(true);
   const ORDER_KEY = "ironsharp.groups_order";
-  const [order, setOrder] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(ORDER_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as string[];
-        // Ensure any new groups not in saved order are appended
-        const ids = mockGroups.map((g) => g.id);
-        const merged = [...parsed.filter((id) => ids.includes(id)), ...ids.filter((id) => !parsed.includes(id))];
-        return merged;
-      }
-    } catch {}
-    return mockGroups.map((g) => g.id);
-  });
+  const [order, setOrder] = useState<string[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      // 1. Groups the user is a member of
+      const { data: gms } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id);
+      const groupIds = (gms || []).map((g) => g.group_id);
+      if (!groupIds.length) { setGroups([]); setLoading(false); return; }
+
+      // 2. Group details
+      const { data: gs } = await supabase
+        .from("groups")
+        .select("id, name, group_type, current_plan_id, current_day, streak_count, invite_code")
+        .in("id", groupIds);
+
+      // 3. All members across those groups
+      const { data: members } = await supabase
+        .from("group_members")
+        .select("group_id, user_id, member_role")
+        .in("group_id", groupIds);
+
+      // 4. Profiles for those members
+      const memberIds = Array.from(new Set((members || []).map((m) => m.user_id)));
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", memberIds);
+      const profileMap = new Map((profiles || []).map((p) => [p.user_id, p.display_name as string]));
+
+      // 5. Plans + day chapter
+      const planIds = Array.from(new Set((gs || []).map((g) => g.current_plan_id).filter(Boolean))) as string[];
+      const { data: plans } = planIds.length
+        ? await supabase.from("devotional_plans").select("id, title, total_days").in("id", planIds)
+        : { data: [] as any[] };
+      const planMap = new Map((plans || []).map((p) => [p.id, p]));
+      const { data: days } = planIds.length
+        ? await supabase.from("devotional_days").select("plan_id, day_number, chapter").in("plan_id", planIds)
+        : { data: [] as any[] };
+
+      // 6. Today's submissions for those members at each group's current day
+      const { data: subs } = await supabase
+        .from("devotional_submissions")
+        .select("user_id, plan_id, day_number, submitted_at")
+        .in("user_id", memberIds);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const submittedKey = new Set(
+        (subs || [])
+          .filter((s) => new Date(s.submitted_at) >= today)
+          .map((s) => `${s.user_id}|${s.plan_id}|${s.day_number}`)
+      );
+
+      const built: GroupData[] = (gs || []).map((g) => {
+        const plan = g.current_plan_id ? planMap.get(g.current_plan_id) : null;
+        const day = (days || []).find((d) => d.plan_id === g.current_plan_id && d.day_number === g.current_day);
+        const gMembers = (members || []).filter((m) => m.group_id === g.id).map((m) => ({
+          userId: m.user_id,
+          name: m.user_id === user.id ? "You" : (profileMap.get(m.user_id) || "Member"),
+          role: m.member_role.charAt(0).toUpperCase() + m.member_role.slice(1),
+          doneToday: g.current_plan_id
+            ? submittedKey.has(`${m.user_id}|${g.current_plan_id}|${g.current_day}`)
+            : false,
+        }));
+        return {
+          id: g.id,
+          name: g.name,
+          type: g.group_type as GroupData["type"],
+          reference: day?.chapter || (plan?.title ?? "No plan yet"),
+          day: g.current_day,
+          totalDays: plan?.total_days ?? 0,
+          streak: g.streak_count,
+          inviteCode: g.invite_code,
+          members: gMembers,
+        };
+      });
+
+      setGroups(built);
+      // restore order
+      try {
+        const saved = localStorage.getItem(ORDER_KEY);
+        const parsed = saved ? (JSON.parse(saved) as string[]) : [];
+        const ids = built.map((g) => g.id);
+        const merged = [...parsed.filter((id) => ids.includes(id)), ...ids.filter((id) => !parsed.includes(id))];
+        setOrder(merged);
+      } catch {
+        setOrder(built.map((g) => g.id));
+      }
+      setLoading(false);
+    })();
+  }, [user]);
 
   const persistOrder = (next: string[]) => {
     setOrder(next);
@@ -136,7 +176,7 @@ const Groups = () => {
   };
 
   const orderedGroups = order
-    .map((id) => mockGroups.find((g) => g.id === id))
+    .map((id) => groups.find((g) => g.id === id))
     .filter(Boolean) as GroupData[];
 
   return (
@@ -149,6 +189,17 @@ const Groups = () => {
         <p className="mb-4 mt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Drag to reorder
         </p>
+
+        {loading && (
+          <div className="flex items-center justify-center py-12 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        )}
+        {!loading && groups.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No groups yet. Start one below.
+          </div>
+        )}
 
         <DndContext
           sensors={sensors}
@@ -210,8 +261,8 @@ const Groups = () => {
                         className="flex-1 rounded-xl text-xs"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigator.clipboard.writeText("IRON2024");
-                          toast({ title: "Invite code copied!" });
+                          navigator.clipboard.writeText(group.inviteCode);
+                          toast({ title: "Invite code copied!", description: group.inviteCode });
                         }}
                       >
                         <UserPlus className="mr-1 h-3.5 w-3.5" />

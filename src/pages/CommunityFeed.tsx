@@ -75,7 +75,10 @@ const CommunityFeed = () => {
         </div>
 
         <h1 className="mb-1 font-serif text-2xl font-bold">Community</h1>
-        <p className="mb-5 text-sm text-muted-foreground">Shared devotionals & reflections</p>
+        <p className="mb-3 text-sm text-muted-foreground">Shared devotionals & reflections</p>
+        <div className="mb-5 rounded-xl border border-dashed border-border bg-card-deep px-4 py-3 text-center text-xs text-muted-foreground">
+          Community feed is a preview — sharing and posting coming soon.
+        </div>
 
         {/* Filters */}
         <div className="mb-5 flex gap-2">

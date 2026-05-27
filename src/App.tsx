@@ -24,6 +24,7 @@ import Groups from "./pages/Groups";
 import ThemePicker from "./pages/ThemePicker";
 import Profile from "./pages/Profile";
 import SettingsPage from "./pages/SettingsPage";
+import Analytics from "./pages/Analytics";
 import CommunityFeed from "./pages/CommunityFeed";
 import DisciplerNotes from "./pages/DisciplerNotes";
 import FamilyDashboard from "./pages/FamilyDashboard";
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="/themes" element={<ThemePicker />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/community" element={<CommunityFeed />} />
               <Route path="/discipler-notes" element={<DisciplerNotes />} />

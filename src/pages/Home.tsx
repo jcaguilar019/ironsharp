@@ -23,10 +23,18 @@ const Home = () => {
   const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
   const [activeDevotional, setActiveDevotional] = useState<ActiveDevotional | null>(null);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("streak_count")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profile) setStreak(profile.streak_count ?? 0);
+
       // Get user's most recent active plan
       const { data: progress } = await supabase
         .from("user_plan_progress")
@@ -74,7 +82,7 @@ const Home = () => {
           <h1 className="font-serif text-2xl font-bold">{greeting}, {firstName}</h1>
           <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1">
             <Flame className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">5 day streak</span>
+            <span className="text-sm font-semibold text-primary">{streak} day streak</span>
           </div>
         </div>
 
@@ -119,6 +127,7 @@ const Home = () => {
             <Globe className="h-5 w-5 text-primary" />
             <div className="text-center">
               <span className="text-sm font-medium">Community Devotional</span>
+              <p className="text-[10px] text-muted-foreground">Coming Soon</p>
             </div>
           </button>
           <button
