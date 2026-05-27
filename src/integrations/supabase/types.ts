@@ -306,6 +306,16 @@ export type Database = {
           id: string
           primary_role: string
           streak_count: number
+          survey_age_range: string | null
+          survey_church_name: string | null
+          survey_completed_at: string | null
+          survey_devotional_rating: number | null
+          survey_education: string | null
+          survey_faith_journey: string | null
+          survey_goals: string[] | null
+          survey_has_church: boolean | null
+          survey_name: string | null
+          survey_state: string | null
           total_completed: number
           updated_at: string
           user_id: string
@@ -318,6 +328,16 @@ export type Database = {
           id?: string
           primary_role?: string
           streak_count?: number
+          survey_age_range?: string | null
+          survey_church_name?: string | null
+          survey_completed_at?: string | null
+          survey_devotional_rating?: number | null
+          survey_education?: string | null
+          survey_faith_journey?: string | null
+          survey_goals?: string[] | null
+          survey_has_church?: boolean | null
+          survey_name?: string | null
+          survey_state?: string | null
           total_completed?: number
           updated_at?: string
           user_id: string
@@ -330,6 +350,16 @@ export type Database = {
           id?: string
           primary_role?: string
           streak_count?: number
+          survey_age_range?: string | null
+          survey_church_name?: string | null
+          survey_completed_at?: string | null
+          survey_devotional_rating?: number | null
+          survey_education?: string | null
+          survey_faith_journey?: string | null
+          survey_goals?: string[] | null
+          survey_has_church?: boolean | null
+          survey_name?: string | null
+          survey_state?: string | null
           total_completed?: number
           updated_at?: string
           user_id?: string
