@@ -12,6 +12,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import CompleteProfile from "./pages/onboarding/CompleteProfile";
+import OnboardingSurvey from "./pages/onboarding/OnboardingSurvey";
 import RoleSelect from "./pages/onboarding/RoleSelect";
 import PlanSelect from "./pages/onboarding/PlanSelect";
 import GroupSetup from "./pages/onboarding/GroupSetup";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/onboarding/profile" element={<CompleteProfile />} />
+              <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
               <Route path="/onboarding/role" element={<RoleSelect />} />
               <Route path="/onboarding/plan" element={<PlanSelect />} />
               <Route path="/onboarding/group" element={<GroupSetup />} />
