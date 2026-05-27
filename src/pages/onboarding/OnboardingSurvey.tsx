@@ -115,7 +115,8 @@ const OnboardingSurvey = () => {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({
+      .upsert({
+        user_id: user.id,
         display_name: a.name,
         survey_name: a.name,
         survey_age_range: a.age,
@@ -127,8 +128,7 @@ const OnboardingSurvey = () => {
         survey_faith_journey: a.faith,
         survey_goals: a.goals,
         survey_completed_at: new Date().toISOString(),
-      })
-      .eq("user_id", user.id);
+      }, { onConflict: "user_id" });
     setSaving(false);
     if (error) {
       toast({ title: "Couldn't save survey", description: error.message, variant: "destructive" });
