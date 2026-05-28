@@ -304,6 +304,10 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          membership_expires_at: string | null
+          membership_source: string
+          membership_started_at: string | null
+          membership_tier: string
           primary_role: string
           streak_count: number
           survey_age_range: string | null
@@ -326,6 +330,10 @@ export type Database = {
           created_at?: string
           display_name: string
           id?: string
+          membership_expires_at?: string | null
+          membership_source?: string
+          membership_started_at?: string | null
+          membership_tier?: string
           primary_role?: string
           streak_count?: number
           survey_age_range?: string | null
@@ -348,6 +356,10 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
+          membership_expires_at?: string | null
+          membership_source?: string
+          membership_started_at?: string | null
+          membership_tier?: string
           primary_role?: string
           streak_count?: number
           survey_age_range?: string | null
