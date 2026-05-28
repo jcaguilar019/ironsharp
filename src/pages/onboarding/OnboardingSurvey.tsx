@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import PostOnboardingBanner from "@/components/PostOnboardingBanner";
 
 const US_STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
 
@@ -69,6 +70,8 @@ const OnboardingSurvey = () => {
   const { user, loading } = useAuth();
   const [step, setStep] = useState(1); // 1..8 questions, 9 closing
   const [saving, setSaving] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
+  const [bannerShown, setBannerShown] = useState(false);
   const [a, setA] = useState<Answers>({
     name: "",
     age: "",
@@ -84,6 +87,13 @@ const OnboardingSurvey = () => {
   useEffect(() => {
     if (!loading && !user) navigate("/login", { replace: true });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (step === 9 && !bannerShown) {
+      setShowBanner(true);
+      setBannerShown(true);
+    }
+  }, [step, bannerShown]);
 
   const canContinue = (() => {
     switch (step) {
@@ -351,6 +361,8 @@ const OnboardingSurvey = () => {
           )}
         </div>
       </div>
+
+      {showBanner && <PostOnboardingBanner onDismiss={() => setShowBanner(false)} />}
     </div>
   );
 };
