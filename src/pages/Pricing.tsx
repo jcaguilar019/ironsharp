@@ -51,7 +51,7 @@ const Pricing = () => {
           </p>
         </div>
 
-        <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2">
+        <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible px-6 pb-2 pt-4">
           {TIERS.map((t) => {
             const isCurrent = currentTier === t.id;
             const isPaid = t.id !== "free";
@@ -63,7 +63,7 @@ const Pricing = () => {
               >
                 {t.mostPopular && (
                   <div
-                    className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                    className="absolute left-1/2 -top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-md"
                     style={{ background: t.color }}
                   >
                     Most Popular
