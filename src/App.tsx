@@ -41,6 +41,7 @@ import CompletedPlanReview from "./pages/CompletedPlanReview";
 import HelpCenter from "./pages/HelpCenter";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -59,35 +60,35 @@ const App = () => (
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/onboarding/profile" element={<CompleteProfile />} />
-              <Route path="/onboarding/survey" element={<OnboardingSurvey />} />
-              <Route path="/onboarding/role" element={<RoleSelect />} />
-              <Route path="/onboarding/plan" element={<PlanSelect />} />
-              <Route path="/onboarding/group" element={<GroupSetup />} />
-              <Route path="/home" element={<Home />} />
-              <Route path="/devotional" element={<Devotional />} />
-              <Route path="/devotional/commute" element={<CommuteMode />} />
-              <Route path="/waiting" element={<Waiting />} />
-              <Route path="/compare" element={<CompareNotes />} />
-              <Route path="/groups" element={<Groups />} />
-              <Route path="/plans" element={<Plans />} />
-              <Route path="/plans/completed" element={<CompletedPlans />} />
-              <Route path="/plans/completed/:planId" element={<CompletedPlanReview />} />
-              <Route path="/plans/:category" element={<PlanList />} />
-              <Route path="/themes" element={<ThemePicker />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/help" element={<HelpCenter />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/community" element={<CommunityFeed />} />
-              <Route path="/discipler-notes" element={<DisciplerNotes />} />
-              <Route path="/family" element={<FamilyDashboard />} />
-              <Route path="/onboarding/family" element={<FamilyOnboarding />} />
-              <Route path="/family/add-child" element={<AddChildProfile />} />
-              <Route path="/family/parent-dashboard" element={<ParentDashboard />} />
-              <Route path="/youth/home" element={<YouthHome />} />
-              <Route path="/youth/devotional" element={<YouthDevotional />} />
+              <Route path="/onboarding/profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
+              <Route path="/onboarding/survey" element={<ProtectedRoute><OnboardingSurvey /></ProtectedRoute>} />
+              <Route path="/onboarding/role" element={<ProtectedRoute><RoleSelect /></ProtectedRoute>} />
+              <Route path="/onboarding/plan" element={<ProtectedRoute><PlanSelect /></ProtectedRoute>} />
+              <Route path="/onboarding/group" element={<ProtectedRoute><GroupSetup /></ProtectedRoute>} />
+              <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path="/devotional" element={<ProtectedRoute><Devotional /></ProtectedRoute>} />
+              <Route path="/devotional/commute" element={<ProtectedRoute><CommuteMode /></ProtectedRoute>} />
+              <Route path="/waiting" element={<ProtectedRoute><Waiting /></ProtectedRoute>} />
+              <Route path="/compare" element={<ProtectedRoute><CompareNotes /></ProtectedRoute>} />
+              <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+              <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+              <Route path="/plans/completed" element={<ProtectedRoute><CompletedPlans /></ProtectedRoute>} />
+              <Route path="/plans/completed/:planId" element={<ProtectedRoute><CompletedPlanReview /></ProtectedRoute>} />
+              <Route path="/plans/:category" element={<ProtectedRoute><PlanList /></ProtectedRoute>} />
+              <Route path="/themes" element={<ProtectedRoute><ThemePicker /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
+              <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
+              <Route path="/community" element={<ProtectedRoute><CommunityFeed /></ProtectedRoute>} />
+              <Route path="/discipler-notes" element={<ProtectedRoute><DisciplerNotes /></ProtectedRoute>} />
+              <Route path="/family" element={<ProtectedRoute><FamilyDashboard /></ProtectedRoute>} />
+              <Route path="/onboarding/family" element={<ProtectedRoute><FamilyOnboarding /></ProtectedRoute>} />
+              <Route path="/family/add-child" element={<ProtectedRoute><AddChildProfile /></ProtectedRoute>} />
+              <Route path="/family/parent-dashboard" element={<ProtectedRoute><ParentDashboard /></ProtectedRoute>} />
+              <Route path="/youth/home" element={<ProtectedRoute><YouthHome /></ProtectedRoute>} />
+              <Route path="/youth/devotional" element={<ProtectedRoute><YouthDevotional /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
