@@ -1,10 +1,33 @@
-Replace the hardcoded placeholder "Shared Plans" list in `src/components/devotional/DevotionalHub.tsx` with a real empty state since the user has no shared plans.
+## Goal
+Wipe everything: all 3 login accounts and every row of user-generated data, leaving only the public devotional content (plans, days, study notes). This cannot be undone.
 
-**Changes to `src/components/devotional/DevotionalHub.tsx`:**
-- Remove the `defaultPlaceholders` array, the drag-to-reorder DnD setup, the `ORDER_KEY` localStorage, and the `SortablePlanRow` component (all dead weight once the placeholders go).
-- Query real shared plans for the user (community / partner / family / group). For now, since no shared-plan data sources exist yet, render an empty state by default:
-  - Section header: `Shared Plans` (drop the "Drag to reorder" suffix when empty).
-  - Empty card matching the "No active plan yet" style: title **"No active shared plans"**, subtitle **"Join a group or pair with a discipler to start a shared plan."**, secondary button **"Find a Group →"** routing to `/groups`.
-- Keep the personal-plan hero exactly as it is.
+## What gets deleted
+- All login accounts (auth users) — 3
+- Profiles (9 rows)
+- Groups (3) and group memberships
+- Devotional submissions and reactions
+- User plan progress
+- Disciple relationships and discipler notes
 
-No DB or routing changes. Purely a frontend cleanup of the Devotionals hub.
+## What stays
+- `devotional_plans`, `devotional_days`, `study_notes` (public content, no user data)
+
+## How
+Run a single data-clearing operation that empties all user-data tables, then removes the auth login accounts. Order matters so nothing is left orphaned:
+
+```text
+1. submission_reactions
+2. discipler_notes
+3. disciple_relationships
+4. devotional_submissions
+5. user_plan_progress
+6. group_members
+7. groups
+8. profiles
+9. auth users (login accounts)
+```
+
+After this, the app will have zero users; anyone can sign up fresh and the `handle_new_user` trigger recreates their profile automatically.
+
+## Note
+Once you approve and I switch to build mode, I'll execute the deletions. There is no recovery after this runs.
