@@ -54,6 +54,7 @@ profile.patch("/", async (c) => {
     "surveyName",
     "surveyAgeRange",
     "surveyState",
+    "surveyCity",
     "surveyEducation",
     "surveyHasChurch",
     "surveyChurchName",
@@ -70,12 +71,27 @@ profile.patch("/", async (c) => {
   }
   updatable.updatedAt = new Date();
 
-  const [row] = await db
+  // Try an update first; if no row exists yet (e.g. the GET lazily-create
+  // never ran), fall back to an upsert so the client is never blocked.
+  let [row] = await db
     .update(profiles)
     .set(updatable)
     .where(eq(profiles.userId, userId))
     .returning();
 
-  if (!row) return c.json({ error: "Profile not found" }, 404);
+  if (!row) {
+    const { email, name } = c.var.user;
+    const displayName =
+      (updatable.displayName as string | undefined) ??
+      name?.trim() ??
+      email?.split("@")[0] ??
+      "Friend";
+    [row] = await db
+      .insert(profiles)
+      .values({ userId, displayName, ...updatable })
+      .onConflictDoUpdate({ target: profiles.userId, set: updatable })
+      .returning();
+  }
+
   return c.json({ profile: row });
 });

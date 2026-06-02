@@ -6,8 +6,10 @@ export type OnboardingRole = "discipler" | "disciple" | "partner";
 export type OnboardingSurvey = {
   ageRange: string | null;
   state: string;
+  city: string;
   education: string | null;
   hasChurch: boolean | null;
+  churchName: string;
   devotionalRating: number | null;
   faithJourney: string | null;
   goals: string[];
@@ -15,7 +17,6 @@ export type OnboardingSurvey = {
 
 type OnboardingState = {
   displayName: string;
-  churchName: string;
   role: OnboardingRole | null;
   planId: string | null;
   survey: OnboardingSurvey;
@@ -24,8 +25,10 @@ type OnboardingState = {
 const DEFAULT_SURVEY: OnboardingSurvey = {
   ageRange: null,
   state: "",
+  city: "",
   education: null,
   hasChurch: null,
+  churchName: "",
   devotionalRating: null,
   faithJourney: null,
   goals: [],
@@ -47,7 +50,6 @@ export function useOnboarding() {
 export default function OnboardingLayout() {
   const [state, setState] = useState<OnboardingState>({
     displayName: "",
-    churchName: "",
     role: null,
     planId: null,
     survey: DEFAULT_SURVEY,

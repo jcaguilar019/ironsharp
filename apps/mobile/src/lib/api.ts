@@ -72,6 +72,7 @@ export type Profile = {
   surveyName: string | null;
   surveyAgeRange: string | null;
   surveyState: string | null;
+  surveyCity: string | null;
   surveyEducation: string | null;
   surveyHasChurch: boolean | null;
   surveyChurchName: string | null;
@@ -108,6 +109,9 @@ export type Submission = {
   response1: string | null;
   response2: string | null;
   prayer: string | null;
+  voiceMemoUrl: string | null;
+  audioQ1Url: string | null;
+  audioQ2Url: string | null;
   q1Private: boolean;
   q2Private: boolean;
   prayerPrivate: boolean;
@@ -164,6 +168,8 @@ export const ApiClient = {
     response1?: string;
     response2?: string;
     prayer?: string;
+    audioQ1Url?: string;
+    audioQ2Url?: string;
     q1Private?: boolean;
     q2Private?: boolean;
     prayerPrivate?: boolean;

@@ -1,60 +1,81 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { Check } from "lucide-react-native";
+import { ArrowLeft, Check, ChevronDown } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useOnboarding } from "./_layout";
 
-const AGE_OPTIONS = ["Under 18", "18–24", "25–34", "35–44", "45–54", "55+"];
+const TOTAL_STEPS = 8;
+
+const AGE_OPTIONS = ["Under 18", "18 - 24", "25 - 34", "35 - 44", "45 - 54", "55 and older"];
+
 const EDU_OPTIONS = [
+  "Grades 6–12",
   "Still in high school",
   "In college or trade school",
   "College graduate",
   "Postgraduate degree",
   "I took a different path",
 ];
+
 const FAITH_OPTIONS = [
-  "Just getting started — I’m new to Christianity",
-  "Growing — I believe and I’m trying to go deeper",
-  "Established — I’ve walked with God for years",
-  "Returning — I’m coming back after some time away",
-  "Exploring — I’m open but not sure what I believe yet",
-];
-const GOAL_OPTIONS = [
-  "Help me be consistent in my time with God",
-  "I want real accountability, not just a plan",
-  "Become who God is calling me to be",
-  "Faith in my home, not just on Sundays",
-  "Pour into someone else’s life",
-  "Get back on track with God",
+  "Just getting started — I'm new to Christianity",
+  "Growing — I believe and I'm trying to go deeper",
+  "Established — I've walked with God for years",
+  "Returning — I'm coming back after some time away",
+  "Exploring — I'm not sure what I believe yet but I'm open",
 ];
 
-function Chip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+const GOAL_OPTIONS = [
+  "I need help being consistent in my time with God",
+  "I'm looking for real accountability, not just a reading plan",
+  "I want to become who God is calling me to be",
+  "I want faith to be part of our home, not just Sundays",
+  "I want to pour into someone else's life",
+  "I want to get back on track with my relationship with God",
+];
+
+const US_STATES = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
+  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
+  "Washington", "West Virginia", "Wisconsin", "Wyoming",
+];
+
+type ChurchOption = "yes" | "no" | "looking" | null;
+
+function ProgressBar({ step }: { step: number }) {
   return (
-    <Pressable
-      onPress={onPress}
-      className={`rounded-full border-2 px-4 py-2 ${
-        active ? "border-primary bg-primary/10" : "border-border bg-card"
-      }`}
-    >
-      <Text
-        className={`text-sm ${
-          active ? "font-sans-semibold text-foreground" : "text-muted-foreground"
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
+    <View className="px-6 pt-4 pb-2">
+      <View className="mb-1.5 flex-row items-center justify-between">
+        <Text className="text-xs font-sans-medium text-muted-foreground">
+          {step} of {TOTAL_STEPS}
+        </Text>
+      </View>
+      <View className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <View
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -63,24 +84,31 @@ function ListOption({
   active,
   onPress,
   multi,
+  disabled,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
   multi?: boolean;
+  disabled?: boolean;
 }) {
   const checkColor = useThemeColor("primary-foreground");
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center gap-3 rounded-xl border-2 p-3 ${
-        active ? "border-primary bg-primary/5" : "border-border bg-card"
+      disabled={disabled}
+      className={`flex-row items-center gap-3 rounded-xl border-2 p-3.5 ${
+        active
+          ? "border-primary bg-primary/5"
+          : disabled
+          ? "border-border bg-card opacity-40"
+          : "border-border bg-card active:opacity-70"
       }`}
     >
       <View
-        className={`h-6 w-6 items-center justify-center ${
-          multi ? "rounded-md" : "rounded-full"
-        } ${active ? "bg-primary" : "border-2 border-border bg-card"}`}
+        className={`h-6 w-6 items-center justify-center ${multi ? "rounded-md" : "rounded-full"} ${
+          active ? "bg-primary" : "border-2 border-border bg-card"
+        }`}
       >
         {active ? <Check size={14} color={checkColor} strokeWidth={3} /> : null}
       </View>
@@ -89,155 +117,361 @@ function ListOption({
   );
 }
 
-function Section({
-  title,
-  required,
-  children,
-}: {
-  title: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="mb-6">
-      <Text className="mb-2 px-1 font-sans-semibold text-sm text-foreground">
-        {title}
-        {required ? null : (
-          <Text className="text-muted-foreground"> (optional)</Text>
-        )}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-export default function OnboardingSurveyScreen() {
+export default function OnboardingSurvey() {
   const router = useRouter();
-  const { survey, setSurvey } = useOnboarding();
+  const { displayName, survey, set, setSurvey } = useOnboarding();
+  const primaryColor = useThemeColor("primary");
+  const mutedColor = useThemeColor("muted-foreground");
 
-  const toggleGoal = (g: string) => {
-    setSurvey({
-      goals: survey.goals.includes(g)
-        ? survey.goals.filter((x) => x !== g)
-        : [...survey.goals, g],
-    });
+  const [step, setStep] = useState(1);
+  const scrollRef = useRef<ScrollView>(null);
+  const [statePickerOpen, setStatePickerOpen] = useState(false);
+
+  // Local answers — committed to context when Finish is pressed
+  const [name, setName] = useState(displayName);
+  const [ageRange, setAgeRange] = useState(survey.ageRange ?? "");
+  const [usState, setUsState] = useState(survey.state ?? "");
+  const [city, setCity] = useState(survey.city ?? "");
+  const [education, setEducation] = useState(survey.education ?? "");
+  const [churchOption, setChurchOption] = useState<ChurchOption>(
+    survey.hasChurch === true ? "yes" : survey.hasChurch === false ? "no" : null
+  );
+  const [churchName, setChurchName] = useState(survey.churchName ?? "");
+  const [devotionalRating, setDevotionalRating] = useState<number | null>(survey.devotionalRating);
+  const [faithJourney, setFaithJourney] = useState(survey.faithJourney ?? "");
+  const [goals, setGoals] = useState<string[]>(survey.goals ?? []);
+
+  const canContinue =
+    step === 1 ? name.trim().length > 0 :
+    step === 2 ? !!ageRange :
+    step === 3 ? !!usState :
+    step === 4 ? !!education :
+    step === 5 ? churchOption !== null :
+    step === 6 ? devotionalRating !== null :
+    step === 7 ? !!faithJourney :
+    step === 8 ? goals.length > 0 :
+    false;
+
+  const goNext = () => {
+    if (step < TOTAL_STEPS) {
+      setStep((s) => s + 1);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    } else {
+      set({ displayName: name.trim() });
+      setSurvey({
+        ageRange: ageRange || null,
+        state: usState,
+        city,
+        education: education || null,
+        hasChurch: churchOption === "yes" ? true : churchOption === "no" ? false : false,
+        churchName: churchOption === "yes" ? churchName : "",
+        devotionalRating,
+        faithJourney: faithJourney || null,
+        goals,
+      });
+      router.push("/onboarding/welcome");
+    }
   };
 
-  // Survey is best-effort; only the meaningful pieces unlock the button.
-  const canContinue =
-    !!survey.ageRange && !!survey.faithJourney && survey.goals.length > 0;
+  const goBack = () => {
+    if (step > 1) {
+      setStep((s) => s - 1);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  };
+
+  const toggleGoal = (g: string) => {
+    setGoals((prev) =>
+      prev.includes(g) ? prev.filter((x) => x !== g) : prev.length < 2 ? [...prev, g] : prev
+    );
+  };
 
   return (
     <Screen edges={["top"]}>
-      <ScrollView
-        contentContainerClassName="mx-auto w-full max-w-lg px-6 pb-32 pt-6"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      {/* Top bar: progress + back arrow */}
+      <View>
+        {step > 1 && (
+          <Pressable
+            onPress={goBack}
+            className="absolute left-3 top-3 z-10 p-2"
+            hitSlop={8}
+          >
+            <ArrowLeft size={22} color={mutedColor} />
+          </Pressable>
+        )}
+        {step > 1 ? <ProgressBar step={step} /> : <View className="pt-6" />}
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
       >
-        <Text className="font-serif text-3xl font-bold text-foreground">
-          A bit about you
-        </Text>
-        <Text className="mb-8 mt-2 text-sm text-muted-foreground">
-          Helps us point you to plans and people that fit. Skip anything that
-          doesn’t feel right.
-        </Text>
-
-        <Section title="Age range" required>
-          <View className="flex-row flex-wrap gap-2">
-            {AGE_OPTIONS.map((opt) => (
-              <Chip
-                key={opt}
-                label={opt}
-                active={survey.ageRange === opt}
-                onPress={() => setSurvey({ ageRange: opt })}
+        <ScrollView
+          ref={scrollRef}
+          contentContainerClassName="px-6 pb-36 pt-4"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── Q1: Name ── */}
+          {step === 1 && (
+            <View>
+              <Text className="font-serif text-3xl font-bold leading-snug text-foreground mb-8">
+                Hey, thanks for signing up! It's a pleasure to walk alongside you. What's your name?
+              </Text>
+              <Input
+                placeholder="Your name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => { if (canContinue) goNext(); }}
               />
-            ))}
-          </View>
-        </Section>
+            </View>
+          )}
 
-        <Section title="State">
-          <Input
-            placeholder="e.g. California"
-            value={survey.state}
-            onChangeText={(v) => setSurvey({ state: v })}
-            autoCapitalize="words"
-          />
-        </Section>
+          {/* ── Q2: Age ── */}
+          {step === 2 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold text-foreground mb-6">
+                How old are you?
+              </Text>
+              <View className="gap-2.5">
+                {AGE_OPTIONS.map((opt) => (
+                  <ListOption
+                    key={opt}
+                    label={opt}
+                    active={ageRange === opt}
+                    onPress={() => setAgeRange(opt)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
 
-        <Section title="Education">
-          <View className="gap-2">
-            {EDU_OPTIONS.map((opt) => (
-              <ListOption
-                key={opt}
-                label={opt}
-                active={survey.education === opt}
-                onPress={() => setSurvey({ education: opt })}
-              />
-            ))}
-          </View>
-        </Section>
+          {/* ── Q3: State + City ── */}
+          {step === 3 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold text-foreground mb-6">
+                Where are you based?
+              </Text>
+              <Pressable
+                onPress={() => setStatePickerOpen(true)}
+                className="h-12 flex-row items-center justify-between rounded-xl border border-input bg-card px-4"
+              >
+                <Text
+                  className={`text-base font-sans ${usState ? "text-foreground" : "text-muted-foreground"}`}
+                >
+                  {usState || "Select your state"}
+                </Text>
+                <ChevronDown size={18} color={mutedColor} />
+              </Pressable>
 
-        <Section title="Do you have a home church?">
-          <View className="flex-row flex-wrap gap-2">
-            <Chip
-              label="Yes"
-              active={survey.hasChurch === true}
-              onPress={() => setSurvey({ hasChurch: true })}
-            />
-            <Chip
-              label="No"
-              active={survey.hasChurch === false}
-              onPress={() => setSurvey({ hasChurch: false })}
-            />
-          </View>
-        </Section>
+              {usState ? (
+                <View className="mt-4">
+                  <Input
+                    label="And your city?"
+                    placeholder="Your city (optional)"
+                    value={city}
+                    onChangeText={setCity}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                  />
+                </View>
+              ) : null}
 
-        <Section title="How would you rate your devotional life right now? (1–5)">
-          <View className="flex-row gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Chip
-                key={n}
-                label={String(n)}
-                active={survey.devotionalRating === n}
-                onPress={() => setSurvey({ devotionalRating: n })}
-              />
-            ))}
-          </View>
-        </Section>
+              <Modal
+                visible={statePickerOpen}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setStatePickerOpen(false)}
+              >
+                <Pressable
+                  className="flex-1 bg-black/50"
+                  onPress={() => setStatePickerOpen(false)}
+                />
+                <View className="bg-background rounded-t-2xl" style={{ maxHeight: "60%" }}>
+                  <View className="flex-row items-center justify-between border-b border-border px-5 py-4">
+                    <Text className="font-sans-semibold text-base text-foreground">
+                      Select your state
+                    </Text>
+                    <Pressable onPress={() => setStatePickerOpen(false)} hitSlop={8}>
+                      <Text className="font-sans-semibold text-sm text-primary">Done</Text>
+                    </Pressable>
+                  </View>
+                  <FlatList
+                    data={US_STATES}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        onPress={() => {
+                          setUsState(item);
+                          setStatePickerOpen(false);
+                        }}
+                        className="flex-row items-center justify-between border-b border-border/50 px-5 py-3.5"
+                      >
+                        <Text className="font-sans text-base text-foreground">{item}</Text>
+                        {usState === item && <Check size={16} color={primaryColor} />}
+                      </Pressable>
+                    )}
+                  />
+                </View>
+              </Modal>
+            </View>
+          )}
 
-        <Section title="Where would you say you are on your faith journey?" required>
-          <View className="gap-2">
-            {FAITH_OPTIONS.map((opt) => (
-              <ListOption
-                key={opt}
-                label={opt}
-                active={survey.faithJourney === opt}
-                onPress={() => setSurvey({ faithJourney: opt })}
-              />
-            ))}
-          </View>
-        </Section>
+          {/* ── Q4: Education ── */}
+          {step === 4 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold text-foreground mb-6">
+                Where are you in your education?
+              </Text>
+              <View className="gap-2.5">
+                {EDU_OPTIONS.map((opt) => (
+                  <ListOption
+                    key={opt}
+                    label={opt}
+                    active={education === opt}
+                    onPress={() => setEducation(opt)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
 
-        <Section title="What are you hoping IronSharp helps you with? (pick any)" required>
-          <View className="gap-2">
-            {GOAL_OPTIONS.map((opt) => (
-              <ListOption
-                key={opt}
-                label={opt}
-                active={survey.goals.includes(opt)}
-                onPress={() => toggleGoal(opt)}
-                multi
-              />
-            ))}
-          </View>
-        </Section>
-      </ScrollView>
+          {/* ── Q5: Church ── */}
+          {step === 5 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold text-foreground mb-6">
+                Do you belong to a church?
+              </Text>
+              <View className="gap-2.5">
+                <ListOption
+                  label="Yes"
+                  active={churchOption === "yes"}
+                  onPress={() => setChurchOption("yes")}
+                />
+                <ListOption
+                  label="No"
+                  active={churchOption === "no"}
+                  onPress={() => { setChurchOption("no"); setChurchName(""); }}
+                />
+                <ListOption
+                  label="Not currently but looking"
+                  active={churchOption === "looking"}
+                  onPress={() => { setChurchOption("looking"); setChurchName(""); }}
+                />
+              </View>
+              {churchOption === "yes" && (
+                <View className="mt-4">
+                  <Input
+                    placeholder="What's the name of your church? (optional)"
+                    value={churchName}
+                    onChangeText={setChurchName}
+                    autoCapitalize="words"
+                  />
+                </View>
+              )}
+            </View>
+          )}
 
+          {/* ── Q6: Devotional rating ── */}
+          {step === 6 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
+                How would you rate your current devotional life and time with God?
+              </Text>
+              <Text className="mb-8 text-sm text-muted-foreground">
+                Be honest — that's what this is for.
+              </Text>
+              <View className="flex-row gap-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Pressable
+                    key={n}
+                    onPress={() => setDevotionalRating(n)}
+                    className={`flex-1 items-center justify-center rounded-xl border-2 py-5 ${
+                      devotionalRating === n
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-card active:opacity-70"
+                    }`}
+                  >
+                    <Text
+                      className={`font-serif text-2xl font-bold ${
+                        devotionalRating === n ? "text-primary" : "text-foreground"
+                      }`}
+                    >
+                      {n}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View className="mt-3 flex-row justify-between">
+                <Text className="text-xs text-muted-foreground">Rarely or never</Text>
+                <Text className="text-xs text-muted-foreground">Every day</Text>
+              </View>
+            </View>
+          )}
+
+          {/* ── Q7: Faith journey ── */}
+          {step === 7 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
+                How would you describe where you are in your faith right now?
+              </Text>
+              <Text className="mb-6 text-sm text-muted-foreground">
+                No right or wrong answer.
+              </Text>
+              <View className="gap-2.5">
+                {FAITH_OPTIONS.map((opt) => (
+                  <ListOption
+                    key={opt}
+                    label={opt}
+                    active={faithJourney === opt}
+                    onPress={() => setFaithJourney(opt)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Q8: Goals ── */}
+          {step === 8 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
+                What are you most hoping IronSharp helps you with?
+              </Text>
+              <Text className="mb-6 text-sm text-muted-foreground">Pick up to two.</Text>
+              <View className="gap-2.5">
+                {GOAL_OPTIONS.map((opt) => {
+                  const active = goals.includes(opt);
+                  return (
+                    <ListOption
+                      key={opt}
+                      label={opt}
+                      active={active}
+                      onPress={() => toggleGoal(opt)}
+                      multi
+                      disabled={goals.length >= 2 && !active}
+                    />
+                  );
+                })}
+              </View>
+              {goals.length >= 2 && (
+                <Text className="mt-4 text-center text-xs text-muted-foreground">
+                  Maximum 2 selected — deselect one to change your choice.
+                </Text>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Fixed bottom CTA */}
       <View className="absolute bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4">
         <Button
-          title="Continue"
+          title={step === TOTAL_STEPS ? "Finish" : "Continue"}
           disabled={!canContinue}
-          onPress={() => router.push("/onboarding/plan")}
+          onPress={goNext}
         />
       </View>
     </Screen>

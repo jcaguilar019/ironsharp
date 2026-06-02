@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   Switch,
   Text,
@@ -11,6 +13,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Car, Headphones, Play } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
@@ -27,6 +30,11 @@ export default function DevotionalReader() {
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
   const accent = useThemeColor("primary");
+  const cardBg = useThemeColor("card");
+  const borderColor = useThemeColor("border");
+  const fgColor = useThemeColor("foreground");
+
+  const [showPlayMenu, setShowPlayMenu] = useState(false);
 
   const progress = useProgress();
   const progressRow = (progress.data ?? []).find((p) => p.planId === planId);
@@ -135,7 +143,68 @@ export default function DevotionalReader() {
 
   return (
     <Screen edges={["top"]}>
-      <Header subtitle={plan?.title ?? "Devotional"} />
+      <Header
+        subtitle={plan?.title ?? "Devotional"}
+        rightAction={
+          day ? (
+            <Pressable
+              onPress={() => setShowPlayMenu(true)}
+              hitSlop={8}
+              className="h-9 w-9 items-center justify-center rounded-full bg-primary/10 active:opacity-70"
+            >
+              <Play size={16} color={primary} fill={primary} />
+            </Pressable>
+          ) : null
+        }
+      />
+
+      {/* Play mode picker */}
+      {showPlayMenu && (
+        <Modal transparent animationType="fade" onRequestClose={() => setShowPlayMenu(false)}>
+          <Pressable
+            className="flex-1"
+            onPress={() => setShowPlayMenu(false)}
+          >
+            <View className="absolute right-4 top-14 w-64 overflow-hidden rounded-2xl border border-border shadow-lg" style={{ backgroundColor: cardBg }}>
+              {/* Listen Only */}
+              <Pressable
+                onPress={() => {
+                  setShowPlayMenu(false);
+                  // TTS listen-only — future feature, no-op for now
+                }}
+                className="flex-row items-start gap-3 px-4 py-3.5 active:opacity-70"
+              >
+                <View className="mt-0.5 h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                  <Headphones size={16} color={muted} />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-sans-semibold text-sm text-foreground">Listen Only</Text>
+                  <Text className="mt-0.5 text-xs text-muted-foreground">Reads the devotional aloud</Text>
+                </View>
+              </Pressable>
+
+              <View style={{ height: 1, backgroundColor: borderColor }} />
+
+              {/* Commute Mode */}
+              <Pressable
+                onPress={() => {
+                  setShowPlayMenu(false);
+                  router.push(`/commute/${planId}?day=${currentDay}`);
+                }}
+                className="flex-row items-start gap-3 rounded-b-2xl bg-primary/8 px-4 py-3.5 active:opacity-80"
+              >
+                <View className="mt-0.5 h-8 w-8 items-center justify-center rounded-lg bg-primary/20">
+                  <Car size={16} color={primary} />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-sans-semibold text-sm text-foreground">Commute Mode</Text>
+                  <Text className="mt-0.5 text-xs text-muted-foreground">Hands-free — reads and records</Text>
+                </View>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"

@@ -1,14 +1,16 @@
-import { Alert, ScrollView, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { useThemeColor } from "@/components/useThemeColor";
-import { usePlans } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
-import { categoryLabel } from "@/lib/categories";
 import { useOnboarding } from "./_layout";
+
+const BANNER_KEY = "ironsharp_free_banner_shown";
 
 const PERKS = [
   "You + 2 others included",
@@ -20,113 +22,186 @@ const PERKS = [
 export default function OnboardingWelcome() {
   const router = useRouter();
   const qc = useQueryClient();
-  const { displayName, churchName, role, planId, survey } = useOnboarding();
-  const { data } = usePlans();
+  const { displayName, role, planId, survey } = useOnboarding();
   const checkColor = useThemeColor("primary");
+  const primaryFg = useThemeColor("primary-foreground");
+
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(500)).current;
+  const overlayAnim = useRef(new Animated.Value(0)).current;
+
+  // Show banner once, 1.8s after screen loads
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    AsyncStorage.getItem(BANNER_KEY).then((val) => {
+      if (!val) {
+        timer = setTimeout(() => {
+          setBannerVisible(true);
+          Animated.parallel([
+            Animated.spring(slideAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              damping: 20,
+              stiffness: 150,
+            }),
+            Animated.timing(overlayAnim, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]).start();
+          AsyncStorage.setItem(BANNER_KEY, "1");
+        }, 1800);
+      }
+    });
+    return () => clearTimeout(timer);
+  }, []);
+
+  const dismissBanner = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: 500, duration: 250, useNativeDriver: true }),
+      Animated.timing(overlayAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => setBannerVisible(false));
+  };
 
   const finish = useMutation({
     mutationFn: async () => {
-      await ApiClient.updateProfile({
+      const result = await ApiClient.updateProfile({
         displayName: displayName || undefined,
-        churchName: churchName || undefined,
         primaryRole: role ?? "disciple",
-        // Survey answers — undefined fields are dropped by JSON.stringify so
-        // we never overwrite existing values with blanks.
         surveyName: displayName || undefined,
         surveyAgeRange: survey.ageRange ?? undefined,
         surveyState: survey.state.trim() || undefined,
+        surveyCity: survey.city.trim() || undefined,
         surveyEducation: survey.education ?? undefined,
         surveyHasChurch: survey.hasChurch ?? undefined,
-        surveyChurchName: churchName || undefined,
+        surveyChurchName: survey.churchName.trim() || undefined,
         surveyDevotionalRating: survey.devotionalRating ?? undefined,
         surveyFaithJourney: survey.faithJourney ?? undefined,
         surveyGoals: survey.goals.length ? survey.goals : undefined,
         surveyCompleted: true,
       });
       if (planId) await ApiClient.startPlan(planId);
+      return result;
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["profile"] });
-      await qc.invalidateQueries({ queryKey: ["progress"] });
-      router.replace("/(tabs)/home");
+    onSuccess: (data) => {
+      // Write the updated profile directly into the cache so the tabs guard
+      // sees surveyCompletedAt immediately — no refetch race condition.
+      qc.setQueryData(["profile"], data.profile);
+      qc.invalidateQueries({ queryKey: ["progress"] });
     },
     onError: (err: Error) => {
       Alert.alert(
-        "Couldn’t finish setup",
+        "Couldn't finish setup",
         err.message || "Please check your connection and try again."
       );
     },
   });
 
-  const plans = data?.plans ?? [];
+  const navigate = () => router.replace("/(tabs)/home");
+
+  const handleLetsGo = () => {
+    finish.mutate(undefined, { onSuccess: navigate });
+  };
+
+  const handleSeeAllPlans = () => {
+    finish.mutate(undefined, { onSuccess: navigate });
+  };
+
+  const handleContinueFree = () => {
+    dismissBanner();
+    finish.mutate(undefined, { onSuccess: navigate });
+  };
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <ScrollView
-        contentContainerClassName="px-6 pb-28 pt-6"
+        contentContainerClassName="flex-grow items-center justify-center px-8 py-12"
         showsVerticalScrollIndicator={false}
       >
-        <View className="items-center pb-6">
-          <Text className="font-serif text-4xl font-bold text-foreground">
-            Iron<Text className="text-primary">Sharp</Text>
+        {/* Logo */}
+        <Text className="font-serif text-5xl font-bold text-foreground">
+          Iron<Text className="text-primary">Sharp</Text>
+        </Text>
+
+        {/* Verse card */}
+        <View className="mt-10 w-full rounded-2xl bg-card border border-border px-6 py-6">
+          <Text className="font-serif text-base italic leading-relaxed text-foreground text-center">
+            "As iron sharpens iron, so one person sharpens another."
           </Text>
-          <Text className="mt-1 font-serif text-lg text-foreground">
-            Welcome to the community.
+          <Text className="mt-3 text-center text-sm font-sans-medium text-muted-foreground">
+            — Proverbs 27:17
           </Text>
         </View>
 
-        <View className="rounded-2xl border border-border bg-card p-5">
-          <Text className="mb-3 text-[11px] font-sans-semibold uppercase tracking-wider text-muted-foreground">
-            Your free account includes
-          </Text>
-          <View className="gap-2.5">
-            {PERKS.map((perk) => (
-              <View key={perk} className="flex-row items-center gap-2.5">
-                <View className="h-5 w-5 items-center justify-center rounded-full bg-primary/15">
-                  <Check size={12} color={checkColor} strokeWidth={3} />
-                </View>
-                <Text className="text-sm text-foreground">{perk}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <Text className="mb-1 mt-8 font-serif text-xl font-bold text-foreground">
-          Available Plans
-        </Text>
-        <Text className="mb-4 text-sm text-muted-foreground">
-          Scroll through what&apos;s waiting for you.
+        {/* Welcome message */}
+        <Text className="mt-8 text-center text-base text-muted-foreground leading-relaxed">
+          Welcome to the IronSharp community.{"\n"}Let's get started.
         </Text>
 
-        <View className="gap-3">
-          {plans.map((plan) => (
-            <View key={plan.id} className="rounded-xl border border-border bg-card p-4">
-              <View className="mb-1 flex-row items-center justify-between">
-                <Text className="flex-1 font-serif text-lg font-bold text-foreground">
-                  {plan.title}
-                </Text>
-                <Text className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-sans-medium text-muted-foreground">
-                  {categoryLabel(plan.category)}
-                </Text>
-              </View>
-              <Text className="text-xs text-muted-foreground">{plan.totalDays} days</Text>
-              {plan.description ? (
-                <Text className="mt-1 text-sm text-muted-foreground" numberOfLines={2}>
-                  {plan.description}
-                </Text>
-              ) : null}
-            </View>
-          ))}
+        {/* Let's Go */}
+        <View className="mt-10 w-full">
+          <Button
+            title="Let's Go"
+            loading={finish.isPending}
+            onPress={handleLetsGo}
+          />
         </View>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4">
-        <Button
-          title="Continue to IronSharp →"
-          loading={finish.isPending}
-          onPress={() => finish.mutate()}
-        />
-      </View>
+      {/* Bottom sheet banner (shown once) */}
+      {bannerVisible && (
+        <>
+          {/* Backdrop */}
+          <Animated.View
+            style={{ opacity: overlayAnim }}
+            className="absolute inset-0 bg-black/50"
+            pointerEvents="box-none"
+          >
+            <Pressable className="flex-1" onPress={handleContinueFree} />
+          </Animated.View>
+
+          {/* Sheet */}
+          <Animated.View
+            style={{ transform: [{ translateY: slideAnim }] }}
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-background px-6 pb-10 pt-6 shadow-lg"
+          >
+            <Text className="font-serif text-2xl font-bold text-foreground mb-1">
+              Enjoy your free account!
+            </Text>
+            <Text className="text-sm text-muted-foreground mb-5">
+              You + 2 others, core plans, all themes — no cost, ever.
+            </Text>
+
+            {/* Perks card */}
+            <View className="rounded-2xl border border-border bg-card px-5 py-4 mb-6">
+              <View className="gap-3">
+                {PERKS.map((perk) => (
+                  <View key={perk} className="flex-row items-center gap-3">
+                    <View className="h-5 w-5 items-center justify-center rounded-full bg-primary/15">
+                      <Check size={12} color={checkColor} strokeWidth={3} />
+                    </View>
+                    <Text className="text-sm text-foreground">{perk}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className="gap-3">
+              <Button
+                title="See All Plans"
+                onPress={handleSeeAllPlans}
+                loading={finish.isPending}
+              />
+              <Button
+                title="Continue with Free"
+                variant="outline"
+                onPress={handleContinueFree}
+              />
+            </View>
+          </Animated.View>
+        </>
+      )}
     </Screen>
   );
 }

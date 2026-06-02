@@ -26,5 +26,5 @@ export default function Index() {
   if (!authed) return <Redirect href="/(auth)/welcome" />;
 
   const onboarded = !!profile.data?.surveyCompletedAt;
-  return <Redirect href={onboarded ? "/(tabs)/home" : "/onboarding/profile"} />;
+  return <Redirect href={onboarded ? "/(tabs)/home" : "/onboarding/role"} />;
 }
