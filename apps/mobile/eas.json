@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ironsharp-production.up.railway.app",
+        "EXPO_PUBLIC_NEON_AUTH_URL": "REPLACE_WITH_YOUR_NEON_AUTH_URL"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ironsharp-production.up.railway.app",
+        "EXPO_PUBLIC_NEON_AUTH_URL": "REPLACE_WITH_YOUR_NEON_AUTH_URL"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ironsharp-production.up.railway.app",
+        "EXPO_PUBLIC_NEON_AUTH_URL": "REPLACE_WITH_YOUR_NEON_AUTH_URL"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

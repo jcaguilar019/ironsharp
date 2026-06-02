@@ -98,3 +98,41 @@ Neon-issued token, and your profile is created on first request.
 Social sign-in is configured in the **Neon Console → Auth** (not on the Railway
 server) — add the provider and its keys there, and the app's Google/Apple
 buttons start working. No server redeploy needed.
+
+---
+
+## 6. Build for your phone (EAS)
+
+A standalone test build via EAS. Run these from `apps/mobile` on a machine logged
+into your Expo account (`eas-cli` can't run in this sandbox — no Expo login and
+the network is locked down here).
+
+```bash
+cd apps/mobile
+npm i -g eas-cli
+eas login
+eas init            # links/creates the Expo project (writes extra.eas.projectId)
+
+# Android — easiest: produces an installable APK you can sideload
+eas build -p android --profile preview
+
+# iOS — needs an Apple Developer account; registers your device (ad-hoc)
+eas build -p ios --profile preview
+```
+
+When it finishes, EAS gives you a QR code / install link. Android installs the
+APK directly; iOS installs once your device UDID is registered.
+
+**Before building:** edit `eas.json` and replace `REPLACE_WITH_YOUR_NEON_AUTH_URL`
+in each profile with your real Neon Auth URL. `EXPO_PUBLIC_*` vars are baked in at
+build time, so the build must have them. (`EXPO_PUBLIC_API_URL` is already set to
+the Railway URL.)
+
+> **Faster alternative for quick checks:** `npx expo start` and scan the QR with
+> the **Expo Go** app. Email/password sign-in works there; the only things Expo
+> Go can't exercise are the `ironsharp://` deep link and native social-login
+> redirects (those need the EAS build above).
+
+> **Monorepo note:** EAS uploads the whole repo and Metro is configured for
+> workspaces, so building from `apps/mobile` works. If a build's install step
+> fails, see Expo's "monorepo" guide — usually a one-line tweak.
