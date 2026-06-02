@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "IronSharp",
+    "slug": "ironsharp",
+    "scheme": "ironsharp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ironsharp.app"
+    },
+    "android": {
+      "package": "com.ironsharp.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1E2A3A",
+          "resizeMode": "contain"
+        }
+      ]
+    ]
+  }
+}

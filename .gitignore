@@ -1,24 +1,42 @@
-# Logs
-logs
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# env
+.env
+.env.local
+.env*.local
+
+# expo
+.expo/
+dist/
+web-build/
+*.orig.*
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+
+# native
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# server build
+apps/server/dist/
+apps/server/drizzle/meta/
+
+# logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# misc
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+*.tsbuildinfo
+coverage/
+.idea/
+.vscode/

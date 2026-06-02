@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * IronSharp theme tokens. These :root values are the default "slate" theme and
+ * act as a fallback — at runtime ThemeProvider injects the active theme's
+ * variables (see src/theme/) so users can switch between all five palettes.
+ */
+:root {
+  --background: 226 12% 93%;
+  --foreground: 216 16% 24%;
+  --card: 224 12% 87%;
+  --card-foreground: 216 16% 24%;
+  --card-deep: 224 12% 81%;
+  --popover: 224 12% 87%;
+  --popover-foreground: 216 16% 24%;
+  --primary: 46 30% 57%;
+  --primary-foreground: 226 12% 93%;
+  --secondary: 46 26% 69%;
+  --secondary-foreground: 216 16% 24%;
+  --muted: 224 12% 81%;
+  --muted-foreground: 220 12% 37%;
+  --accent: 46 30% 57%;
+  --accent-foreground: 226 12% 93%;
+  --destructive: 0 60% 50%;
+  --destructive-foreground: 226 12% 93%;
+  --border: 224 10% 76%;
+  --input: 224 10% 76%;
+  --ring: 46 30% 57%;
+}
