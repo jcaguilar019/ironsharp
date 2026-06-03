@@ -42,11 +42,6 @@ export default function PlansScreen() {
             }
             className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl bg-card-deep p-3"
           >
-            <View className="absolute right-2 top-2 rounded-md bg-black/40 px-2 py-0.5">
-              <Text className="text-[10px] uppercase tracking-wide text-white">
-                {completedCount > 0 ? `${completedCount} Done` : "Empty"}
-              </Text>
-            </View>
             <CheckCircle2 size={22} color={muted} />
             <Text className="mt-2 font-serif text-base font-bold uppercase text-foreground">
               Completed
@@ -63,11 +58,6 @@ export default function PlansScreen() {
                 style={{ backgroundColor: cat.tint }}
                 className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl p-3"
               >
-                <View className="absolute right-2 top-2 rounded-md bg-black/40 px-2 py-0.5">
-                  <Text className="text-[10px] uppercase tracking-wide text-white">
-                    {cat.badge}
-                  </Text>
-                </View>
                 <Text className="font-serif text-base font-bold uppercase text-white">
                   {cat.title}
                 </Text>
