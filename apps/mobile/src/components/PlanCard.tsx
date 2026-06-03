@@ -17,28 +17,21 @@ import type { DevotionalPlan } from "@/lib/api";
 
 // ─── Category → gradient stops + icon ────────────────────────────────────────
 
-const BASE = "https://images.unsplash.com";
-const Q = "?auto=format&fit=crop&w=800&q=80";
-
-const CATEGORY_STYLE: Record<
-  string,
-  { colors: [string, string, string]; icon: React.ElementType; imageUrl: string }
-> = {
-  mens:           { colors: ["#3E2A1E", "#5C4033", "#7A5C4A"], icon: Flame,    imageUrl: `${BASE}/photo-1457139621581-298d1801c832${Q}` },
-  women:          { colors: ["#3D2E3A", "#7A5C6E", "#9E7A8C"], icon: Sparkles, imageUrl: `${BASE}/photo-1554355792-f1e604a9c3d1${Q}` },
-  fathers:        { colors: ["#1E2A3A", "#3A4A5C", "#5C6E7A"], icon: Home,     imageUrl: `${BASE}/photo-1560328055-e938bb2ed50a${Q}` },
-  mothers:        { colors: ["#3A1E2A", "#6E3A5C", "#8C5C7A"], icon: Heart,    imageUrl: `${BASE}/photo-1576696058573-12b47c49559e${Q}` },
-  family:         { colors: ["#1E3A2A", "#4A6E5C", "#6E8C7A"], icon: Users,    imageUrl: `${BASE}/photo-1497621122273-f5cfb6065c56${Q}` },
-  marriage:       { colors: ["#3A1E1E", "#7A4A4A", "#9E6E6E"], icon: Heart,    imageUrl: `${BASE}/photo-1489094889106-39069373d6ef${Q}` },
-  youth:          { colors: ["#1E2E3A", "#3A5C7A", "#5C7A9E"], icon: Zap,      imageUrl: `${BASE}/photo-1632961965821-999763254f10${Q}` },
-  "new-believer": { colors: ["#2A3A1E", "#5C7A3A", "#7A9E5C"], icon: Sunrise,  imageUrl: `${BASE}/photo-1470252649378-9c29740c9fa8${Q}` },
-  general:        { colors: ["#1E1E3A", "#3A3A6E", "#5C5C8C"], icon: Layers,   imageUrl: `${BASE}/photo-1509021436665-8f07dbf5bf1d${Q}` },
+const CATEGORY_STYLE: Record<string, { colors: [string, string, string]; icon: React.ElementType }> = {
+  mens:           { colors: ["#3E2A1E", "#5C4033", "#7A5C4A"], icon: Flame    },
+  women:          { colors: ["#3D2E3A", "#7A5C6E", "#9E7A8C"], icon: Sparkles },
+  fathers:        { colors: ["#1E2A3A", "#3A4A5C", "#5C6E7A"], icon: Home     },
+  mothers:        { colors: ["#3A1E2A", "#6E3A5C", "#8C5C7A"], icon: Heart    },
+  family:         { colors: ["#1E3A2A", "#4A6E5C", "#6E8C7A"], icon: Users    },
+  marriage:       { colors: ["#3A1E1E", "#7A4A4A", "#9E6E6E"], icon: Heart    },
+  youth:          { colors: ["#1E2E3A", "#3A5C7A", "#5C7A9E"], icon: Zap      },
+  "new-believer": { colors: ["#2A3A1E", "#5C7A3A", "#7A9E5C"], icon: Sunrise  },
+  general:        { colors: ["#1E1E3A", "#3A3A6E", "#5C5C8C"], icon: Layers   },
 };
 
 const FALLBACK_STYLE = {
   colors: ["#1E2A3A", "#3A4A5C", "#5C6E7A"] as [string, string, string],
   icon: BookOpen,
-  imageUrl: `${BASE}/photo-1509021436665-8f07dbf5bf1d${Q}`,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -57,7 +50,8 @@ export function PlanCard({ plan, status, onPress }: Props) {
 
   const style = CATEGORY_STYLE[plan.category] ?? FALLBACK_STYLE;
   const Icon = style.icon;
-  const imageUri = plan.imageUrl ?? style.imageUrl;
+  const catImageUrl = CATEGORIES.find(c => c.id === plan.category)?.imageUrl;
+  const imageUri = plan.imageUrl ?? catImageUrl;
 
   const isCompleted = status.startsWith("Completed");
   const isStarted = status.startsWith("Continue");
