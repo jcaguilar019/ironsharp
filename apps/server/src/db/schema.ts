@@ -22,6 +22,32 @@ import {
  * ============================================================ */
 
 /* ============================================================
+ * BIBLE TEXT (translation-aware, passage-keyed)
+ * ============================================================ */
+
+export const bibleChapters = pgTable(
+  "bible_chapters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    translation: text("translation").notNull().default("KJV"),
+    book: text("book").notNull(),
+    testament: text("testament").notNull(), // "OT" | "NT"
+    bookOrder: integer("book_order").notNull(), // 1-66
+    chapter: integer("chapter").notNull(),
+    verses: jsonb("verses").notNull().default([]), // string[]
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    translationBookChapterUnique: unique("bible_chapters_unique").on(
+      t.translation,
+      t.book,
+      t.chapter
+    ),
+    bookChapterIdx: index("idx_bible_chapters_lookup").on(t.translation, t.book, t.chapter),
+  })
+);
+
+/* ============================================================
  * PUBLIC DEVOTIONAL CONTENT (no per-user data)
  * ============================================================ */
 
@@ -48,7 +74,6 @@ export const devotionalDays = pgTable(
     dayNumber: integer("day_number").notNull(),
     chapter: text("chapter").notNull(),
     theme: text("theme"),
-    commentary: text("commentary").notNull(),
     reflectionQ1: text("reflection_q1").notNull(),
     reflectionQ2: text("reflection_q2").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -58,23 +83,21 @@ export const devotionalDays = pgTable(
   })
 );
 
-export const studyNotes = pgTable(
-  "study_notes",
+export const passageNotes = pgTable(
+  "passage_notes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    planId: uuid("plan_id")
-      .notNull()
-      .references(() => devotionalPlans.id, { onDelete: "cascade" }),
-    dayNumber: integer("day_number").notNull(),
+    book: text("book").notNull(),
+    chapter: integer("chapter").notNull(),
     passageReference: text("passage_reference").notNull(),
-    source: text("source"),
+    context: text("context"),
     notes: jsonb("notes").notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    planDayUnique: unique("study_notes_plan_day_unique").on(t.planId, t.dayNumber),
-    planDayIdx: index("idx_study_notes_plan_day").on(t.planId, t.dayNumber),
+    bookChapterUnique: unique("passage_notes_book_chapter_unique").on(t.book, t.chapter),
+    bookChapterIdx: index("idx_passage_notes_book_chapter").on(t.book, t.chapter),
   })
 );
 
@@ -154,6 +177,9 @@ export const groupMembers = pgTable(
     userId: text("user_id").notNull(),
     memberRole: text("member_role").notNull().default("member"),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    displayOrder: integer("display_order").notNull().default(0),
+    doneToday: boolean("done_today").notNull().default(false),
+    streakCount: integer("streak_count").notNull().default(0),
   },
   (t) => ({
     groupUserUnique: unique("group_members_unique").on(t.groupId, t.userId),
@@ -251,9 +277,10 @@ export const disciplerNotes = pgTable(
 );
 
 export const schema = {
+  bibleChapters,
   devotionalPlans,
   devotionalDays,
-  studyNotes,
+  passageNotes,
   profiles,
   userPlanProgress,
   groups,

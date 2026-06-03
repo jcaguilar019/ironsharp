@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { BookOpen, ChevronRight } from "lucide-react-native";
+import { BookOpen } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
+import { PlanCard } from "@/components/PlanCard";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlans, useProgress } from "@/lib/queries";
 
@@ -11,7 +12,6 @@ export default function DevotionalHub() {
   const progress = useProgress();
   const { data: plansData } = usePlans();
   const primary = useThemeColor("primary");
-  const muted = useThemeColor("muted-foreground");
 
   const planById = new Map((plansData?.plans ?? []).map((p) => [p.id, p]));
   const rows = progress.data ?? [];
@@ -47,23 +47,14 @@ export default function DevotionalHub() {
           <View className="gap-3">
             {active.map((row) => {
               const plan = planById.get(row.planId);
+              if (!plan) return null;
               return (
-                <Pressable
+                <PlanCard
                   key={row.id}
+                  plan={plan}
+                  status={`Continue · Day ${row.currentDay} of ${plan.totalDays}`}
                   onPress={() => router.push(`/devotional/${row.planId}`)}
-                  className="flex-row items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
-                >
-                  <View className="flex-1">
-                    <Text className="font-serif text-lg font-bold text-foreground">
-                      {plan?.title ?? "Devotional"}
-                    </Text>
-                    <Text className="mt-0.5 text-xs font-sans-medium text-primary">
-                      Continue · Day {row.currentDay}
-                      {plan ? ` of ${plan.totalDays}` : ""}
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color={muted} />
-                </Pressable>
+                />
               );
             })}
           </View>

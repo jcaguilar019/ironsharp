@@ -1,9 +1,10 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, ChevronRight } from "lucide-react-native";
+import { BookOpen } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
+import { PlanCard } from "@/components/PlanCard";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlansByCategory, useProgress } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
@@ -17,7 +18,6 @@ export default function PlanList() {
   const { data: plans, isLoading } = usePlansByCategory(cat);
   const progress = useProgress();
   const primary = useThemeColor("primary");
-  const muted = useThemeColor("muted-foreground");
 
   const progressByPlan = new Map((progress.data ?? []).map((p) => [p.planId, p]));
 
@@ -57,28 +57,14 @@ export default function PlanList() {
                 ? "Completed ✓"
                 : `Continue · Day ${prog.currentDay}`;
             return (
-              <Pressable
+              <PlanCard
                 key={plan.id}
+                plan={plan}
+                status={status}
                 onPress={() =>
                   prog ? router.push(`/devotional/${plan.id}`) : start.mutate(plan.id)
                 }
-                className="flex-row items-start justify-between gap-3 rounded-xl border border-border bg-card p-4"
-              >
-                <View className="flex-1">
-                  <Text className="font-serif text-lg font-bold text-foreground">
-                    {plan.title}
-                  </Text>
-                  {plan.description ? (
-                    <Text className="mt-1 text-sm leading-relaxed text-muted-foreground" numberOfLines={2}>
-                      {plan.description}
-                    </Text>
-                  ) : null}
-                  <Text className="mt-2 self-start rounded-md bg-muted px-2 py-0.5 text-[11px] font-sans-medium text-muted-foreground">
-                    {status}
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={muted} />
-              </Pressable>
+              />
             );
           })
         )}

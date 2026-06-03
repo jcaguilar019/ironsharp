@@ -4,9 +4,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { plans } from "./routes/plans.js";
+import { notes } from "./routes/notes.js";
+import { bible } from "./routes/bible.js";
 import { profile } from "./routes/profile.js";
 import { progress } from "./routes/progress.js";
 import { submissions } from "./routes/submissions.js";
+import { groupsRoute } from "./routes/groups.js";
 
 const app = new Hono();
 
@@ -23,8 +26,11 @@ app.get("/health", (c) => c.json({ ok: true }));
 // managed Neon Auth service directly from the client — not here.
 app.route("/api/profile", profile);
 app.route("/api/plans", plans);
+app.route("/api/notes", notes);
+app.route("/api/bible", bible);
 app.route("/api/progress", progress);
 app.route("/api/submissions", submissions);
+app.route("/api/groups", groupsRoute);
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, (info) => {

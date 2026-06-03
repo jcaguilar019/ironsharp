@@ -54,7 +54,6 @@ export type DevotionalDay = {
   dayNumber: number;
   chapter: string;
   theme: string | null;
-  commentary: string;
   reflectionQ1: string;
   reflectionQ2: string;
 };
@@ -99,6 +98,65 @@ export type ActiveDevotional = {
   currentDay: number;
   chapter: string | null;
   theme: string | null;
+};
+
+export type StudyNoteEntry = {
+  verse_ref: string;
+  note: string;
+};
+
+export type BibleChapter = {
+  id: string;
+  translation: string;
+  book: string;
+  testament: string;
+  bookOrder: number;
+  chapter: number;
+  verses: string[];
+};
+
+export type BibleBook = {
+  book: string;
+  testament: string;
+  bookOrder: number;
+  chapters: number;
+};
+
+export type PassageNotes = {
+  id: string;
+  book: string;
+  chapter: number;
+  passageReference: string;
+  context: string | null;
+  notes: StudyNoteEntry[];
+};
+
+export type GroupMember = {
+  id: string;
+  userId: string;
+  memberRole: string;
+  doneToday: boolean;
+  streakCount: number;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export type GroupPlan = {
+  id: string;
+  title: string;
+  chapter: string | null;
+  totalDays: number;
+};
+
+export type Group = {
+  id: string;
+  name: string;
+  groupType: "one-on-one" | "family" | "small-group";
+  currentDay: number;
+  streakCount: number;
+  displayOrder: number;
+  plan: GroupPlan | null;
+  members: GroupMember[];
 };
 
 export type Submission = {
@@ -157,6 +215,32 @@ export const ApiClient = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+
+  getBibleChapter: (book: string, chapter: number, translation = "KJV") =>
+    api<{ chapter: BibleChapter | null }>(
+      `/api/bible/${encodeURIComponent(book)}/${chapter}?translation=${translation}`
+    ),
+  getBibleBooks: (translation = "KJV") =>
+    api<{ books: BibleBook[] }>(`/api/bible/books?translation=${translation}`),
+
+  getPassageNotes: (book: string, chapter: number) =>
+    api<{ passageNotes: PassageNotes | null }>(
+      `/api/notes/${encodeURIComponent(book)}/${chapter}`
+    ),
+
+  getGroups: () => api<{ groups: Group[] }>("/api/groups"),
+  createGroup: (body: { name: string; groupType: string }) =>
+    api<{ group: Group }>("/api/groups", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  reorderGroups: (order: { groupId: string; displayOrder: number }[]) =>
+    api<{ ok: boolean }>("/api/groups/reorder", {
+      method: "PATCH",
+      body: JSON.stringify({ order }),
+    }),
+  deleteGroup: (groupId: string) =>
+    api<{ ok: boolean }>(`/api/groups/${groupId}`, { method: "DELETE" }),
 
   getSubmission: (planId: string, dayNumber: number) =>
     api<{ submission: Submission | null }>(

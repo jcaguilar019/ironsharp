@@ -74,3 +74,4 @@ plans.get("/:planId/days/:dayNumber", async (c) => {
   if (!day) return c.json({ error: "Day not found" }, 404);
   return c.json({ day });
 });
+
