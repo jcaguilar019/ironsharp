@@ -1,6 +1,18 @@
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Image, ImageSourcePropType, Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
+
+const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
+  mens:           require("../../assets/images/categories/mens.jpg"),
+  women:          require("../../assets/images/categories/women.jpg"),
+  fathers:        require("../../assets/images/categories/fathers.jpg"),
+  mothers:        require("../../assets/images/categories/mothers.jpg"),
+  family:         require("../../assets/images/categories/family.jpg"),
+  marriage:       require("../../assets/images/categories/marriage.jpg"),
+  youth:          require("../../assets/images/categories/youth.jpg"),
+  "new-believer": require("../../assets/images/categories/new-believer.jpg"),
+  general:        require("../../assets/images/categories/general.jpg"),
+};
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlans, useProgress } from "@/lib/queries";
@@ -51,19 +63,40 @@ export default function PlansScreen() {
 
           {CATEGORIES.map((cat) => {
             const count = countByCategory[cat.id] ?? 0;
+            const img = CATEGORY_IMAGES[cat.id];
             return (
               <Pressable
                 key={cat.id}
                 onPress={() => openCategory(cat.id, count)}
                 style={{ backgroundColor: cat.tint }}
-                className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl p-3"
+                className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
               >
-                <Text className="font-serif text-base font-bold uppercase text-white">
-                  {cat.title}
-                </Text>
-                <Text className="text-xs text-white/70">
-                  {count > 0 ? `${count} Plan${count > 1 ? "s" : ""}` : cat.subtitle}
-                </Text>
+                {img && (
+                  <Image
+                    source={img}
+                    style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                    resizeMode="cover"
+                  />
+                )}
+                {/* Dark overlay for text legibility */}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: "55%",
+                    backgroundColor: "rgba(0,0,0,0.45)",
+                  }}
+                />
+                <View className="p-3">
+                  <Text className="font-serif text-base font-bold uppercase text-white">
+                    {cat.title}
+                  </Text>
+                  <Text className="text-xs text-white/70">
+                    {count > 0 ? `${count} Plan${count > 1 ? "s" : ""}` : cat.subtitle}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
