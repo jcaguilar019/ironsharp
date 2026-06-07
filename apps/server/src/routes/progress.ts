@@ -147,6 +147,18 @@ progress.post("/", async (c) => {
   return c.json({ progress: row }, 201);
 });
 
+// DELETE /api/progress/:planId  → abandon a plan
+progress.delete("/:planId", async (c) => {
+  const userId = c.var.user.id;
+  const planId = c.req.param("planId");
+
+  await db
+    .delete(userPlanProgress)
+    .where(and(eq(userPlanProgress.userId, userId), eq(userPlanProgress.planId, planId)));
+
+  return c.json({ ok: true });
+});
+
 // PATCH /api/progress/:planId  → advance the day / mark complete
 progress.patch("/:planId", async (c) => {
   const userId = c.var.user.id;

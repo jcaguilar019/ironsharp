@@ -79,6 +79,7 @@ export const devotionalDays = pgTable(
     dayNumber: integer("day_number").notNull(),
     chapter: text("chapter").notNull(),
     theme: text("theme"),
+    studyNotes: jsonb("study_notes").notNull().default([]),
     reflectionQ1: text("reflection_q1").notNull(),
     reflectionQ2: text("reflection_q2").notNull(),
     prayerPrompt: text("prayer_prompt"),
@@ -139,6 +140,15 @@ export const profiles = pgTable("profiles", {
   surveyRelationshipStatus: text("survey_relationship_status"), // single | dating | engaged | married
   surveyHasKids: boolean("survey_has_kids"),
   surveyCompletedAt: timestamp("survey_completed_at", { withTimezone: true }),
+  // push notifications
+  pushToken: text("push_token"),
+  notifMorningReminder: boolean("notif_morning_reminder").notNull().default(true),
+  notifPartnerDone: boolean("notif_partner_done").notNull().default(true),
+  notifDailyNudge: boolean("notif_daily_nudge").notNull().default(true),
+  notifGroupComplete: boolean("notif_group_complete").notNull().default(true),
+  // family membership
+  familyCode: text("family_code").unique(),
+  familyAccountId: text("family_account_id"),
   // membership
   membershipTier: text("membership_tier").notNull().default("free"), // free | connect | sharpen | family
   membershipStartedAt: timestamp("membership_started_at", { withTimezone: true }),

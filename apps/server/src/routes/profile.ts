@@ -1,12 +1,27 @@
+import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
-import { eq, ilike, ne } from "drizzle-orm";
+import { and, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { profiles } from "../db/schema.js";
+import {
+  profiles,
+  userPlanProgress,
+  devotionalSubmissions,
+  groupMembers,
+  discipleRelationships,
+  disciplerNotes,
+  devotionalPlans,
+} from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 
 export const profile = new Hono<AppEnv>();
 
 profile.use("*", requireAuth);
+
+const FAMILY_CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function generateFamilyCode(): string {
+  const bytes = Array.from(randomBytes(6));
+  return bytes.map((b) => FAMILY_CODE_CHARSET[b % FAMILY_CODE_CHARSET.length]).join("");
+}
 
 // GET /api/profile/search?q= → search users by display name (excludes self)
 profile.get("/search", async (c) => {
@@ -38,7 +53,18 @@ profile.get("/", async (c) => {
     .from(profiles)
     .where(eq(profiles.userId, userId))
     .limit(1);
-  if (existing) return c.json({ profile: existing });
+  if (existing) {
+    // Back-fill familyCode for Family tier holders who pre-dated this feature.
+    if (existing.membershipTier === "family" && !existing.familyCode) {
+      const [updated] = await db
+        .update(profiles)
+        .set({ familyCode: generateFamilyCode(), updatedAt: new Date() })
+        .where(eq(profiles.userId, userId))
+        .returning();
+      return c.json({ profile: updated ?? existing });
+    }
+    return c.json({ profile: existing });
+  }
 
   const displayName = name?.trim() || email?.split("@")[0] || "Friend";
   const [created] = await db
@@ -72,9 +98,14 @@ profile.post("/redeem-promo", async (c) => {
   const tier = PROMO_CODES[normalized];
   if (!tier) return c.json({ error: "Invalid promo code." }, 400);
 
+  const updates: Record<string, unknown> = { membershipTier: tier, updatedAt: new Date() };
+  if (tier === "family") {
+    updates.familyCode = generateFamilyCode();
+  }
+
   const [row] = await db
     .update(profiles)
-    .set({ membershipTier: tier, updatedAt: new Date() })
+    .set(updates)
     .where(eq(profiles.userId, userId))
     .returning();
 
@@ -138,4 +169,98 @@ profile.patch("/", async (c) => {
   }
 
   return c.json({ profile: row });
+});
+
+// POST /api/profile/push-token  → register or update the device push token
+profile.post("/push-token", async (c) => {
+  const userId = c.var.user.id;
+  const { token } = await c.req.json().catch(() => ({ token: "" }));
+  if (!token || typeof token !== "string") return c.json({ error: "token required" }, 400);
+
+  await db
+    .update(profiles)
+    .set({ pushToken: token, updatedAt: new Date() })
+    .where(eq(profiles.userId, userId));
+
+  return c.json({ ok: true });
+});
+
+// PATCH /api/profile/notification-prefs  → update notification preferences
+profile.patch("/notification-prefs", async (c) => {
+  const userId = c.var.user.id;
+  const body = await c.req.json().catch(() => ({}));
+
+  const allowed = ["notifMorningReminder", "notifPartnerDone", "notifDailyNudge", "notifGroupComplete"] as const;
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  for (const key of allowed) {
+    if (typeof body[key] === "boolean") updates[key] = body[key];
+  }
+
+  await db.update(profiles).set(updates).where(eq(profiles.userId, userId));
+  return c.json({ ok: true });
+});
+
+// GET /api/profile/family/validate?code=  → check if a family code exists (no auth required to be Family tier)
+profile.get("/family/validate", async (c) => {
+  const code = c.req.query("code")?.trim().toUpperCase();
+  if (!code) return c.json({ valid: false });
+
+  const [row] = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(and(eq(profiles.familyCode, code), eq(profiles.membershipTier, "family")))
+    .limit(1);
+
+  return c.json({ valid: !!row });
+});
+
+// POST /api/profile/family/join  → link the current user's profile to a family account
+profile.post("/family/join", async (c) => {
+  const userId = c.var.user.id;
+  const { code } = await c.req.json().catch(() => ({ code: "" }));
+  const normalized = (code as string).trim().toUpperCase();
+
+  const [family] = await db
+    .select({ userId: profiles.userId })
+    .from(profiles)
+    .where(and(eq(profiles.familyCode, normalized), eq(profiles.membershipTier, "family")))
+    .limit(1);
+
+  if (!family) return c.json({ error: "Invalid family code." }, 400);
+
+  const [row] = await db
+    .update(profiles)
+    .set({ familyAccountId: family.userId, updatedAt: new Date() })
+    .where(eq(profiles.userId, userId))
+    .returning();
+
+  return c.json({ profile: row });
+});
+
+// DELETE /api/profile  → permanently delete the account and all associated data.
+// Required by App Store and Google Play for apps that support account creation.
+profile.delete("/", async (c) => {
+  const userId = c.var.user.id;
+
+  // Delete app-side data in dependency order.
+  await db.delete(disciplerNotes).where(
+    or(eq(disciplerNotes.fromUserId, userId), eq(disciplerNotes.toUserId, userId))
+  );
+  await db.delete(discipleRelationships).where(
+    or(eq(discipleRelationships.disciplerId, userId), eq(discipleRelationships.discipleId, userId))
+  );
+  await db.delete(groupMembers).where(eq(groupMembers.userId, userId));
+  // submission_reactions cascade from devotional_submissions via FK
+  await db.delete(devotionalSubmissions).where(eq(devotionalSubmissions.userId, userId));
+  await db.delete(userPlanProgress).where(eq(userPlanProgress.userId, userId));
+  // Only delete plans this user generated — curated plans are shared
+  await db.delete(devotionalPlans).where(
+    and(eq(devotionalPlans.createdByUserId, userId), eq(devotionalPlans.source, "generated"))
+  );
+  await db.delete(profiles).where(eq(profiles.userId, userId));
+
+  // Delete the Neon Auth user — cascades to neon_auth.session, account, member, invitation
+  await db.execute(sql`DELETE FROM neon_auth."user" WHERE id = ${userId}`);
+
+  return c.json({ ok: true });
 });

@@ -1,11 +1,19 @@
 import { ActivityIndicator, Platform, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
+import { useEffect } from "react";
 import { BookOpen, Users, Home, Library, User, type LucideIcon } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useAuthed, useProfile } from "@/lib/queries";
 import { useUpgradePrompt } from "@/lib/useUpgradePrompt";
 import { UpgradePromptModal } from "@/components/UpgradePromptModal";
+import {
+  registerAndSaveToken,
+  scheduleMorningReminder,
+  cancelMorningReminder,
+  scheduleDailyNudge,
+  cancelDailyNudge,
+} from "@/lib/notifications";
 import type { MembershipTier } from "@/lib/tiers";
 
 function TabIcon({ Icon, focused }: { Icon: LucideIcon; focused: boolean }) {
@@ -14,11 +22,11 @@ function TabIcon({ Icon, focused }: { Icon: LucideIcon; focused: boolean }) {
   return (
     <View
       style={{ transform: [{ translateY: focused ? -2 : 0 }] }}
-      className={`h-11 w-11 items-center justify-center rounded-full ${
+      className={`h-12 w-12 items-center justify-center rounded-full ${
         focused ? "bg-primary/15" : "bg-transparent"
       }`}
     >
-      <Icon size={22} color={focused ? active : inactive} />
+      <Icon size={26} color={focused ? active : inactive} />
     </View>
   );
 }
@@ -31,6 +39,18 @@ export default function TabsLayout() {
   const inactive = useThemeColor("muted-foreground");
   const card = useThemeColor("card");
   const border = useThemeColor("border");
+
+  useEffect(() => {
+    if (authed && profile.data) registerAndSaveToken();
+  }, [authed, profile.data?.userId]);
+
+  useEffect(() => {
+    if (!authed || !profile.data) return;
+    if (profile.data.notifMorningReminder) scheduleMorningReminder();
+    else cancelMorningReminder();
+    if (profile.data.notifDailyNudge) scheduleDailyNudge();
+    else cancelDailyNudge();
+  }, [authed, profile.data?.notifMorningReminder, profile.data?.notifDailyNudge]);
 
   if (isPending || (authed && profile.isLoading)) {
     return (
@@ -57,10 +77,10 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: card,
           borderTopColor: border,
-          height: Platform.OS === "ios" ? 88 : 64,
+          height: Platform.OS === "ios" ? 96 : 72,
           paddingTop: 6,
         },
-        tabBarLabelStyle: { fontFamily: "DMSans_500Medium", fontSize: 11 },
+        tabBarLabelStyle: { fontFamily: "DMSans_500Medium", fontSize: 13 },
       }}
     >
       <Tabs.Screen

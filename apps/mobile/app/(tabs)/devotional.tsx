@@ -17,7 +17,7 @@ const GROUP_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 
 function SectionHeader({ label }: { label: string }) {
   return (
-    <Text className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+    <Text className="mb-3 text-sm uppercase tracking-wider text-muted-foreground">
       {label}
     </Text>
   );
@@ -28,9 +28,9 @@ function EmptyNote({ text }: { text: string }) {
   const border = useThemeColor("border");
   return (
     <View
-      style={{ borderLeftWidth: 2, borderLeftColor: border, paddingLeft: 10, marginBottom: 2 }}
+      style={{ borderLeftWidth: 2, borderLeftColor: border, paddingLeft: 12, marginBottom: 2 }}
     >
-      <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 13, color: muted, fontStyle: "italic" }}>
+      <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 15, color: muted, fontStyle: "italic" }}>
         {text}
       </Text>
     </View>
@@ -73,10 +73,10 @@ export default function DevotionalHub() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />}
       >
-        <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+        <Text className="text-sm uppercase tracking-wider text-muted-foreground">
           Your Daily Reading
         </Text>
-        <Text className="mb-6 font-serif text-2xl font-bold text-foreground">Devotionals</Text>
+        <Text className="mb-6 font-serif text-3xl font-bold text-foreground">Devotionals</Text>
 
         {/* ── Personal ───────────────────────────────────────────────────────── */}
         <SectionHeader label="Personal" />
@@ -85,19 +85,19 @@ export default function DevotionalHub() {
           <ActivityIndicator color={primary} />
         ) : active.data ? (
           <View className="overflow-hidden rounded-xl border border-border bg-card">
-            <View className="flex-row items-center gap-3 px-3 py-4">
-              <View style={{ width: 3, height: 36, borderRadius: 2, backgroundColor: primary }} />
+            <View className="flex-row items-center gap-3 px-4 py-5">
+              <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: primary }} />
               <View className="flex-1">
-                <Text className="font-serif text-base font-bold text-foreground">
+                <Text className="font-serif text-lg font-bold text-foreground">
                   {active.data.planTitle}
                 </Text>
-                <Text className="mt-0.5 text-xs text-muted-foreground">
+                <Text className="mt-0.5 text-sm text-muted-foreground">
                   {active.data.chapter ? `${active.data.chapter} · ` : ""}
                   Day {active.data.currentDay}/{active.data.totalDays}
                 </Text>
               </View>
               <Pressable onPress={() => router.push(`/devotional/${active.data!.planId}`)}>
-                <Text className="text-xs font-semibold uppercase tracking-wider text-primary">
+                <Text className="text-sm font-semibold uppercase tracking-wider text-primary">
                   Continue
                 </Text>
               </Pressable>
@@ -130,14 +130,14 @@ export default function DevotionalHub() {
                   {/* Collapsed row */}
                   <Pressable
                     onPress={() => setExpanded(isOpen ? null : group.id)}
-                    className="flex-row items-center gap-3 px-3 py-4 active:opacity-70"
+                    className="flex-row items-center gap-3 px-4 py-5 active:opacity-70"
                   >
-                    <View style={{ width: 3, height: 36, borderRadius: 2, backgroundColor: config.color }} />
+                    <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: config.color }} />
                     <View className="flex-1">
-                      <Text className="font-serif text-base font-bold text-foreground">
+                      <Text className="font-serif text-lg font-bold text-foreground">
                         {group.name}
                       </Text>
-                      <Text className="mt-0.5 text-xs text-muted-foreground">
+                      <Text className="mt-0.5 text-sm text-muted-foreground">
                         {group.plan?.chapter ? `${group.plan.chapter} · ` : ""}
                         Day {group.currentDay}/{group.plan?.totalDays ?? "?"}
                       </Text>
@@ -153,7 +153,7 @@ export default function DevotionalHub() {
                         marginRight: 4,
                       }}
                     >
-                      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 12, color: config.color }}>
+                      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 14, color: config.color }}>
                         {doneCount}/{total}
                       </Text>
                     </View>
@@ -194,7 +194,7 @@ export default function DevotionalHub() {
                               {member.displayName[0]?.toUpperCase()}
                             </Text>
                           </View>
-                          <Text style={{ flex: 1, fontFamily: "DMSans_400Regular", fontSize: 13, color: fg }}>
+                          <Text style={{ flex: 1, fontFamily: "DMSans_400Regular", fontSize: 15, color: fg }}>
                             {member.displayName}
                           </Text>
                           {member.doneToday
@@ -210,7 +210,7 @@ export default function DevotionalHub() {
                           style={{ backgroundColor: config.color }}
                           className="h-10 items-center justify-center rounded-lg"
                         >
-                          <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 13, color: "#fff" }}>
+                          <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 15, color: "#fff" }}>
                             Continue Reading
                           </Text>
                         </Pressable>

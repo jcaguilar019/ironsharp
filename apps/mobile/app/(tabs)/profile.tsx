@@ -13,6 +13,7 @@ import {
   Bell,
   HelpCircle,
   Camera,
+  Trash2,
 } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
@@ -136,6 +137,45 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This will permanently delete your account, all your devotional history, submissions, and progress. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you absolutely sure?",
+              "Your account will be gone forever. There is no way to recover it.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Yes, delete my account",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await ApiClient.deleteAccount();
+                      await authClient.signOut();
+                      await clearAuthToken();
+                      await refresh();
+                      qc.clear();
+                      router.replace("/(auth)/welcome");
+                    } catch {
+                      Alert.alert("Error", "Could not delete your account. Please try again.");
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Screen edges={["top"]}>
       <ScrollView
@@ -255,6 +295,14 @@ export default function ProfileScreen() {
         >
           <LogOut size={18} color={destructive} />
           <Text className="font-sans-semibold text-base text-destructive">Sign Out</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleDeleteAccount}
+          className="mt-3 flex-row items-center justify-center gap-2 p-4 active:opacity-60"
+        >
+          <Trash2 size={14} color={muted} />
+          <Text className="text-sm text-muted-foreground">Delete Account</Text>
         </Pressable>
       </ScrollView>
     </Screen>

@@ -8,6 +8,7 @@ export type OnboardingSurvey = {
   state: string;
   city: string;
   education: string | null;
+  familyJoinCode: string | null;
   hasChurch: boolean | null;
   churchName: string;
   devotionalRating: number | null;
@@ -29,6 +30,7 @@ const DEFAULT_SURVEY: OnboardingSurvey = {
   state: "",
   city: "",
   education: null,
+  familyJoinCode: null,
   hasChurch: null,
   churchName: "",
   devotionalRating: null,

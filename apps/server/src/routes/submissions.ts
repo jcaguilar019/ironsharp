@@ -8,6 +8,7 @@ import {
   profiles,
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
+import { notifyPartnerDone, notifyGroupCompleteIfDone } from "../lib/push.js";
 
 export const submissions = new Hono<AppEnv>();
 
@@ -182,8 +183,10 @@ submissions.put("/", async (c) => {
     })
     .returning();
 
-  // Run streak updates in the background — don't block the response.
+  // Background tasks — none of these block the response.
   updateStreaks(userId, planId, dayNumber).catch(() => {});
+  notifyPartnerDone(userId, planId).catch(() => {});
+  notifyGroupCompleteIfDone(userId, planId, dayNumber).catch(() => {});
 
   return c.json({ submission: row });
 });
@@ -244,12 +247,23 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
 
     if (!group) continue;
 
-    // Lazy reset: new day — clear everyone's doneToday.
+    // New day: reset doneToday for all members, then immediately stamp today so
+    // subsequent submitters don't re-trigger this reset and wipe earlier members.
+    // Also carry forward or zero out streakCount now, so the "all done" step can
+    // simply do streakCount + 1 regardless of which member triggers it.
     if (group.lastStreakDate !== today) {
+      const streakCarryover =
+        group.lastStreakDate && isYesterday(group.lastStreakDate, today)
+          ? group.streakCount
+          : 0;
       await db
         .update(groupMembers)
         .set({ doneToday: false })
         .where(eq(groupMembers.groupId, groupId));
+      await db
+        .update(groups)
+        .set({ streakCount: streakCarryover, lastStreakDate: today, updatedAt: new Date() })
+        .where(eq(groups.id, groupId));
     }
 
     // Mark this member done.
@@ -258,10 +272,7 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
       .set({ doneToday: true })
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
-    // Already counted today — nothing more to do.
-    if (group.lastStreakDate === today) continue;
-
-    // Check majority.
+    // Check if every member is done.
     const [totals] = await db
       .select({
         total: count(),
@@ -272,17 +283,18 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
 
     const total = totals?.total ?? 0;
     const done = totals?.done ?? 0;
-    if (total === 0 || done < total) continue; // all members must complete
+    if (total === 0 || done < total) continue;
 
-    // Majority reached — increment or reset group streak.
-    const newStreak =
-      group.lastStreakDate && isYesterday(group.lastStreakDate, today)
-        ? group.streakCount + 1
-        : 1;
+    // Everyone's done — re-fetch streakCount (may have been updated by the reset above).
+    const [fresh] = await db
+      .select({ streakCount: groups.streakCount })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .limit(1);
 
     await db
       .update(groups)
-      .set({ streakCount: newStreak, lastStreakDate: today, updatedAt: new Date() })
+      .set({ streakCount: (fresh?.streakCount ?? 0) + 1, lastStreakDate: today, updatedAt: new Date() })
       .where(eq(groups.id, groupId));
   }
 }

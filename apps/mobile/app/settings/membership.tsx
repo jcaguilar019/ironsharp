@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { Check, Tag } from "lucide-react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { Check, Copy, Tag } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
@@ -28,6 +28,7 @@ export default function MembershipScreen() {
   const currentTier = (profile.data?.membershipTier ?? "free") as MembershipTier;
   const planUnlocksCount = profile.data?.planUnlocksCount ?? 0;
   const planUnlocksWindowStart = profile.data?.planUnlocksWindowStart ?? null;
+  const familyCode = profile.data?.familyCode ?? null;
 
   const [showPromo, setShowPromo] = useState(false);
   const [promoCode, setPromoCode] = useState("");
@@ -62,6 +63,7 @@ export default function MembershipScreen() {
           tier={currentTier}
           planUnlocksCount={planUnlocksCount}
           planUnlocksWindowStart={planUnlocksWindowStart}
+          familyCode={familyCode}
           bg={bg}
           border={border}
           fg={fg}
@@ -258,6 +260,7 @@ function CurrentUsageCard({
   tier,
   planUnlocksCount,
   planUnlocksWindowStart,
+  familyCode,
   bg,
   border,
   fg,
@@ -266,6 +269,7 @@ function CurrentUsageCard({
   tier: MembershipTier;
   planUnlocksCount: number;
   planUnlocksWindowStart: string | null;
+  familyCode: string | null;
   bg: string;
   border: string;
   fg: string;
@@ -350,6 +354,58 @@ function CurrentUsageCard({
           No AI generation (upgrade to unlock)
         </Text>
       )}
+
+      {/* Family invite code */}
+      {tier === "family" && familyCode ? (
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: display.accentColor + "30",
+            paddingTop: 14,
+            gap: 8,
+          }}
+        >
+          <Text className="text-xs uppercase tracking-wider" style={{ color: display.accentColor }}>
+            Family Invite Code
+          </Text>
+          <Text className="text-xs" style={{ color: muted }}>
+            Share this with your kids or students so they can link their account to yours.
+          </Text>
+          <Pressable
+            onPress={() =>
+              Share.share({ message: `Join my family on IronSharp with code: ${familyCode}` })
+            }
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              backgroundColor: display.accentColor + "18",
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderWidth: 1,
+              borderColor: display.accentColor + "40",
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: "DMSans_700Bold",
+                fontSize: 24,
+                letterSpacing: 5,
+                color: display.accentColor,
+              }}
+            >
+              {familyCode}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Copy size={14} color={display.accentColor} />
+              <Text style={{ fontSize: 12, color: display.accentColor, fontFamily: "DMSans_500Medium" }}>
+                Share
+              </Text>
+            </View>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

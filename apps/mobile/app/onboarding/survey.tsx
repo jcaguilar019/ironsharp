@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -15,16 +16,17 @@ import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useThemeColor } from "@/components/useThemeColor";
+import { ApiClient } from "@/lib/api";
 import { useOnboarding } from "./_layout";
 
-const TOTAL_STEPS = 9;
+const MIDDLE_SCHOOL = "Junior High or Middle School";
 
 const RELATIONSHIP_OPTIONS = ["Single", "Dating", "Engaged", "Married"];
 
 const AGE_OPTIONS = ["Under 18", "18 - 24", "25 - 34", "35 - 44", "45 - 54", "55 and older"];
 
 const EDU_OPTIONS = [
-  "Grades 6–12",
+  MIDDLE_SCHOOL,
   "Still in high school",
   "In college or trade school",
   "College graduate",
@@ -63,18 +65,18 @@ const US_STATES = [
 
 type ChurchOption = "yes" | "no" | "looking" | null;
 
-function ProgressBar({ step }: { step: number }) {
+function ProgressBar({ step, totalSteps }: { step: number; totalSteps: number }) {
   return (
     <View className="px-6 pt-4 pb-2">
       <View className="mb-1.5 flex-row items-center justify-between">
         <Text className="text-xs font-sans-medium text-muted-foreground">
-          {step} of {TOTAL_STEPS}
+          {step} of {totalSteps}
         </Text>
       </View>
       <View className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <View
           className="h-full rounded-full bg-primary"
-          style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+          style={{ width: `${(step / totalSteps) * 100}%` }}
         />
       </View>
     </View>
@@ -129,12 +131,16 @@ export default function OnboardingSurvey() {
   const scrollRef = useRef<ScrollView>(null);
   const [statePickerOpen, setStatePickerOpen] = useState(false);
 
-  // Local answers — committed to context when Finish is pressed
+  // Local answers
   const [name, setName] = useState(displayName);
   const [ageRange, setAgeRange] = useState(survey.ageRange ?? "");
   const [usState, setUsState] = useState(survey.state ?? "");
   const [city, setCity] = useState(survey.city ?? "");
   const [education, setEducation] = useState(survey.education ?? "");
+  const [familyJoinCode, setFamilyJoinCode] = useState("");
+  const [validatingCode, setValidatingCode] = useState(false);
+  const [familyCodeError, setFamilyCodeError] = useState("");
+  const [validatedFamilyCode, setValidatedFamilyCode] = useState("");
   const [churchOption, setChurchOption] = useState<ChurchOption>(
     survey.hasChurch === true ? "yes" : survey.hasChurch === false ? "no" : null
   );
@@ -145,20 +151,28 @@ export default function OnboardingSurvey() {
   const [relationshipStatus, setRelationshipStatus] = useState(survey.relationshipStatus ?? "");
   const [hasKids, setHasKids] = useState<boolean | null>(survey.hasKids ?? null);
 
+  const isMiddleSchool = education === MIDDLE_SCHOOL;
+  const TOTAL = isMiddleSchool ? 10 : 9;
+  // For steps > 4, shift everything up by 1 when middle school (step 5 = family code)
+  const offset = isMiddleSchool ? 1 : 0;
+
+  const isFamilyCodeStep = step === 5 && isMiddleSchool;
+
   const canContinue =
     step === 1 ? name.trim().length > 0 :
     step === 2 ? !!ageRange :
     step === 3 ? !!usState :
     step === 4 ? !!education :
-    step === 5 ? churchOption !== null :
-    step === 6 ? devotionalRating !== null :
-    step === 7 ? !!faithJourney :
-    step === 8 ? goals.length > 0 :
-    step === 9 ? (!!relationshipStatus && (relationshipStatus !== "Married" || hasKids !== null)) :
+    isFamilyCodeStep ? familyJoinCode.trim().length === 6 :
+    (step - offset === 5) ? churchOption !== null :
+    (step - offset === 6) ? devotionalRating !== null :
+    (step - offset === 7) ? !!faithJourney :
+    (step - offset === 8) ? goals.length > 0 :
+    (step - offset === 9) ? (!!relationshipStatus && (relationshipStatus !== "Married" || hasKids !== null)) :
     false;
 
-  const goNext = () => {
-    if (step < TOTAL_STEPS) {
+  const advance = () => {
+    if (step < TOTAL) {
       setStep((s) => s + 1);
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     } else {
@@ -168,6 +182,7 @@ export default function OnboardingSurvey() {
         state: usState,
         city,
         education: education || null,
+        familyJoinCode: validatedFamilyCode || null,
         hasChurch: churchOption === "yes" ? true : churchOption === "no" ? false : false,
         churchName: churchOption === "yes" ? churchName : "",
         devotionalRating,
@@ -180,9 +195,32 @@ export default function OnboardingSurvey() {
     }
   };
 
+  const handleContinue = async () => {
+    if (isFamilyCodeStep) {
+      setValidatingCode(true);
+      setFamilyCodeError("");
+      try {
+        const result = await ApiClient.validateFamilyCode(familyJoinCode.trim().toUpperCase());
+        if (result.valid) {
+          setValidatedFamilyCode(familyJoinCode.trim().toUpperCase());
+          advance();
+        } else {
+          setFamilyCodeError("That code doesn't match any Family account. Check with your parent or guardian.");
+        }
+      } catch {
+        setFamilyCodeError("Couldn't verify the code. Check your connection and try again.");
+      } finally {
+        setValidatingCode(false);
+      }
+      return;
+    }
+    advance();
+  };
+
   const goBack = () => {
     if (step > 1) {
       setStep((s) => s - 1);
+      setFamilyCodeError("");
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   };
@@ -206,7 +244,7 @@ export default function OnboardingSurvey() {
             <ArrowLeft size={22} color={mutedColor} />
           </Pressable>
         )}
-        {step > 1 ? <ProgressBar step={step} /> : <View className="pt-6" />}
+        {step > 1 ? <ProgressBar step={step} totalSteps={TOTAL} /> : <View className="pt-6" />}
       </View>
 
       <KeyboardAvoidingView
@@ -232,7 +270,7 @@ export default function OnboardingSurvey() {
                 autoCapitalize="words"
                 autoFocus
                 returnKeyType="done"
-                onSubmitEditing={() => { if (canContinue) goNext(); }}
+                onSubmitEditing={() => { if (canContinue) handleContinue(); }}
               />
             </View>
           )}
@@ -346,8 +384,38 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q5: Church ── */}
-          {step === 5 && (
+          {/* ── Q4b: Family Code (middle school only) ── */}
+          {isFamilyCodeStep && (
+            <View>
+              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-3">
+                Enter your family code
+              </Text>
+              <Text className="mb-8 text-sm text-muted-foreground leading-relaxed">
+                A parent or guardian with a Family membership will have a 6-character code to share with you. Enter it below to link your account.
+              </Text>
+              <Input
+                placeholder="e.g. IRON34"
+                value={familyJoinCode}
+                onChangeText={(t) => {
+                  setFamilyJoinCode(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6));
+                  setFamilyCodeError("");
+                }}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => { if (canContinue) handleContinue(); }}
+                style={{ letterSpacing: 4, fontSize: 22, textAlign: "center", fontFamily: "DMSans_700Bold" }}
+              />
+              {!!familyCodeError && (
+                <Text className="mt-3 text-center text-sm text-destructive">
+                  {familyCodeError}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* ── Q5/6: Church ── */}
+          {step - offset === 5 && !isFamilyCodeStep && (
             <View>
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
                 Do you belong to a church?
@@ -382,8 +450,8 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q6: Devotional rating ── */}
-          {step === 6 && (
+          {/* ── Q6/7: Devotional rating ── */}
+          {step - offset === 6 && (
             <View>
               <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
                 How would you rate your current devotional life and time with God?
@@ -419,8 +487,8 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q7: Faith journey ── */}
-          {step === 7 && (
+          {/* ── Q7/8: Faith journey ── */}
+          {step - offset === 7 && (
             <View>
               <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
                 How would you describe where you are in your faith right now?
@@ -441,8 +509,38 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q9: Relationship status ── */}
-          {step === 9 && (
+          {/* ── Q8/9: Goals ── */}
+          {step - offset === 8 && (
+            <View>
+              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
+                What are you most hoping IronSharp helps you with?
+              </Text>
+              <Text className="mb-6 text-sm text-muted-foreground">Pick up to two.</Text>
+              <View className="gap-2.5">
+                {GOAL_OPTIONS.map((opt) => {
+                  const active = goals.includes(opt);
+                  return (
+                    <ListOption
+                      key={opt}
+                      label={opt}
+                      active={active}
+                      onPress={() => toggleGoal(opt)}
+                      multi
+                      disabled={goals.length >= 2 && !active}
+                    />
+                  );
+                })}
+              </View>
+              {goals.length >= 2 && (
+                <Text className="mt-4 text-center text-xs text-muted-foreground">
+                  Maximum 2 selected — deselect one to change your choice.
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* ── Q9/10: Relationship status ── */}
+          {step - offset === 9 && (
             <View>
               <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-6">
                 What's your relationship status?
@@ -491,45 +589,16 @@ export default function OnboardingSurvey() {
               )}
             </View>
           )}
-
-          {/* ── Q8: Goals ── */}
-          {step === 8 && (
-            <View>
-              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
-                What are you most hoping IronSharp helps you with?
-              </Text>
-              <Text className="mb-6 text-sm text-muted-foreground">Pick up to two.</Text>
-              <View className="gap-2.5">
-                {GOAL_OPTIONS.map((opt) => {
-                  const active = goals.includes(opt);
-                  return (
-                    <ListOption
-                      key={opt}
-                      label={opt}
-                      active={active}
-                      onPress={() => toggleGoal(opt)}
-                      multi
-                      disabled={goals.length >= 2 && !active}
-                    />
-                  );
-                })}
-              </View>
-              {goals.length >= 2 && (
-                <Text className="mt-4 text-center text-xs text-muted-foreground">
-                  Maximum 2 selected — deselect one to change your choice.
-                </Text>
-              )}
-            </View>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Fixed bottom CTA */}
       <View className="absolute bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4">
         <Button
-          title={step === TOTAL_STEPS ? "Finish" : "Continue"}
-          disabled={!canContinue}
-          onPress={goNext}
+          title={step === TOTAL ? "Finish" : "Continue"}
+          disabled={!canContinue || validatingCode}
+          loading={validatingCode}
+          onPress={handleContinue}
         />
       </View>
     </Screen>

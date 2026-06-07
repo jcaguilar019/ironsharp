@@ -76,6 +76,7 @@ export default function OnboardingWelcome() {
         surveyHasKids: survey.hasKids ?? undefined,
         surveyCompleted: true,
       });
+      if (survey.familyJoinCode) await ApiClient.joinFamily(survey.familyJoinCode);
       if (planId) await ApiClient.startPlan(planId);
       return result;
     },

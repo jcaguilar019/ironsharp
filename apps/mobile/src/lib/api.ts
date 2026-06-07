@@ -54,6 +54,7 @@ export type DevotionalDay = {
   dayNumber: number;
   chapter: string;
   theme: string | null;
+  studyNotes: StudyNoteEntry[];
   reflectionQ1: string;
   reflectionQ2: string;
   prayerPrompt: string | null;
@@ -82,6 +83,13 @@ export type Profile = {
   surveyRelationshipStatus: string | null;
   surveyHasKids: boolean | null;
   surveyCompletedAt: string | null;
+  pushToken: string | null;
+  notifMorningReminder: boolean;
+  notifPartnerDone: boolean;
+  notifDailyNudge: boolean;
+  notifGroupComplete: boolean;
+  familyCode: string | null;
+  familyAccountId: string | null;
   createdAt: string;
   membershipTier: "free" | "connect" | "sharpen" | "family";
   generatedCount: number;
@@ -221,6 +229,25 @@ export const ApiClient = {
       method: "POST",
       body: JSON.stringify({ code }),
     }),
+  deleteAccount: () =>
+    api<{ ok: boolean }>("/api/profile", { method: "DELETE" }),
+  savePushToken: (token: string) =>
+    api<{ ok: boolean }>("/api/profile/push-token", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  saveNotifPrefs: (prefs: Partial<Pick<Profile, "notifMorningReminder" | "notifPartnerDone" | "notifDailyNudge" | "notifGroupComplete">>) =>
+    api<{ ok: boolean }>("/api/profile/notification-prefs", {
+      method: "PATCH",
+      body: JSON.stringify(prefs),
+    }),
+  validateFamilyCode: (code: string) =>
+    api<{ valid: boolean }>(`/api/profile/family/validate?code=${encodeURIComponent(code)}`),
+  joinFamily: (code: string) =>
+    api<{ profile: Profile }>("/api/profile/family/join", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
 
   getGenerateTokens: () =>
     api<{ tokensRemaining: number; resetsAt: string | null; tierLimit: number }>("/api/plans/generate/tokens"),
@@ -265,6 +292,8 @@ export const ApiClient = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+  stopPlan: (planId: string) =>
+    api<{ ok: boolean }>(`/api/progress/${planId}`, { method: "DELETE" }),
   updateGroupProgress: (
     groupId: string,
     body: { nextDay?: number; completed?: boolean }

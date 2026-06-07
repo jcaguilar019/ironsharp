@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   ActivityIndicator,
@@ -15,12 +16,13 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, BookMarked, BookOpen, Car, ChevronDown, Headphones, Lock, Map, Play, Unlock } from "lucide-react-native";
+import { ArrowUp, BookMarked, BookOpen, Car, ChevronDown, Headphones, Lock, Map, Play, Trash2, Unlock } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient, type StudyNoteEntry, type BibleChapter } from "@/lib/api";
+import { cancelDailyNudge } from "@/lib/notifications";
 
 const BOOK_ALIASES: Record<string, string> = {
   Psalm: "Psalms",
@@ -192,7 +194,7 @@ function PassageContextDrawer({ passageRef }: { passageRef: string }) {
 
 // ─── Feature 2: Study Notes Drawer ───────────────────────────────────────────
 
-function StudyNotesDrawer({ passageRef }: { passageRef: string }) {
+function StudyNotesDrawer({ passageRef, notes }: { passageRef: string; notes: StudyNoteEntry[] }) {
   const cardBg = useThemeColor("card");
   const mutedBg = useThemeColor("muted");
   const borderColor = useThemeColor("border");
@@ -204,24 +206,11 @@ function StudyNotesDrawer({ passageRef }: { passageRef: string }) {
   const animH = useRef(new Animated.Value(0)).current;
   const chevronAnim = useRef(new Animated.Value(0)).current;
 
-  const parsed = parsePassageRef(passageRef);
-
   useEffect(() => {
     setOpen(false);
     animH.setValue(0);
     chevronAnim.setValue(0);
   }, [passageRef]);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["passageNotes", passageRef],
-    queryFn: () =>
-      parsed
-        ? ApiClient.getPassageNotes(parsed.book, parsed.chapter)
-        : Promise.resolve({ passageNotes: null }),
-    enabled: !!parsed,
-  });
-
-  const notes = (data?.passageNotes?.notes ?? []) as StudyNoteEntry[];
 
   const toggle = () => {
     const toOpen = !open;
@@ -285,9 +274,7 @@ function StudyNotesDrawer({ passageRef }: { passageRef: string }) {
             IronSharp Study Notes · {passageRef}
           </Text>
 
-          {isLoading ? (
-            <SkeletonLines count={3} />
-          ) : notes.length > 0 ? (
+          {notes.length > 0 ? (
             <>
             {notes.map((entry, i) => (
               <View key={entry.verse_ref}>
@@ -657,6 +644,26 @@ export default function DevotionalReader() {
   const borderColor = useThemeColor("border");
   const fgColor = useThemeColor("foreground");
 
+  const handleStopPlan = () => {
+    Alert.alert(
+      "Stop this plan?",
+      "Your progress will be removed. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Stop plan",
+          style: "destructive",
+          onPress: async () => {
+            await ApiClient.stopPlan(planId);
+            await qc.invalidateQueries({ queryKey: ["progress"] });
+            await qc.invalidateQueries({ queryKey: ["progress", "active"] });
+            router.replace("/(tabs)/devotional");
+          },
+        },
+      ]
+    );
+  };
+
   const [showPlayMenu, setShowPlayMenu] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -755,6 +762,7 @@ export default function DevotionalReader() {
       }
     },
     onSuccess: async () => {
+      cancelDailyNudge().catch(() => {});
       const midnight = new Date();
       midnight.setDate(midnight.getDate() + 1);
       midnight.setHours(0, 0, 0, 0);
@@ -852,6 +860,15 @@ export default function DevotionalReader() {
         subtitle={plan?.title ?? "Devotional"}
         rightAction={
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            {!groupId && (
+              <Pressable
+                onPress={handleStopPlan}
+                hitSlop={8}
+                className="h-9 w-9 items-center justify-center rounded-full bg-muted active:opacity-70"
+              >
+                <Trash2 size={15} color={muted} />
+              </Pressable>
+            )}
             <Pressable
               onPress={() => router.push(`/devotional/history/${planId}`)}
               hitSlop={8}
@@ -956,7 +973,7 @@ export default function DevotionalReader() {
           >
             <PassageContextDrawer passageRef={day?.chapter ?? ""} />
             <View style={{ height: 1, backgroundColor: borderColor }} />
-            <StudyNotesDrawer passageRef={day?.chapter ?? ""} />
+            <StudyNotesDrawer passageRef={day?.chapter ?? ""} notes={day?.studyNotes ?? []} />
           </View>
 
           {/* Reflect */}
@@ -1028,23 +1045,25 @@ export default function DevotionalReader() {
             />
           </View>
 
-          <Button
-            title={submit.isPending ? "Submitting..." : "Submit"}
-            loading={submit.isPending}
-            disabled={!response1.trim() || !response2.trim()}
-            onPress={() => submit.mutate()}
-          />
+          <View className="w-2/3 self-center">
+            <Button
+              title={submit.isPending ? "Submitting..." : "Submit"}
+              loading={submit.isPending}
+              disabled={!response1.trim() || !response2.trim()}
+              onPress={() => submit.mutate()}
+            />
+          </View>
         </ScrollView>
         {showScrollTop && (
           <Pressable
             onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
             style={{
               position: "absolute",
-              bottom: 88,
+              bottom: 24,
               right: 20,
-              width: 56,
-              height: 56,
-              borderRadius: 28,
+              width: 44,
+              height: 44,
+              borderRadius: 22,
               backgroundColor: accent,
               alignItems: "center",
               justifyContent: "center",
@@ -1055,7 +1074,7 @@ export default function DevotionalReader() {
               shadowOffset: { width: 0, height: 3 },
             }}
           >
-            <ArrowUp size={24} color="#fff" />
+            <ArrowUp size={18} color="#fff" />
           </Pressable>
         )}
       </KeyboardAvoidingView>

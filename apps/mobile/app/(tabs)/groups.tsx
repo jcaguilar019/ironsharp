@@ -25,6 +25,7 @@ import {
   Link,
   Pencil,
   Plus,
+  Trash2,
   UserPlus,
   X,
 } from "lucide-react-native";
@@ -355,6 +356,21 @@ export default function GroupsScreen() {
     }
   };
 
+  const handleDeleteGroup = (groupId: string, name: string) => {
+    Alert.alert("Delete group", `Delete "${name}"? This can't be undone.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await ApiClient.deleteGroup(groupId);
+          await qc.invalidateQueries({ queryKey: ["groups"] });
+          if (expanded === groupId) setExpanded(null);
+        },
+      },
+    ]);
+  };
+
   const handleRemoveMember = (groupId: string, targetUserId: string, name: string) => {
     Alert.alert("Remove member", `Remove ${name} from this group?`, [
       { text: "Cancel", style: "cancel" },
@@ -430,10 +446,10 @@ export default function GroupsScreen() {
           }
         >
           <View style={{ marginBottom: 20 }}>
-            <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+            <Text className="text-sm uppercase tracking-wider text-muted-foreground">
               Your Relationships
             </Text>
-            <Text className="font-serif text-2xl font-bold text-foreground">Groups</Text>
+            <Text className="font-serif text-3xl font-bold text-foreground">Groups</Text>
           </View>
 
           {groupList.map((group, idx) => {
@@ -456,16 +472,16 @@ export default function GroupsScreen() {
                 }}
               >
                 {/* Collapsed row */}
-                <View className="flex-row items-center gap-3 px-3 py-4">
+                <View className="flex-row items-center gap-3 px-3 py-5">
                   {/* Up / Down order buttons */}
-                  <View style={{ gap: 2 }}>
+                  <View style={{ gap: 4 }}>
                     <Pressable
                       onPress={(e) => { e.stopPropagation?.(); handleMove(group.id, "up"); }}
                       hitSlop={6}
                       disabled={isFirst}
                       style={{ opacity: isFirst ? 0.2 : 1 }}
                     >
-                      <ArrowUp size={14} color={muted} />
+                      <ArrowUp size={16} color={muted} />
                     </Pressable>
                     <Pressable
                       onPress={(e) => { e.stopPropagation?.(); handleMove(group.id, "down"); }}
@@ -473,27 +489,27 @@ export default function GroupsScreen() {
                       disabled={isLast}
                       style={{ opacity: isLast ? 0.2 : 1 }}
                     >
-                      <ArrowDown size={14} color={muted} />
+                      <ArrowDown size={16} color={muted} />
                     </Pressable>
                   </View>
 
-                  <View style={{ width: 3, height: 36, borderRadius: 2, backgroundColor: config.color }} />
+                  <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: config.color }} />
 
                   <Pressable
                     onPress={() => toggle(group.id)}
                     className="flex-1 flex-row items-center"
                   >
                     <View className="flex-1">
-                      <Text className="font-serif text-base font-bold text-foreground">
+                      <Text className="font-serif text-lg font-bold text-foreground">
                         {group.name}
                       </Text>
-                      <Text className="mt-0.5 text-xs text-muted-foreground">
+                      <Text className="mt-0.5 text-sm text-muted-foreground">
                         {config.label}
                         {group.plan?.chapter ? ` · ${group.plan.chapter}` : ""}
                         {` · ${doneCount}/${group.members.length} today`}
                       </Text>
                     </View>
-                    {isOpen ? <ChevronUp size={18} color={muted} /> : <ChevronDown size={18} color={muted} />}
+                    {isOpen ? <ChevronUp size={20} color={muted} /> : <ChevronDown size={20} color={muted} />}
                   </Pressable>
                 </View>
 
@@ -554,7 +570,17 @@ export default function GroupsScreen() {
                       >
                         <Pencil size={13} color={muted} />
                         <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
-                          Edit group
+                          Edit
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteGroup(group.id, group.name)}
+                        style={{ borderWidth: 1, borderColor: "#ef444440", borderRadius: 8, backgroundColor: "#ef444410" }}
+                        className="flex-row items-center gap-1.5 px-3 py-2"
+                      >
+                        <Trash2 size={13} color="#ef4444" />
+                        <Text style={{ color: "#ef4444", fontFamily: "DMSans_500Medium", fontSize: 12 }}>
+                          Delete
                         </Text>
                       </Pressable>
                     </View>
