@@ -7,29 +7,40 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": true },
+      "ios": {
+        "simulator": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ironsharp-production.up.railway.app",
-        "EXPO_PUBLIC_NEON_AUTH_URL": "REPLACE_WITH_YOUR_NEON_AUTH_URL"
-      }
+        "EXPO_PUBLIC_NEON_AUTH_URL": "https://ep-solitary-surf-afizedwc.neonauth.c-2.us-west-2.aws.neon.tech/neondb/auth"
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ironsharp-production.up.railway.app",
-        "EXPO_PUBLIC_NEON_AUTH_URL": "REPLACE_WITH_YOUR_NEON_AUTH_URL"
-      }
+        "EXPO_PUBLIC_NEON_AUTH_URL": "https://ep-solitary-surf-afizedwc.neonauth.c-2.us-west-2.aws.neon.tech/neondb/auth"
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ironsharp-production.up.railway.app",
-        "EXPO_PUBLIC_NEON_AUTH_URL": "REPLACE_WITH_YOUR_NEON_AUTH_URL"
-      }
+        "EXPO_PUBLIC_NEON_AUTH_URL": "https://ep-solitary-surf-afizedwc.neonauth.c-2.us-west-2.aws.neon.tech/neondb/auth"
+      },
+      "channel": "production"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6778161429"
+      }
+    }
   }
 }

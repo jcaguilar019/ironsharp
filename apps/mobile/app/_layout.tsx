@@ -19,6 +19,29 @@ import {
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { SessionProvider } from "@/lib/session";
 
+// ── DIAGNOSTIC: capture every uncaught JS error to NSLog ────────────────────
+// On TestFlight the only way to see anything is the device's unified log
+// (Xcode → Window → Devices → View Device Logs). console.error from JS
+// surfaces there with the bundle ID, so we wrap the global handler to make
+// sure NOTHING gets silently swallowed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RNErrorUtils = (globalThis as any).ErrorUtils;
+if (RNErrorUtils?.setGlobalHandler) {
+  const prev = RNErrorUtils.getGlobalHandler?.();
+  RNErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+    try {
+      console.error(
+        `[IronSharp] uncaught ${isFatal ? "FATAL" : "non-fatal"}:`,
+        error?.message ?? error,
+        error?.stack ?? ""
+      );
+    } catch {}
+    try {
+      prev?.(error, isFatal);
+    } catch {}
+  });
+}
+
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
@@ -46,7 +69,10 @@ function RootNavigator() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+      {/* animation: "default" → native iOS UINavigationController push.
+          "fade" is implemented via Reanimated under new arch, which we suspect
+          is the trigger for the post-login TurboModule queue crash on iOS 26.5. */}
+      <Stack screenOptions={{ headerShown: false, animation: "default" }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="onboarding" />

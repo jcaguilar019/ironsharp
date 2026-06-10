@@ -41,15 +41,29 @@ export default function TabsLayout() {
   const border = useThemeColor("border");
 
   useEffect(() => {
-    if (authed && profile.data) registerAndSaveToken();
+    if (!authed || !profile.data) return;
+    // Wrap in try/catch — under new arch + bridgeless, an uncaught JS error
+    // from a useEffect can propagate into a TurboModule queue exception
+    // handler and terminate the process.
+    (async () => {
+      try {
+        await registerAndSaveToken();
+      } catch (e) {
+        console.error("[IronSharp] registerAndSaveToken failed:", e);
+      }
+    })();
   }, [authed, profile.data?.userId]);
 
   useEffect(() => {
     if (!authed || !profile.data) return;
-    if (profile.data.notifMorningReminder) scheduleMorningReminder();
-    else cancelMorningReminder();
-    if (profile.data.notifDailyNudge) scheduleDailyNudge();
-    else cancelDailyNudge();
+    try {
+      if (profile.data.notifMorningReminder) scheduleMorningReminder();
+      else cancelMorningReminder();
+      if (profile.data.notifDailyNudge) scheduleDailyNudge();
+      else cancelDailyNudge();
+    } catch (e) {
+      console.error("[IronSharp] notification scheduling failed:", e);
+    }
   }, [authed, profile.data?.notifMorningReminder, profile.data?.notifDailyNudge]);
 
   if (isPending || (authed && profile.isLoading)) {

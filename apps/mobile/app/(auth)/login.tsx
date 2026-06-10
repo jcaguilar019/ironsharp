@@ -4,7 +4,6 @@ import { Link, useRouter } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
-import { SocialButtons } from "@/components/SocialButtons";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "@/lib/session";
 
@@ -66,8 +65,6 @@ export default function Login() {
             />
             <Button title="Log In" loading={loading} onPress={handleLogin} />
           </View>
-
-          <SocialButtons />
 
           <View className="mt-6 items-center gap-2">
             <Link href="/(auth)/forgot-password" className="text-sm text-primary">

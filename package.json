@@ -24,7 +24,6 @@
     "expo-image-manipulator": "~13.0.6",
     "expo-image-picker": "~16.0.6",
     "lucide-react-native": "^1.17.0",
-    "metro-runtime": "^0.83.3",
-    "react-native-worklets": "^0.8.0"
+    "metro-runtime": "^0.83.3"
   }
 }

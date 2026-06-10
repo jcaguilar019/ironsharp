@@ -4,7 +4,6 @@ import { Link, useRouter } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
-import { SocialButtons } from "@/components/SocialButtons";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "@/lib/session";
 
@@ -88,8 +87,6 @@ export default function Signup() {
             />
             <Button title="Sign Up" loading={loading} onPress={handleSignup} />
           </View>
-
-          <SocialButtons />
 
           <Text className="mt-6 text-sm text-muted-foreground">
             Already have an account?{" "}
