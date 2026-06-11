@@ -71,7 +71,7 @@ export default function CompletedPlanReview() {
               className="text-sm leading-relaxed text-muted-foreground"
               numberOfLines={4}
             >
-              {d.commentary}
+              {d.studyNotes?.[0]?.note ?? ""}
             </Text>
           </View>
         ))}

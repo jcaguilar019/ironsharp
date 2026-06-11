@@ -12,9 +12,9 @@ import { useOnboarding } from "./_layout";
 export default function CompleteProfile() {
   const router = useRouter();
   const profile = useProfile();
-  const { displayName, churchName, set } = useOnboarding();
+  const { displayName, survey, set, setSurvey } = useOnboarding();
   const [name, setName] = useState(displayName);
-  const [church, setChurch] = useState(churchName);
+  const [church, setChurch] = useState(survey.churchName);
   const iconColor = useThemeColor("muted-foreground");
 
   // Prefill from the profile we already have on the server (created at signup
@@ -25,7 +25,8 @@ export default function CompleteProfile() {
   }, [profile.data?.displayName, profile.data?.churchName]);
 
   const onContinue = () => {
-    set({ displayName: name.trim(), churchName: church.trim() });
+    set({ displayName: name.trim() });
+    setSurvey({ churchName: church.trim() });
     router.push("/onboarding/role");
   };
 
