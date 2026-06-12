@@ -57,6 +57,12 @@
         "projectId": "7d341012-d0a8-4ea6-a4cd-927886fd5927"
       }
     },
-    "owner": "josiahturnq"
+    "owner": "josiahturnq",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7d341012-d0a8-4ea6-a4cd-927886fd5927"
+    }
   }
 }
