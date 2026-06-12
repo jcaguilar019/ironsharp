@@ -58,7 +58,7 @@ async function seedTranslation(id: string, label: string, url: string) {
     return;
   }
 
-  const raw: RawBook[] = await res.json();
+  const raw = (await res.json()) as RawBook[];
   if (raw.length !== 66) {
     console.warn(`   ⚠ Expected 66 books, got ${raw.length} — skipping.`);
     return;
