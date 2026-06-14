@@ -51,6 +51,7 @@ import type { GroupDayResponse } from "@/lib/api";
 
 function SkeletonLine({ width = "100%" }: { width?: number | string }) {
   const opacity = useRef(new Animated.Value(0.35)).current;
+  const skeletonColor = useThemeColor("muted");
 
   useEffect(() => {
     Animated.loop(
@@ -73,7 +74,7 @@ function SkeletonLine({ width = "100%" }: { width?: number | string }) {
     <Animated.View
       style={{
         height: 11,
-        backgroundColor: "#C8BFB5",
+        backgroundColor: skeletonColor,
         borderRadius: 5,
         marginBottom: 8,
         opacity,
@@ -416,7 +417,7 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
                 onPress={() => setShowPicker(true)}
                 style={{ borderWidth: 1, borderColor, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
               >
-                <Text style={{ fontSize: 10, color: accent, fontFamily: "DMSans_600SemiBold", letterSpacing: 0.5 }}>
+                <Text style={{ fontSize: 10, color: accent, fontFamily: "DMSans_700Bold", letterSpacing: 0.5 }}>
                   {translation} ▾
                 </Text>
               </Pressable>
@@ -462,7 +463,7 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
               hitSlop={8}
               style={{ opacity: page === 0 ? 0.3 : 1 }}
             >
-              <Text style={{ color: accent, fontSize: 13, fontFamily: "DMSans_600SemiBold" }}>← Prev</Text>
+              <Text style={{ color: accent, fontSize: 13, fontFamily: "DMSans_700Bold" }}>← Prev</Text>
             </Pressable>
             <Text style={{ color: mutedFg, fontSize: 11, fontFamily: "DMSans_400Regular" }}>
               {page + 1} / {totalPages}
@@ -473,7 +474,7 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
               hitSlop={8}
               style={{ opacity: page === totalPages - 1 ? 0.3 : 1 }}
             >
-              <Text style={{ color: accent, fontSize: 13, fontFamily: "DMSans_600SemiBold" }}>Next →</Text>
+              <Text style={{ color: accent, fontSize: 13, fontFamily: "DMSans_700Bold" }}>Next →</Text>
             </Pressable>
           </View>
         )}
@@ -495,7 +496,7 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
           >
             <CheckCircle size={15} color={passageRead ? accent : mutedFg} fill={passageRead ? accent : "transparent"} />
             <Text style={{
-              fontFamily: "DMSans_600SemiBold",
+              fontFamily: "DMSans_700Bold",
               fontSize: 13,
               color: passageRead ? accent : mutedFg,
             }}>
@@ -527,7 +528,7 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
                 }}
               >
                 <View>
-                  <Text style={{ color: fgColor, fontFamily: "DMSans_600SemiBold", fontSize: 14 }}>{t.id}</Text>
+                  <Text style={{ color: fgColor, fontFamily: "DMSans_700Bold", fontSize: 14 }}>{t.id}</Text>
                   <Text style={{ color: mutedFg, fontSize: 11, marginTop: 1 }}>{t.label}</Text>
                 </View>
                 {translation === t.id && (
@@ -678,6 +679,7 @@ export default function DevotionalReader() {
   const qc = useQueryClient();
 
   const primary = useThemeColor("primary");
+  const primaryFg = useThemeColor("primary-foreground");
   const muted = useThemeColor("muted-foreground");
   const accent = useThemeColor("primary");
   const cardBg = useThemeColor("card");
@@ -1216,7 +1218,7 @@ export default function DevotionalReader() {
               shadowOffset: { width: 0, height: 3 },
             }}
           >
-            <ArrowUp size={18} color="#fff" />
+            <ArrowUp size={18} color={primaryFg} />
           </Pressable>
         )}
       </KeyboardAvoidingView>

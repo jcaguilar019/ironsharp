@@ -24,6 +24,7 @@ const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   completed:      require("../../assets/images/categories/completed.jpg"),
 };
 import { Screen } from "@/components/Screen";
+import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlans, useProgress, useGenerateTokens } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/categories";
@@ -58,7 +59,7 @@ function TokenCoins({ count, limit }: { count: number; limit: number }) {
 
 export default function PlansScreen() {
   const router = useRouter();
-  const { data } = usePlans();
+  const { data, isError, refetch } = usePlans();
   const progress = useProgress();
   const tokens = useGenerateTokens();
   const white = "#FFFFFF";
@@ -89,6 +90,17 @@ export default function PlansScreen() {
     }
     router.push("/plans/create");
   };
+
+  if (isError) {
+    return (
+      <Screen edges={["top"]}>
+        <ErrorState
+          message="We couldn't load plans. Check your connection and try again."
+          onRetry={() => refetch()}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen edges={["top"]}>

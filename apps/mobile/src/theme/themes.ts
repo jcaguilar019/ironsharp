@@ -277,4 +277,12 @@ export function hsl(themeName: ThemeName, token: string): string {
   return triple ? `hsl(${triple})` : "#000";
 }
 
+// Whether a theme has a dark background — drives status-bar icon contrast so
+// the status bar follows the in-app theme rather than the OS appearance.
+export function isDarkTheme(themeName: ThemeName): boolean {
+  const bg = THEME_VARS[themeName]?.["--background"] ?? "";
+  const lightness = parseFloat(bg.split(/\s+/)[2] ?? "100"); // "H S% L%" → L
+  return Number.isFinite(lightness) && lightness < 50;
+}
+
 export const DEFAULT_THEME: ThemeName = "slate";

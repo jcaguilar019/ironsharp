@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { Check, Copy, Tag } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Screen } from "@/components/Screen";
@@ -24,6 +24,7 @@ export default function MembershipScreen() {
   const muted = useThemeColor("muted-foreground");
   const bg = useThemeColor("background");
   const primary = useThemeColor("primary");
+  const destructive = useThemeColor("destructive");
 
   const currentTier = (profile.data?.membershipTier ?? "free") as MembershipTier;
   const planUnlocksCount = profile.data?.planUnlocksCount ?? 0;
@@ -204,6 +205,7 @@ export default function MembershipScreen() {
         transparent
         onRequestClose={() => !redeeming && setShowPromo(false)}
       >
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <Pressable
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}
           onPress={() => !redeeming && setShowPromo(false)}
@@ -229,7 +231,7 @@ export default function MembershipScreen() {
               autoCorrect={false}
               style={{
                 borderWidth: 1,
-                borderColor: promoError ? "#E57373" : border,
+                borderColor: promoError ? destructive : border,
                 borderRadius: 12,
                 padding: 14,
                 fontSize: 20,
@@ -241,7 +243,7 @@ export default function MembershipScreen() {
               }}
             />
             {!!promoError && (
-              <Text style={{ color: "#E57373", fontSize: 13, textAlign: "center", marginTop: -8 }}>
+              <Text style={{ color: destructive, fontSize: 13, textAlign: "center", marginTop: -8 }}>
                 {promoError}
               </Text>
             )}
@@ -258,6 +260,7 @@ export default function MembershipScreen() {
             </Pressable>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </Screen>
   );

@@ -235,7 +235,7 @@ export default function CreatePlan() {
             ...(form.context.trim() ? [{ label: "Context", value: form.context }] : []),
           ].map((row) => (
             <View key={row.label} style={{ borderTopWidth: 1, borderTopColor: border, paddingVertical: 14 }}>
-              <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 11, color: muted, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>
+              <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 11, color: muted, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>
                 {row.label}
               </Text>
               <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 15, color: fg }}>
@@ -451,7 +451,7 @@ function StepContent({
                 justifyContent: "space-between",
               }}
             >
-              <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 16, color: form.days === d ? primary : fg }}>
+              <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 16, color: form.days === d ? primary : fg }}>
                 {d} days
               </Text>
               {form.days === d && (
@@ -713,7 +713,7 @@ function OptionCard({
     >
       {icon ? <View style={{ width: 28, alignItems: "center" }}>{icon}</View> : null}
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 15, color: selected ? primary : fg }}>
+        <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 15, color: selected ? primary : fg }}>
           {label}
         </Text>
         <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, marginTop: 2 }}>

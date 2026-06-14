@@ -63,7 +63,12 @@ export default function Login() {
               secureTextEntry
               autoComplete="password"
             />
-            <Button title="Log In" loading={loading} onPress={handleLogin} />
+            <Button
+              title="Log In"
+              loading={loading}
+              disabled={!email.trim() || !password}
+              onPress={handleLogin}
+            />
           </View>
 
           <View className="mt-6 items-center gap-2">

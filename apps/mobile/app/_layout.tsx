@@ -18,6 +18,8 @@ import {
   DMSans_700Bold,
 } from "@expo-google-fonts/dm-sans";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+import { isDarkTheme } from "@/theme/themes";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SessionProvider } from "@/lib/session";
 
 // ── DIAGNOSTIC: capture every uncaught JS error to NSLog ────────────────────
@@ -50,7 +52,7 @@ const queryClient = new QueryClient({
 });
 
 function RootNavigator() {
-  const { ready } = useTheme();
+  const { ready, theme } = useTheme();
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_700Bold,
     PlayfairDisplay_400Regular,
@@ -70,7 +72,9 @@ function RootNavigator() {
 
   return (
     <>
-      <StatusBar style="auto" />
+      {/* Follow the in-app theme, not the OS appearance — otherwise a dark
+          theme under an OS in Light mode gets invisible dark status-bar icons. */}
+      <StatusBar style={isDarkTheme(theme) ? "light" : "dark"} />
       {/* animation: "default" → native iOS UINavigationController push.
           "fade" is implemented via Reanimated under new arch, which we suspect
           is the trigger for the post-login TurboModule queue crash on iOS 26.5. */}
@@ -90,9 +94,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <SessionProvider>
-              <RootNavigator />
-            </SessionProvider>
+            <ErrorBoundary>
+              <SessionProvider>
+                <RootNavigator />
+              </SessionProvider>
+            </ErrorBoundary>
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

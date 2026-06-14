@@ -85,7 +85,12 @@ export default function Signup() {
               onChangeText={setConfirm}
               secureTextEntry
             />
-            <Button title="Sign Up" loading={loading} onPress={handleSignup} />
+            <Button
+              title="Sign Up"
+              loading={loading}
+              disabled={!email.trim() || !password || !confirm}
+              onPress={handleSignup}
+            />
           </View>
 
           <Text className="mt-6 text-sm text-muted-foreground">

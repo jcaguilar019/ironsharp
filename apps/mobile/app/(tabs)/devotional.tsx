@@ -210,7 +210,7 @@ export default function DevotionalHub() {
                           style={{ backgroundColor: config.color }}
                           className="h-10 items-center justify-center rounded-lg"
                         >
-                          <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 15, color: "#fff" }}>
+                          <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 15, color: "#fff" }}>
                             Continue Reading
                           </Text>
                         </Pressable>

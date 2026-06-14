@@ -33,6 +33,7 @@ import {
   X,
 } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
+import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useGroups } from "@/lib/queries";
 import { ApiClient, ApiError, type Group, type UserSearchResult } from "@/lib/api";
@@ -71,7 +72,7 @@ function InviteCodeRow({
     <View>
       <Text
         style={{
-          fontFamily: "DMSans_600SemiBold",
+          fontFamily: "DMSans_700Bold",
           fontSize: 11,
           color: muted,
           letterSpacing: 1.2,
@@ -181,7 +182,7 @@ function MemberSearch({
     <View>
       <Text
         style={{
-          fontFamily: "DMSans_600SemiBold",
+          fontFamily: "DMSans_700Bold",
           fontSize: 11,
           color: muted,
           letterSpacing: 1.2,
@@ -392,6 +393,8 @@ export default function GroupsScreen() {
       await ApiClient.updateGroup(editGroup.id, editName.trim());
       await qc.invalidateQueries({ queryKey: ["groups"] });
       setEditGroup(null);
+    } catch (err) {
+      Alert.alert("Couldn't save", err instanceof ApiError ? err.message : "Please try again.");
     } finally {
       setSaving(false);
     }
@@ -427,13 +430,17 @@ export default function GroupsScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await ApiClient.deleteGroup(groupId);
-          await qc.invalidateQueries({ queryKey: ["groups"] });
-          setExpandedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(groupId);
-            return next;
-          });
+          try {
+            await ApiClient.deleteGroup(groupId);
+            await qc.invalidateQueries({ queryKey: ["groups"] });
+            setExpandedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(groupId);
+              return next;
+            });
+          } catch (err) {
+            Alert.alert("Couldn't delete group", err instanceof ApiError ? err.message : "Please try again.");
+          }
         },
       },
     ]);
@@ -446,8 +453,12 @@ export default function GroupsScreen() {
         text: "Remove",
         style: "destructive",
         onPress: async () => {
-          await ApiClient.removeGroupMember(groupId, targetUserId);
-          await qc.invalidateQueries({ queryKey: ["groups"] });
+          try {
+            await ApiClient.removeGroupMember(groupId, targetUserId);
+            await qc.invalidateQueries({ queryKey: ["groups"] });
+          } catch (err) {
+            Alert.alert("Couldn't remove member", err instanceof ApiError ? err.message : "Please try again.");
+          }
         },
       },
     ]);
@@ -464,8 +475,13 @@ export default function GroupsScreen() {
       if (i === swapIdx) return { groupId: g.id, displayOrder: list[idx]!.displayOrder };
       return { groupId: g.id, displayOrder: g.displayOrder };
     });
-    await ApiClient.reorderGroups(newOrder);
-    await qc.invalidateQueries({ queryKey: ["groups"] });
+    try {
+      await ApiClient.reorderGroups(newOrder);
+      await qc.invalidateQueries({ queryKey: ["groups"] });
+    } catch (err) {
+      Alert.alert("Couldn't reorder", err instanceof ApiError ? err.message : "Please try again.");
+      qc.invalidateQueries({ queryKey: ["groups"] });
+    }
   };
 
   const groupList = groups.data ?? [];
@@ -476,6 +492,11 @@ export default function GroupsScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={primary} />
         </View>
+      ) : groups.isError ? (
+        <ErrorState
+          message="We couldn't load your groups. Check your connection and try again."
+          onRetry={() => groups.refetch()}
+        />
       ) : groupList.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="mb-1 font-serif text-xl font-bold text-foreground">No groups yet</Text>
@@ -587,10 +608,10 @@ export default function GroupsScreen() {
                     {/* Members */}
                     <View className="gap-2">
                       <View className="flex-row items-center justify-between mb-1">
-                        <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 10, color: muted, letterSpacing: 1, textTransform: "uppercase" }}>
+                        <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 10, color: muted, letterSpacing: 1, textTransform: "uppercase" }}>
                           Members
                         </Text>
-                        <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 10, color: muted, letterSpacing: 1, textTransform: "uppercase" }}>
+                        <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 10, color: muted, letterSpacing: 1, textTransform: "uppercase" }}>
                           Completed
                         </Text>
                       </View>
@@ -723,7 +744,7 @@ export default function GroupsScreen() {
                         }}
                       >
                         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: val.color }} />
-                        <Text style={{ color: selected ? val.color : fg, fontFamily: "DMSans_600SemiBold", fontSize: 14 }}>
+                        <Text style={{ color: selected ? val.color : fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>
                           {val.label}
                         </Text>
                       </Pressable>

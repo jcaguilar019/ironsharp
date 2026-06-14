@@ -280,7 +280,7 @@ export default function PlanList() {
                   <User size={18} color={primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: "DMSans_600SemiBold", fontSize: 15, color: fg }}>
+                  <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 15, color: fg }}>
                     Just me
                   </Text>
                   <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted }}>
@@ -295,7 +295,7 @@ export default function PlanList() {
                 <>
                   <Text
                     style={{
-                      fontFamily: "DMSans_600SemiBold",
+                      fontFamily: "DMSans_700Bold",
                       fontSize: 11,
                       color: muted,
                       letterSpacing: 1.2,
@@ -344,7 +344,7 @@ export default function PlanList() {
                         <View style={{ flex: 1 }}>
                           <Text
                             style={{
-                              fontFamily: "DMSans_600SemiBold",
+                              fontFamily: "DMSans_700Bold",
                               fontSize: 15,
                               color: fg,
                             }}

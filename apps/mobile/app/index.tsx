@@ -1,7 +1,10 @@
 import { ActivityIndicator } from "react-native";
-import { Redirect } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { Screen } from "@/components/Screen";
+import { ErrorState } from "@/components/ErrorState";
 import { useAuthed, useProfile } from "@/lib/queries";
+import { useSession } from "@/lib/session";
+import { authClient, clearAuthToken } from "@/lib/auth-client";
 import { useThemeColor } from "@/components/useThemeColor";
 
 /**
@@ -13,6 +16,8 @@ import { useThemeColor } from "@/components/useThemeColor";
 export default function Index() {
   const { authed, isPending } = useAuthed();
   const profile = useProfile();
+  const { refresh } = useSession();
+  const router = useRouter();
   const spinner = useThemeColor("primary");
 
   if (isPending || (authed && profile.isLoading)) {
@@ -25,12 +30,22 @@ export default function Index() {
 
   if (!authed) return <Redirect href="/(auth)/welcome" />;
 
-  // If the profile fetch failed (server unreachable), don't send to onboarding —
-  // keep showing the spinner until it resolves or the user reloads.
+  // Authed but the profile fetch failed — previously this spun forever with no
+  // escape. Offer a retry and a sign-out so the user is never trapped.
   if (profile.isError) {
     return (
       <Screen center>
-        <ActivityIndicator color={spinner} />
+        <ErrorState
+          message="We couldn't load your profile. Check your connection and try again."
+          onRetry={() => profile.refetch()}
+          secondaryLabel="Sign out"
+          onSecondary={async () => {
+            await authClient.signOut().catch(() => {});
+            await clearAuthToken();
+            await refresh();
+            router.replace("/(auth)/welcome");
+          }}
+        />
       </Screen>
     );
   }
