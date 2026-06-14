@@ -187,6 +187,8 @@ export default function ProfileScreen() {
           <Pressable
             onPress={handleChangePhoto}
             disabled={uploading}
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo"
             className="mb-3 active:opacity-80"
           >
             <View className="h-20 w-20 items-center justify-center rounded-full bg-primary/15 overflow-hidden">

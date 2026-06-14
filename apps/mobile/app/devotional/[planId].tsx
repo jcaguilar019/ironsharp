@@ -21,6 +21,7 @@ import { ArrowUp, BookMarked, BookOpen, Car, CheckCircle, ChevronDown, ChevronUp
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
+import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient, type StudyNoteEntry, type BibleChapter } from "@/lib/api";
 import { cancelDailyNudge } from "@/lib/notifications";
@@ -155,6 +156,8 @@ function PassageContextDrawer({ passageRef }: { passageRef: string }) {
     <>
       <Pressable
         onPress={toggle}
+        accessibilityRole="button"
+        accessibilityLabel={open ? "Collapse passage context" : "Expand passage context"}
         style={{ backgroundColor: cardBg }}
         className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
       >
@@ -243,6 +246,8 @@ function StudyNotesDrawer({ passageRef, notes }: { passageRef: string; notes: St
       {/* Toggle row — flush against context card above (no top border, handled by parent) */}
       <Pressable
         onPress={toggle}
+        accessibilityRole="button"
+        accessibilityLabel={open ? "Collapse study notes" : "Expand study notes"}
         style={{ backgroundColor: mutedBg }}
         className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
       >
@@ -403,6 +408,8 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
         {/* Header row — tap to collapse/expand */}
         <Pressable
           onPress={() => setCollapsed((c) => !c)}
+          accessibilityRole="button"
+          accessibilityLabel={collapsed ? "Expand passage" : "Collapse passage"}
           style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 12, paddingBottom: collapsed ? 12 : 8 }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -415,6 +422,8 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
             {!collapsed && (
               <Pressable
                 onPress={() => setShowPicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Change Bible translation"
                 style={{ borderWidth: 1, borderColor, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
               >
                 <Text style={{ fontSize: 10, color: accent, fontFamily: "DMSans_700Bold", letterSpacing: 0.5 }}>
@@ -460,6 +469,8 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
             <Pressable
               onPress={() => { setPage((p) => p - 1); onPageChange?.(); }}
               disabled={page === 0}
+              accessibilityRole="button"
+              accessibilityLabel="Previous page"
               hitSlop={8}
               style={{ opacity: page === 0 ? 0.3 : 1 }}
             >
@@ -471,6 +482,8 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
             <Pressable
               onPress={() => { setPage((p) => p + 1); onPageChange?.(); }}
               disabled={page === totalPages - 1}
+              accessibilityRole="button"
+              accessibilityLabel="Next page"
               hitSlop={8}
               style={{ opacity: page === totalPages - 1 ? 0.3 : 1 }}
             >
@@ -768,6 +781,7 @@ export default function DevotionalReader() {
   const [q2Private, setQ2Private] = useState(false);
   const [prayerPrivate, setPrayerPrivate] = useState(true);
   const [passageRead, setPassageRead] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [reflectionOpen, setReflectionOpen] = useState(true);
   const [done, setDone] = useState(false);
   const isDoneState = done || lockedUntilTomorrow;
@@ -804,11 +818,14 @@ export default function DevotionalReader() {
   useEffect(() => {
     if (isDoneState) return;
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    setSaveState("saving");
     draftTimerRef.current = setTimeout(() => {
       import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
         AsyncStorage.setItem(draftKey, JSON.stringify({
           response1, response2, prayer, q1Private, q2Private, prayerPrivate, passageRead,
-        }));
+        }))
+          .then(() => setSaveState("saved"))
+          .catch(() => {});
       });
     }, 400);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
@@ -880,6 +897,18 @@ export default function DevotionalReader() {
     return (
       <Screen center>
         <ActivityIndicator color={primary} />
+      </Screen>
+    );
+  }
+
+  if (planQ.isError || dayQ.isError) {
+    return (
+      <Screen>
+        <Header title="Devotional" />
+        <ErrorState
+          message="We couldn't load this devotional. Check your connection and try again."
+          onRetry={() => { planQ.refetch(); dayQ.refetch(); }}
+        />
       </Screen>
     );
   }
@@ -960,6 +989,8 @@ export default function DevotionalReader() {
             {!groupId && (
               <Pressable
                 onPress={handleStopPlan}
+                accessibilityRole="button"
+                accessibilityLabel="Stop this plan"
                 hitSlop={8}
                 className="h-9 w-9 items-center justify-center rounded-full bg-muted active:opacity-70"
               >
@@ -968,6 +999,8 @@ export default function DevotionalReader() {
             )}
             <Pressable
               onPress={() => router.push(`/devotional/history/${planId}`)}
+              accessibilityRole="button"
+              accessibilityLabel="View past entries"
               hitSlop={8}
               className="h-9 w-9 items-center justify-center rounded-full bg-muted active:opacity-70"
             >
@@ -976,6 +1009,8 @@ export default function DevotionalReader() {
             {day ? (
               <Pressable
                 onPress={() => setShowPlayMenu(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Play options"
                 hitSlop={8}
                 className="h-9 w-9 items-center justify-center rounded-full bg-primary/10 active:opacity-70"
               >
@@ -1072,6 +1107,8 @@ export default function DevotionalReader() {
             }}>
               <Pressable
                 onPress={() => setReflectionOpen((o) => !o)}
+                accessibilityRole="button"
+                accessibilityLabel={reflectionOpen ? "Collapse reflection" : "Expand reflection"}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -1189,18 +1226,35 @@ export default function DevotionalReader() {
               />
             </View>
 
+            {(response1 || response2 || prayer) && saveState !== "idle" ? (
+              <Text style={{ textAlign: "center", fontSize: 12, color: muted }}>
+                {saveState === "saving" ? "Saving…" : "Saved ✓"}
+              </Text>
+            ) : null}
+
             <View className="w-2/3 self-center">
               <Button
                 title={submit.isPending ? "Submitting..." : "Submit"}
                 loading={submit.isPending}
                 disabled={!response1.trim() || !response2.trim()}
-                onPress={() => submit.mutate()}
+                onPress={() =>
+                  Alert.alert(
+                    "Submit today's reflection?",
+                    "You won't be able to edit it after submitting.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Submit", onPress: () => submit.mutate() },
+                    ]
+                  )
+                }
               />
             </View>
         </ScrollView>
         {showScrollTop && (
           <Pressable
             onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+            accessibilityRole="button"
+            accessibilityLabel="Scroll to top"
             style={{
               position: "absolute",
               bottom: 24,

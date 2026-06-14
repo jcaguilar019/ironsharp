@@ -47,6 +47,8 @@ export default function RoleSelect() {
             <Pressable
               key={id}
               onPress={() => set({ role: id })}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
               className={`flex-row items-start gap-4 rounded-xl border-2 p-4 ${
                 active ? "border-primary bg-primary/5" : "border-border bg-card"
               }`}

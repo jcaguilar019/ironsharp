@@ -130,6 +130,8 @@ export default function DevotionalHub() {
                   {/* Collapsed row */}
                   <Pressable
                     onPress={() => setExpanded(isOpen ? null : group.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={isOpen ? `Collapse ${group.name}` : `Expand ${group.name}`}
                     className="flex-row items-center gap-3 px-4 py-5 active:opacity-70"
                   >
                     <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: config.color }} />

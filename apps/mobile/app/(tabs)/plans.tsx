@@ -121,6 +121,9 @@ export default function PlansScreen() {
                 ? router.push("/plans/completed")
                 : Alert.alert("Nothing yet", "Finish a plan and it'll show up here.")
             }
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Completed plans"
             className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl bg-card-deep"
           >
             <Image
@@ -150,6 +153,9 @@ export default function PlansScreen() {
           {/* Create Your Own tile (pinned second) */}
           <Pressable
             onPress={openCreate}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Create your own plan"
             className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
             style={{ backgroundColor: "#1C2B3A" }}
           >
@@ -186,6 +192,9 @@ export default function PlansScreen() {
               <Pressable
                 key={cat.id}
                 onPress={() => openCategory(cat.id, count)}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`${cat.title} devotionals`}
                 style={{ backgroundColor: cat.tint }}
                 className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
               >

@@ -20,6 +20,8 @@ export function Header({
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
         hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
         className="h-9 w-9 items-center justify-center rounded-full active:bg-muted/40"
       >
         <ChevronLeft size={24} color={fg} />

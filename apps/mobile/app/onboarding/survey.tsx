@@ -103,6 +103,8 @@ function ListOption({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole={multi ? "checkbox" : "radio"}
+      accessibilityState={{ checked: active, disabled: !!disabled }}
       className={`flex-row items-center gap-3 rounded-xl border-2 p-3.5 ${
         active
           ? "border-primary bg-primary/5"

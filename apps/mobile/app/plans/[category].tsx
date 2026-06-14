@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BookOpen, ChevronRight, User, Users } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
+import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlansByCategory, useProgress, useGroups, useProfile } from "@/lib/queries";
 import { ApiClient, ApiError, type Group } from "@/lib/api";
@@ -35,7 +36,7 @@ export default function PlanList() {
   const router = useRouter();
   const qc = useQueryClient();
   const cat = String(category);
-  const { data: plans, isLoading } = usePlansByCategory(cat);
+  const { data: plans, isLoading, isError, refetch } = usePlansByCategory(cat);
   const progress = useProgress();
   const groups = useGroups();
   const profile = useProfile();
@@ -146,6 +147,11 @@ export default function PlanList() {
       >
         {isLoading ? (
           <ActivityIndicator color={primary} />
+        ) : isError ? (
+          <ErrorState
+            message="We couldn't load these plans. Check your connection and try again."
+            onRetry={() => refetch()}
+          />
         ) : (plans ?? []).length === 0 ? (
           <View className="items-center rounded-xl border border-border bg-card p-8">
             <BookOpen size={26} color={primary} />

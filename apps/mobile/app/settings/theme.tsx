@@ -21,6 +21,8 @@ export default function ThemePicker() {
             <Pressable
               key={t.id}
               onPress={() => setTheme(t.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
               className={`flex-row items-center gap-4 rounded-2xl border-2 p-4 ${
                 active ? "border-primary" : "border-border"
               }`}

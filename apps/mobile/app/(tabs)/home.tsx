@@ -28,7 +28,11 @@ export default function HomeScreen() {
           <Text className="font-serif text-3xl font-bold text-foreground">
             {greeting}, {firstName}
           </Text>
-          <View style={{ width: 32, height: 36, alignItems: "center", justifyContent: "center" }}>
+          <View
+            accessible={true}
+            accessibilityLabel={`${streak} day streak`}
+            style={{ width: 32, height: 36, alignItems: "center", justifyContent: "center" }}
+          >
             <Flame size={32} color={primary} fill={primary} />
             <Text style={{
               position: "absolute",

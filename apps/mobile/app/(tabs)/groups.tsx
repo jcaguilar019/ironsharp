@@ -107,7 +107,12 @@ function InviteCodeRow({
         >
           {inviteCode}
         </Text>
-        <Pressable onPress={shareCode} hitSlop={10}>
+        <Pressable
+          onPress={shareCode}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Share invite code"
+        >
           <Link size={18} color={muted} />
         </Pressable>
       </View>
@@ -247,6 +252,8 @@ function MemberSearch({
             onPress={() => handleAdd(user.userId)}
             disabled={adding === user.userId}
             style={{ opacity: adding === user.userId ? 0.5 : 1 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${user.displayName} to group`}
           >
             {adding === user.userId ? (
               <ActivityIndicator size="small" color={accent} />
@@ -569,6 +576,8 @@ export default function GroupsScreen() {
                       hitSlop={6}
                       disabled={isFirst}
                       style={{ opacity: isFirst ? 0.2 : 1 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${group.name} up`}
                     >
                       <ArrowUp size={16} color={muted} />
                     </Pressable>
@@ -577,6 +586,8 @@ export default function GroupsScreen() {
                       hitSlop={6}
                       disabled={isLast}
                       style={{ opacity: isLast ? 0.2 : 1 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${group.name} down`}
                     >
                       <ArrowDown size={16} color={muted} />
                     </Pressable>
@@ -587,6 +598,9 @@ export default function GroupsScreen() {
                   <Pressable
                     onPress={() => toggle(group.id)}
                     className="flex-1 flex-row items-center"
+                    accessibilityRole="button"
+                    accessibilityLabel={`Toggle ${group.name}`}
+                    accessibilityState={{ expanded: isOpen }}
                   >
                     <View className="flex-1">
                       <Text className="font-serif text-lg font-bold text-foreground">
@@ -629,6 +643,8 @@ export default function GroupsScreen() {
                               <Pressable
                                 hitSlop={8}
                                 onPress={() => handleRemoveMember(group.id, member.userId, member.displayName)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Remove ${member.displayName} from group`}
                               >
                                 <X size={13} color={muted} />
                               </Pressable>
@@ -706,7 +722,12 @@ export default function GroupsScreen() {
               <Text className="font-serif text-xl font-bold text-foreground">
                 {createStep === 1 ? "New Group" : createdGroup?.name ?? "Group Created"}
               </Text>
-              <Pressable onPress={closeCreate} hitSlop={12}>
+              <Pressable
+                onPress={closeCreate}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <X size={20} color={muted} />
               </Pressable>
             </View>
@@ -735,6 +756,8 @@ export default function GroupsScreen() {
                       <Pressable
                         key={key}
                         onPress={() => setNewType(key)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
                         style={{
                           borderWidth: 1.5,
                           borderColor: selected ? val.color : border,
@@ -798,7 +821,12 @@ export default function GroupsScreen() {
       <BottomSheet visible={!!editGroup} onClose={() => !saving && setEditGroup(null)}>
             <View className="mb-5 flex-row items-center justify-between">
               <Text className="font-serif text-xl font-bold text-foreground">Edit Group</Text>
-              <Pressable onPress={() => setEditGroup(null)} hitSlop={12}>
+              <Pressable
+                onPress={() => setEditGroup(null)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <X size={20} color={muted} />
               </Pressable>
             </View>
@@ -856,7 +884,12 @@ export default function GroupsScreen() {
       <BottomSheet visible={showJoin} onClose={() => !joining && setShowJoin(false)}>
             <View className="mb-5 flex-row items-center justify-between">
               <Text className="font-serif text-xl font-bold text-foreground">Join a Group</Text>
-              <Pressable onPress={() => setShowJoin(false)} hitSlop={12}>
+              <Pressable
+                onPress={() => setShowJoin(false)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <X size={20} color={muted} />
               </Pressable>
             </View>
