@@ -19,12 +19,14 @@ groupsRoute.use("*", requireAuth);
 // GET /api/groups — all groups the user belongs to, ordered by display_order
 groupsRoute.get("/", async (c) => {
   const userId = c.var.user.id;
-  // A member counts as "done today" if they have a submission for the group's
-  // current plan dated today. The submissions table is the source of truth:
-  // the doneToday flag resets the moment the group advances a day, and
-  // lastStreakDate only gets stamped when completing through the group context
-  // (not from Home/Plans) — so both miss legitimate completions. Bound the day
-  // in UTC so it doesn't depend on the DB session timezone.
+  // A member counts as done if they've submitted the group's CURRENT day, OR
+  // submitted anything for this plan today. The submissions table is the source
+  // of truth (the doneToday flag resets on day-advance; lastStreakDate is only
+  // stamped when completing through the group context, not from Home/Plans).
+  // The "current day" arm covers multi-member groups where a member finished on
+  // a prior calendar day and the group hasn't advanced yet; the "today" arm
+  // covers a solo/last member whose completion advances the day and would
+  // otherwise clear their own check instantly. UTC-bounded to avoid DB-tz drift.
   const today = new Date().toISOString().slice(0, 10);
   const todayStart = new Date(today + "T00:00:00.000Z");
   const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
@@ -57,7 +59,7 @@ groupsRoute.get("/", async (c) => {
               )
               .limit(1)
           : Promise.resolve([]),
-        // Who has submitted for this group's current plan today?
+        // Members who submitted the current day (any date) OR submitted today.
         group.currentPlanId
           ? db
               .select({ userId: devotionalSubmissions.userId })
@@ -65,8 +67,15 @@ groupsRoute.get("/", async (c) => {
               .where(
                 and(
                   eq(devotionalSubmissions.planId, group.currentPlanId),
-                  gte(devotionalSubmissions.submittedAt, todayStart),
-                  lt(devotionalSubmissions.submittedAt, tomorrowStart)
+                  or(
+                    group.currentDay
+                      ? eq(devotionalSubmissions.dayNumber, group.currentDay)
+                      : sql`false`,
+                    and(
+                      gte(devotionalSubmissions.submittedAt, todayStart),
+                      lt(devotionalSubmissions.submittedAt, tomorrowStart)
+                    )
+                  )
                 )
               )
           : Promise.resolve([]),
