@@ -64,6 +64,7 @@ export default function OnboardingWelcome() {
         primaryRole: role ?? "disciple",
         surveyName: displayName || undefined,
         surveyAgeRange: survey.ageRange ?? undefined,
+        surveyGender: survey.gender ?? undefined,
         surveyState: survey.state.trim() || undefined,
         surveyCity: survey.city.trim() || undefined,
         surveyEducation: survey.education ?? undefined,
