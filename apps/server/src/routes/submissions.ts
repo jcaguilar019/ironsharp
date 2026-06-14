@@ -9,6 +9,7 @@ import {
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { notifyPartnerDone, notifyGroupCompleteIfDone } from "../lib/push.js";
+import { clientDateString } from "../lib/localday.js";
 
 export const submissions = new Hono<AppEnv>();
 
@@ -183,8 +184,10 @@ submissions.put("/", async (c) => {
     })
     .returning();
 
-  // Background tasks — none of these block the response.
-  updateStreaks(userId, planId, dayNumber).catch((err) => console.error("[submissions] updateStreaks failed:", err));
+  // Background tasks — none of these block the response. `today` is the
+  // submitter's LOCAL calendar day (x-timezone-offset header), not UTC.
+  const today = clientDateString(c);
+  updateStreaks(userId, planId, dayNumber, today).catch((err) => console.error("[submissions] updateStreaks failed:", err));
   notifyPartnerDone(userId, planId).catch((err) => console.error("[submissions] notifyPartnerDone failed:", err));
   notifyGroupCompleteIfDone(userId, planId, dayNumber).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
 
@@ -211,7 +214,10 @@ async function updatePersonalStreak(userId: string, today: string) {
     .limit(1);
 
   if (!profile) return;
-  if (profile.lastStreakDate === today) return; // already counted today
+  // Skip if already counted today — or stamped a day that's >= today, which can
+  // happen transiently as stored UTC dates give way to local ones. Never reset
+  // on that crossover.
+  if (profile.lastStreakDate && profile.lastStreakDate >= today) return;
 
   const newStreak =
     profile.lastStreakDate && isYesterday(profile.lastStreakDate, today)
@@ -251,7 +257,7 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
     // subsequent submitters don't re-trigger this reset and wipe earlier members.
     // Also carry forward or zero out streakCount now, so the "all done" step can
     // simply do streakCount + 1 regardless of which member triggers it.
-    if (group.lastStreakDate !== today) {
+    if (!group.lastStreakDate || group.lastStreakDate < today) {
       const streakCarryover =
         group.lastStreakDate && isYesterday(group.lastStreakDate, today)
           ? group.streakCount
@@ -274,7 +280,7 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
       .limit(1);
 
     let newMemberStreak = memberRow?.streakCount ?? 1;
-    if (memberRow && memberRow.lastStreakDate !== today) {
+    if (memberRow && (!memberRow.lastStreakDate || memberRow.lastStreakDate < today)) {
       const prev = memberRow.lastStreakDate ? new Date(memberRow.lastStreakDate + "T00:00:00Z") : null;
       if (prev) prev.setUTCDate(prev.getUTCDate() + 1);
       newMemberStreak = prev && prev.toISOString().slice(0, 10) === today
@@ -314,8 +320,7 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
   }
 }
 
-async function updateStreaks(userId: string, planId: string, dayNumber: number) {
-  const today = toDateString(new Date());
+async function updateStreaks(userId: string, planId: string, dayNumber: number, today: string) {
   await Promise.all([
     updatePersonalStreak(userId, today),
     updateGroupStreaks(userId, planId, dayNumber, today),

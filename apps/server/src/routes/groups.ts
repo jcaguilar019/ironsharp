@@ -12,7 +12,7 @@ import {
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
-import { clientDayWindow } from "../lib/localday.js";
+import { clientDateString, clientDayWindow } from "../lib/localday.js";
 
 export const groupsRoute = new Hono<AppEnv>();
 groupsRoute.use("*", requireAuth);
@@ -452,15 +452,15 @@ groupsRoute.patch("/:id/day", async (c) => {
   if (!membership) return c.json({ error: "Not a member" }, 403);
 
   // Reset stale doneToday flags when the calendar day has rolled over, mirroring
-  // the same guard in updateGroupStreaks (submissions.ts).
-  const today = new Date().toISOString().slice(0, 10);
+  // the same guard in updateGroupStreaks (submissions.ts). Local day, not UTC.
+  const today = clientDateString(c);
   const [grp] = await db
     .select({ lastStreakDate: groups.lastStreakDate, streakCount: groups.streakCount })
     .from(groups)
     .where(eq(groups.id, groupId))
     .limit(1);
 
-  if (grp && grp.lastStreakDate !== today) {
+  if (grp && (!grp.lastStreakDate || grp.lastStreakDate < today)) {
     const prev = grp.lastStreakDate ? new Date(grp.lastStreakDate + "T00:00:00Z") : null;
     if (prev) prev.setUTCDate(prev.getUTCDate() + 1);
     const isYesterday = prev ? prev.toISOString().slice(0, 10) === today : false;
@@ -471,7 +471,7 @@ groupsRoute.patch("/:id/day", async (c) => {
 
   // Compute and persist member's individual streak within this group.
   let newMemberStreak = membership.streakCount;
-  if (membership.lastStreakDate !== today) {
+  if (!membership.lastStreakDate || membership.lastStreakDate < today) {
     const mPrev = membership.lastStreakDate ? new Date(membership.lastStreakDate + "T00:00:00Z") : null;
     if (mPrev) mPrev.setUTCDate(mPrev.getUTCDate() + 1);
     newMemberStreak = mPrev && mPrev.toISOString().slice(0, 10) === today
