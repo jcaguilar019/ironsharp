@@ -21,6 +21,7 @@ import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { isDarkTheme } from "@/theme/themes";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SessionProvider } from "@/lib/session";
+import { useOtaUpdates } from "@/lib/useOtaUpdates";
 
 // ── DIAGNOSTIC: capture every uncaught JS error to NSLog ────────────────────
 // On TestFlight the only way to see anything is the device's unified log
@@ -53,6 +54,7 @@ const queryClient = new QueryClient({
 
 function RootNavigator() {
   const { ready, theme } = useTheme();
+  useOtaUpdates();
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_700Bold,
     PlayfairDisplay_400Regular,
