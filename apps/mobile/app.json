@@ -49,6 +49,27 @@
           "backgroundColor": "#1E2A3A",
           "resizeMode": "contain"
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "IronSharp uses your microphone so you can speak your reflections during the guided devotional.",
+          "speechRecognitionPermission": "IronSharp transcribes your spoken reflections so you can pray and respond hands-free."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "IronSharp uses your microphone so you can speak your reflections during the guided devotional."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
       ]
     ],
     "extra": {
