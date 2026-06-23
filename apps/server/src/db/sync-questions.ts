@@ -4,10 +4,10 @@ import { db, pool } from "./index.js";
 import { devotionalPlans, devotionalDays } from "./schema.js";
 import { PLANS } from "./seed-data.js";
 
-// Push edited day content from seed-data.ts into the live DB: reflectionQ1/Q2,
-// passageContext, and studyNotes. seed.ts skips already-seeded plans, so it can't
-// update existing content — this can. Pass plan titles to limit scope; no args
-// syncs every plan.
+// Push edited day content from seed-data.ts into the live DB: reflection,
+// reflectionQ1/Q2, passageContext, and studyNotes. seed.ts skips already-seeded
+// plans, so it can't update existing content — this can. Pass plan titles to
+// limit scope; no args syncs every plan.
 //   npx tsx src/db/sync-questions.ts "Faith That Shows Up"
 const titles = process.argv.slice(2);
 
@@ -35,6 +35,7 @@ async function run() {
       await db
         .update(devotionalDays)
         .set({
+          reflection: d.reflection ?? null,
           reflectionQ1: d.reflectionQ1,
           reflectionQ2: d.reflectionQ2,
           passageContext: d.passageContext ?? null,
