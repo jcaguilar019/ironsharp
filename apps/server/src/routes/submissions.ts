@@ -36,7 +36,7 @@ const submissionSchema = z.object({
   q3Private: z.boolean().optional(),
   prayerPrivate: z.boolean().optional(),
   voiceMemoPrivate: z.boolean().optional(),
-  submissionSource: z.enum(["typed", "commute", "voice_memo"]).optional(),
+  submissionSource: z.enum(["typed", "commute", "voice_memo", "voice"]).optional(),
 });
 
 // GET /api/submissions/group/day?planId=&dayNumber=
