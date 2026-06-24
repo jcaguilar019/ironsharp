@@ -197,7 +197,7 @@ profile.post("/redeem-promo", async (c) => {
     .returning();
 
   return c.json({
-    profile: row,
+    profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId),
     tier: reward.tier,
     discountPercent: reward.discountPercent,
     label: reward.label,
@@ -263,7 +263,7 @@ profile.patch("/", async (c) => {
       .returning();
   }
 
-  return c.json({ profile: withAdmin(row, userId) });
+  return c.json({ profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId) });
 });
 
 // POST /api/profile/push-token  → register or update the device push token
@@ -333,7 +333,7 @@ profile.post("/family/join", async (c) => {
     .where(eq(profiles.userId, userId))
     .returning();
 
-  return c.json({ profile: withAdmin(row, userId) });
+  return c.json({ profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId) });
 });
 
 // DELETE /api/profile  → permanently delete the account and all associated data.

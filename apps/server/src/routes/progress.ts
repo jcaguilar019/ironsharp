@@ -212,6 +212,9 @@ progress.patch("/:planId", async (c) => {
   if (body.completed === true) set.completedAt = new Date();
   if (body.completed === false) set.completedAt = null;
 
+  // Drizzle throws "No values to set" on an empty update — guard the no-op.
+  if (Object.keys(set).length === 0) return c.json({ error: "No changes provided." }, 400);
+
   const [row] = await db
     .update(userPlanProgress)
     .set(set)

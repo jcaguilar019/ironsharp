@@ -368,6 +368,9 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
     // plans. If the model dropped either on any day, fail rather than persist a gap.
     const missing = (planData.days ?? []).filter(
       (d) =>
+        !d.chapter?.trim() ||
+        !d.reflectionQ1?.trim() ||
+        !d.reflectionQ2?.trim() ||
         !d.passageContext?.trim() ||
         !Array.isArray(d.studyNotes) ||
         d.studyNotes.length === 0 ||

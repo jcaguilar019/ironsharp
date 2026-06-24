@@ -272,7 +272,7 @@ export function CommunityDevotionalView({
         </Text>
       ) : null}
 
-      {devotional.studyNotes.length > 0 ? (
+      {(devotional.studyNotes?.length ?? 0) > 0 ? (
         <View className="mt-5">
           <Label>Study Notes</Label>
           {devotional.studyNotes.map((n, i) => (

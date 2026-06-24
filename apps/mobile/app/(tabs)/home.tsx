@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const community = useCommunityToday();
   const todayDevo = community.data?.devotional ?? null;
   const communityResponded = !!community.data?.myResponse;
-  const communityCount = community.data?.feed.length ?? 0;
+  const communityCount = community.data?.feed?.length ?? 0;
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
 
@@ -45,7 +45,7 @@ export default function HomeScreen() {
         {/* Community & Podcast */}
         <View className="mb-6 flex-row gap-3">
           <Pressable
-            onPress={() => router.push("/community")}
+            onPress={() => router.push("/(tabs)/community")}
             className="flex-1 gap-3 rounded-2xl border border-border bg-card p-5"
           >
             <View className="flex-row items-center justify-between">

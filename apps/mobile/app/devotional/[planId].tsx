@@ -770,6 +770,7 @@ export default function DevotionalReader() {
   const planQ = useQuery({
     queryKey: ["plan", planId],
     queryFn: () => ApiClient.getPlan(planId).then((r) => r.plan),
+    enabled: !!planId && planId !== "undefined",
   });
   const dayQ = useQuery({
     queryKey: ["day", planId, currentDay],

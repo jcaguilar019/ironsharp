@@ -69,6 +69,15 @@ discipleship.post("/invite", async (c) => {
     return c.json({ error: "Both people must be members of this group." }, 400);
   }
 
+  // Don't let a re-invite silently reset an already-active (consented)
+  // relationship back to pending and wipe the privacy-notice acceptance.
+  const [existingRel] = await db
+    .select()
+    .from(discipleRelationships)
+    .where(and(eq(discipleRelationships.disciplerId, userId), eq(discipleRelationships.discipleId, discipleId)))
+    .limit(1);
+  if (existingRel?.status === "active") return c.json({ relationship: existingRel });
+
   const [rel] = await db
     .insert(discipleRelationships)
     .values({ disciplerId: userId, discipleId, groupId, status: "pending" })
@@ -187,6 +196,7 @@ discipleship.post("/:id/questions", async (c) => {
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can set a question." }, 403);
+  if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
 
   const parsed = questionSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
@@ -237,6 +247,7 @@ discipleship.get("/:id/responses", async (c) => {
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can view responses." }, 403);
+  if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
   if (!rel.groupId) return c.json({ responses: [] });
 
   const [group] = await db
@@ -326,6 +337,7 @@ discipleship.post("/:id/flags", async (c) => {
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can flag." }, 403);
+  if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
 
   const parsed = flagSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
@@ -378,6 +390,7 @@ discipleship.get("/:id/flags", async (c) => {
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can view flags." }, 403);
+  if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
   if (!rel.groupId) return c.json({ flags: [] });
 
   const [group] = await db
