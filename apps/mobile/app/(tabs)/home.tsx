@@ -5,7 +5,7 @@ import { PopIn } from "@/components/PopIn";
 import { Screen } from "@/components/Screen";
 import { StreakFlame } from "@/components/StreakFlame";
 import { useThemeColor } from "@/components/useThemeColor";
-import { useProfile, useActiveDevotional } from "@/lib/queries";
+import { useProfile, useActiveDevotional, useCommunityToday } from "@/lib/queries";
 import { useLocalDoneToday } from "@/lib/useLocalDoneToday";
 
 export default function HomeScreen() {
@@ -16,6 +16,10 @@ export default function HomeScreen() {
   // evening gap when the UTC day has rolled over but the user's hasn't.
   const localDone = useLocalDoneToday(active?.planId);
   const doneToday = !!active?.doneToday || localDone;
+  const community = useCommunityToday();
+  const todayDevo = community.data?.devotional ?? null;
+  const communityResponded = !!community.data?.myResponse;
+  const communityCount = community.data?.feed.length ?? 0;
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
 
@@ -48,21 +52,35 @@ export default function HomeScreen() {
               <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
                 <Globe size={18} color={primary} />
               </View>
-              <Text className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-sans-semibold uppercase tracking-wide text-muted-foreground">
-                Soon
-              </Text>
+              {todayDevo && !communityResponded ? (
+                <Text style={{ color: primary }} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-sans-semibold uppercase tracking-wide">
+                  New
+                </Text>
+              ) : communityResponded ? (
+                <CheckCircle2 size={16} color={primary} />
+              ) : null}
             </View>
             <View>
               <Text className="font-sans-semibold text-base text-foreground">IronSharp Community</Text>
-              <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, marginTop: 2 }}>
-                Day — of —
-              </Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-                <View className="rounded-full bg-primary/10 px-[7px] py-0.5">
-                  <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 12, color: primary }}>—/—</Text>
-                </View>
-                <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted }}>completed today</Text>
-              </View>
+              {todayDevo ? (
+                <>
+                  <Text numberOfLines={1} style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, marginTop: 2 }}>
+                    {todayDevo.passageReference}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <View className="rounded-full bg-primary/10 px-[7px] py-0.5">
+                      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 12, color: primary }}>{communityCount}</Text>
+                    </View>
+                    <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted }}>
+                      {communityCount === 1 ? "response" : "responses"}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, marginTop: 2 }}>
+                  Check back soon
+                </Text>
+              )}
             </View>
           </Pressable>
 

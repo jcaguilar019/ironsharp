@@ -22,12 +22,6 @@ import { ApiClient } from "@/lib/api";
 import { authClient, clearAuthToken } from "@/lib/auth-client";
 import { useSession } from "@/lib/session";
 
-const ROLE_LABELS: Record<string, string> = {
-  discipler: "Discipler",
-  disciple: "Disciple",
-  partner: "Accountability Partner",
-};
-
 const TIER_LABELS: Record<string, string> = {
   free: "Free",
   connect: "Connect",
@@ -221,11 +215,6 @@ export default function ProfileScreen() {
           {p?.churchName ? (
             <Text className="mt-0.5 text-sm text-muted-foreground">{p.churchName}</Text>
           ) : null}
-          <View className="mt-2 rounded-full bg-muted px-3 py-1">
-            <Text className="text-xs font-sans-medium text-muted-foreground">
-              {ROLE_LABELS[p?.primaryRole ?? "disciple"] ?? "Disciple"}
-            </Text>
-          </View>
         </View>
 
         {/* Stats */}

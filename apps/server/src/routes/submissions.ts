@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
@@ -15,14 +16,40 @@ export const submissions = new Hono<AppEnv>();
 
 submissions.use("*", requireAuth);
 
+const groupDayQuery = z.object({
+  planId: z.string().uuid(),
+  dayNumber: z.coerce.number().int().positive(),
+});
+
+const submissionSchema = z.object({
+  planId: z.string().uuid(),
+  dayNumber: z.number().int().positive(),
+  response1: z.string().nullish(),
+  response2: z.string().nullish(),
+  response3: z.string().nullish(),
+  prayer: z.string().nullish(),
+  voiceMemoUrl: z.string().nullish(),
+  audioQ1Url: z.string().nullish(),
+  audioQ2Url: z.string().nullish(),
+  q1Private: z.boolean().optional(),
+  q2Private: z.boolean().optional(),
+  q3Private: z.boolean().optional(),
+  prayerPrivate: z.boolean().optional(),
+  voiceMemoPrivate: z.boolean().optional(),
+  submissionSource: z.enum(["typed", "commute", "voice_memo"]).optional(),
+});
+
 // GET /api/submissions/group/day?planId=&dayNumber=
 // Returns all group members' submissions for the given plan day, with private fields stripped.
 // Finds the group automatically based on the requesting user's membership.
 submissions.get("/group/day", async (c) => {
   const userId = c.var.user.id;
-  const planId = c.req.query("planId");
-  const dayNumber = Number(c.req.query("dayNumber"));
-  if (!planId || !dayNumber) return c.json({ error: "planId and dayNumber are required" }, 400);
+  const parsed = groupDayQuery.safeParse({
+    planId: c.req.query("planId"),
+    dayNumber: c.req.query("dayNumber"),
+  });
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid query" }, 400);
+  const { planId, dayNumber } = parsed.data;
 
   // Find a group the user belongs to that has this plan active
   const [membership] = await db
@@ -134,11 +161,10 @@ submissions.get("/:planId/:dayNumber", async (c) => {
 // PUT /api/submissions → upsert the user's submission for a plan day
 submissions.put("/", async (c) => {
   const userId = c.var.user.id;
-  const body = await c.req.json().catch(() => ({}));
+  const parsed = submissionSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const body = parsed.data;
   const { planId, dayNumber } = body;
-  if (!planId || typeof dayNumber !== "number") {
-    return c.json({ error: "planId and dayNumber are required" }, 400);
-  }
 
   const values = {
     userId,
@@ -146,12 +172,14 @@ submissions.put("/", async (c) => {
     dayNumber,
     response1: body.response1 ?? null,
     response2: body.response2 ?? null,
+    response3: body.response3 ?? null,
     prayer: body.prayer ?? null,
     voiceMemoUrl: body.voiceMemoUrl ?? null,
     audioQ1Url: body.audioQ1Url ?? null,
     audioQ2Url: body.audioQ2Url ?? null,
     q1Private: body.q1Private ?? false,
     q2Private: body.q2Private ?? false,
+    q3Private: body.q3Private ?? false,
     prayerPrivate: body.prayerPrivate ?? true,
     voiceMemoPrivate: body.voiceMemoPrivate ?? false,
     submissionSource: body.submissionSource ?? "typed",
@@ -170,12 +198,14 @@ submissions.put("/", async (c) => {
       set: {
         response1: values.response1,
         response2: values.response2,
+        response3: values.response3,
         prayer: values.prayer,
         voiceMemoUrl: values.voiceMemoUrl,
         audioQ1Url: values.audioQ1Url,
         audioQ2Url: values.audioQ2Url,
         q1Private: values.q1Private,
         q2Private: values.q2Private,
+        q3Private: values.q3Private,
         prayerPrivate: values.prayerPrivate,
         voiceMemoPrivate: values.voiceMemoPrivate,
         submissionSource: values.submissionSource,

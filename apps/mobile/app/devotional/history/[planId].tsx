@@ -129,7 +129,7 @@ function DayCard({
       />
 
       <ResponseBlock
-        label="Apply"
+        label="Act"
         question={day.reflectionQ2}
         answer={submission.response2}
         isPrivate={submission.q2Private}

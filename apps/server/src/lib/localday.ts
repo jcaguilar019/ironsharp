@@ -44,3 +44,35 @@ export function clientDayWindow(c: Context): { start: Date; end: Date } {
 export function clientDateString(c: Context): string {
   return localDateString(offsetFromHeader(c));
 }
+
+// ─── Streak freshness ───────────────────────────────────────────────────────
+//
+// Stored `streakCount` only changes when a user *submits*. Read endpoints must
+// therefore decide whether that stored count is still alive relative to today,
+// or whether the user has lapsed and it should read 0. Without this, a streak
+// freezes at its last value after a missed day and only ever goes up — the
+// classic "streak feels broken" bug.
+
+/** True when `dateStr` ("YYYY-MM-DD") is the calendar day immediately before `today`. */
+export function isYesterday(dateStr: string, today: string): boolean {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10) === today;
+}
+
+/**
+ * The streak to *display* today, given the stored count and the date it was
+ * last advanced. A streak survives a single day's grace: it stays alive if the
+ * last completion was today (already counted) or yesterday (still has today to
+ * continue). Anything older — or never started — reads as 0.
+ */
+export function effectiveStreak(
+  streakCount: number,
+  lastStreakDate: string | null,
+  today: string
+): number {
+  if (!lastStreakDate) return 0;
+  // `>= today` also covers a future-stamped date from the UTC→local crossover.
+  if (lastStreakDate >= today || isYesterday(lastStreakDate, today)) return streakCount;
+  return 0;
+}

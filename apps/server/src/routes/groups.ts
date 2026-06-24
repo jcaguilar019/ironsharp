@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { and, count, eq, gte, isNotNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
@@ -12,10 +13,29 @@ import {
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
-import { clientDateString, clientDayWindow } from "../lib/localday.js";
+import { clientDateString, clientDayWindow, effectiveStreak } from "../lib/localday.js";
 
 export const groupsRoute = new Hono<AppEnv>();
 groupsRoute.use("*", requireAuth);
+
+// Must stay in sync with GROUP_TYPE_CONFIG in apps/mobile/app/(tabs)/groups.tsx.
+const GROUP_TYPES = ["one-on-one", "family", "small-group", "large-group", "community"] as const;
+
+const createGroupSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  groupType: z.enum(GROUP_TYPES),
+});
+const joinSchema = z.object({ inviteCode: z.string().trim().min(1) });
+const reorderSchema = z.object({
+  order: z.array(z.object({ groupId: z.string().uuid(), displayOrder: z.number().int() })).min(1),
+});
+const updateNameSchema = z.object({ name: z.string().trim().min(1).max(100) });
+const addMemberSchema = z.object({ userId: z.string().min(1) });
+const assignPlanSchema = z.object({ planId: z.string().uuid() });
+const groupDaySchema = z.object({
+  nextDay: z.number().int().positive().optional(),
+  completed: z.boolean().optional(),
+});
 
 // GET /api/groups — all groups the user belongs to, ordered by display_order
 groupsRoute.get("/", async (c) => {
@@ -31,6 +51,7 @@ groupsRoute.get("/", async (c) => {
   // day (x-timezone-offset header) so checks don't clear in the evening when the
   // UTC day rolls over ahead of the user's calendar day.
   const { start: todayStart, end: tomorrowStart } = clientDayWindow(c);
+  const today = clientDateString(c);
 
   const memberships = await db
     .select({ group: groups, membership: groupMembers, plan: devotionalPlans })
@@ -92,7 +113,7 @@ groupsRoute.get("/", async (c) => {
         groupType: group.groupType,
         inviteCode: group.inviteCode,
         currentDay: group.currentDay,
-        streakCount: group.streakCount,
+        streakCount: effectiveStreak(group.streakCount, group.lastStreakDate, today),
         displayOrder: membership.displayOrder,
         plan: plan
           ? {
@@ -107,7 +128,7 @@ groupsRoute.get("/", async (c) => {
           userId: m.userId,
           memberRole: m.memberRole,
           doneToday: doneUserIds.has(m.userId),
-          streakCount: m.streakCount,
+          streakCount: effectiveStreak(m.streakCount, m.lastStreakDate, today),
           displayName: p?.displayName ?? "Member",
           avatarUrl: p?.avatarUrl ?? null,
         })),
@@ -121,16 +142,9 @@ groupsRoute.get("/", async (c) => {
 // POST /api/groups — create a new group
 groupsRoute.post("/", async (c) => {
   const userId = c.var.user.id;
-  const body = await c.req.json().catch(() => ({}));
-  const { name, groupType } = body as { name?: string; groupType?: string };
-
-  if (!name?.trim() || !groupType) {
-    return c.json({ error: "name and groupType are required" }, 400);
-  }
-  // Must stay in sync with GROUP_TYPE_CONFIG in apps/mobile/app/(tabs)/groups.tsx.
-  if (!["one-on-one", "family", "small-group", "large-group", "community"].includes(groupType)) {
-    return c.json({ error: "Invalid groupType" }, 400);
-  }
+  const parsed = createGroupSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { name, groupType } = parsed.data;
 
   // Next display_order for this user
   const [maxRow] = await db
@@ -165,13 +179,14 @@ groupsRoute.post("/", async (c) => {
 // POST /api/groups/join — join a group by invite code
 groupsRoute.post("/join", async (c) => {
   const userId = c.var.user.id;
-  const { inviteCode } = await c.req.json().catch(() => ({ inviteCode: undefined }));
-  if (!inviteCode) return c.json({ error: "inviteCode is required" }, 400);
+  const parsed = joinSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { inviteCode } = parsed.data;
 
   const [group] = await db
     .select()
     .from(groups)
-    .where(eq(groups.inviteCode, String(inviteCode).toUpperCase().trim()))
+    .where(eq(groups.inviteCode, inviteCode.toUpperCase().trim()))
     .limit(1);
   if (!group) return c.json({ error: "Invalid invite code" }, 404);
 
@@ -235,14 +250,9 @@ groupsRoute.post("/join", async (c) => {
 // PATCH /api/groups/reorder — persist drag-reorder. Body: { order: [{groupId, displayOrder}] }
 groupsRoute.patch("/reorder", async (c) => {
   const userId = c.var.user.id;
-  const body = await c.req.json().catch(() => ({}));
-  const { order } = body as {
-    order?: { groupId: string; displayOrder: number }[];
-  };
-
-  if (!Array.isArray(order) || order.length === 0) {
-    return c.json({ error: "order array required" }, 400);
-  }
+  const parsed = reorderSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { order } = parsed.data;
 
   await Promise.all(
     order.map(({ groupId, displayOrder }) =>
@@ -265,8 +275,9 @@ groupsRoute.patch("/reorder", async (c) => {
 groupsRoute.patch("/:id", async (c) => {
   const userId = c.var.user.id;
   const groupId = c.req.param("id");
-  const { name } = await c.req.json().catch(() => ({}));
-  if (!name?.trim()) return c.json({ error: "name is required" }, 400);
+  const parsed = updateNameSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { name } = parsed.data;
 
   const [membership] = await db
     .select({ id: groupMembers.id })
@@ -277,7 +288,7 @@ groupsRoute.patch("/:id", async (c) => {
 
   const [group] = await db
     .update(groups)
-    .set({ name: name.trim(), updatedAt: new Date() })
+    .set({ name, updatedAt: new Date() })
     .where(eq(groups.id, groupId))
     .returning();
 
@@ -288,8 +299,9 @@ groupsRoute.patch("/:id", async (c) => {
 groupsRoute.post("/:id/members", async (c) => {
   const userId = c.var.user.id;
   const groupId = c.req.param("id");
-  const { userId: targetUserId } = await c.req.json().catch(() => ({}));
-  if (!targetUserId) return c.json({ error: "userId is required" }, 400);
+  const parsed = addMemberSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const targetUserId = parsed.data.userId;
 
   const [membership] = await db
     .select({ id: groupMembers.id })
@@ -383,8 +395,9 @@ groupsRoute.delete("/:id/members/:targetUserId", async (c) => {
 groupsRoute.patch("/:id/plan", async (c) => {
   const userId = c.var.user.id;
   const groupId = c.req.param("id");
-  const { planId } = await c.req.json().catch(() => ({ planId: undefined }));
-  if (!planId) return c.json({ error: "planId is required" }, 400);
+  const parsed = assignPlanSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { planId } = parsed.data;
 
   const [membership] = await db
     .select({ id: groupMembers.id })
@@ -437,8 +450,9 @@ groupsRoute.patch("/:id/plan", async (c) => {
 groupsRoute.patch("/:id/day", async (c) => {
   const userId = c.var.user.id;
   const groupId = c.req.param("id");
-  const body = await c.req.json().catch(() => ({}));
-  const { nextDay, completed } = body as { nextDay?: number; completed?: boolean };
+  const parsed = groupDaySchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { nextDay, completed } = parsed.data;
 
   const [membership] = await db
     .select({

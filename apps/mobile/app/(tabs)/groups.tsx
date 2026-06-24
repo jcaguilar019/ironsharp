@@ -24,8 +24,12 @@ import {
   ChevronDown,
   ChevronUp,
   Circle,
+  Eye,
+  Flag,
   GripVertical,
+  HeartHandshake,
   Link,
+  MessageSquare,
   Pencil,
   Plus,
   Trash2,
@@ -36,18 +40,53 @@ import { Screen } from "@/components/Screen";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
-import { useGroups } from "@/lib/queries";
-import { ApiClient, ApiError, type Group, type UserSearchResult } from "@/lib/api";
+import { useGroups, useActiveDevotional, useDiscipleships, useProfile } from "@/lib/queries";
+import { useLocalDoneToday } from "@/lib/useLocalDoneToday";
+import { PopIn } from "@/components/PopIn";
+import {
+  ApiClient,
+  ApiError,
+  type Group,
+  type UserSearchResult,
+  type DiscipleshipRelationship,
+} from "@/lib/api";
 
 const GROUP_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   "one-on-one":  { label: "One-on-One",  color: "#89B4C9" },
   "family":      { label: "Family",      color: "#7FAF8A" },
   "small-group": { label: "Small Group", color: "#C49A78" },
   "large-group": { label: "Large Group", color: "#9B8EC4" },
-  "community":   { label: "Community",   color: "#7A9EAF" },
+  "community":   { label: "Church",      color: "#7A9EAF" },
 };
 
 const GROUP_TYPE_KEYS = Object.keys(GROUP_TYPE_CONFIG);
+
+// ─── Section helpers (ported from the former Devotionals tab) ─────────────────
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <Text className="mb-3 text-sm uppercase tracking-wider text-muted-foreground">
+      {label}
+    </Text>
+  );
+}
+
+function EmptyNote({ text }: { text: string }) {
+  const muted = useThemeColor("muted-foreground");
+  const border = useThemeColor("border");
+  return (
+    <View style={{ borderLeftWidth: 2, borderLeftColor: border, paddingLeft: 12, marginBottom: 2 }}>
+      <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 15, color: muted, fontStyle: "italic" }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+function Divider() {
+  const border = useThemeColor("border");
+  return <View style={{ height: 1, backgroundColor: border, marginVertical: 24 }} />;
+}
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
@@ -310,10 +349,230 @@ function BottomSheet({
   );
 }
 
+// ─── Discipleship (one-on-one) ────────────────────────────────────────────────
+
+// One-time privacy notice the disciple must accept before the relationship goes
+// active and the discipler can see their responses.
+function PrivacyNoticeModal({
+  visible,
+  disciplerName,
+  busy,
+  onAccept,
+  onDecline,
+}: {
+  visible: boolean;
+  disciplerName: string;
+  busy: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  const bg = useThemeColor("background");
+  const fg = useThemeColor("foreground");
+  const muted = useThemeColor("muted-foreground");
+  const primary = useThemeColor("primary");
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onDecline}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+        <View style={{ backgroundColor: bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
+          <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: fg, marginBottom: 12 }}>
+            A discipleship invite
+          </Text>
+          <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 15, color: fg, lineHeight: 22, marginBottom: 12 }}>
+            {disciplerName} would like to walk with you as your discipler.
+          </Text>
+          <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 14, color: muted, lineHeight: 21, marginBottom: 24 }}>
+            If you accept, they'll be able to see your devotional responses for this
+            group as you submit them — except any field you mark private, which stays
+            private. They may also send you a daily question and write to you in a
+            private mailbox. You can decline now, and either of you can end this later.
+          </Text>
+          <Pressable
+            onPress={onAccept}
+            disabled={busy}
+            style={{ opacity: busy ? 0.5 : 1, backgroundColor: primary, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 10 }}
+          >
+            <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 15 }}>
+              {busy ? "Accepting…" : "Accept"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onDecline}
+            disabled={busy}
+            style={{ height: 44, alignItems: "center", justifyContent: "center" }}
+          >
+            <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 14 }}>Decline</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function DiscipleChip({
+  icon: Icon,
+  label,
+  color,
+  badge,
+  onPress,
+}: {
+  icon: typeof Eye;
+  label: string;
+  color: string;
+  badge?: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ borderWidth: 1, borderColor: color, borderRadius: 8, backgroundColor: color + "15" }}
+      className="flex-row items-center gap-1.5 px-3 py-2"
+    >
+      <Icon size={13} color={color} />
+      <Text style={{ color, fontFamily: "DMSans_500Medium", fontSize: 12 }}>{label}</Text>
+      {badge && badge > 0 ? (
+        <View style={{ minWidth: 16, height: 16, borderRadius: 8, backgroundColor: color, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
+          <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 10 }}>{badge}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// Discipleship entry points rendered inside an expanded one-on-one card.
+function DiscipleshipSection({
+  group,
+  rel,
+  myUserId,
+  accent,
+}: {
+  group: Group;
+  rel: DiscipleshipRelationship | undefined;
+  myUserId: string | undefined;
+  accent: string;
+}) {
+  const qc = useQueryClient();
+  const router = useRouter();
+  const muted = useThemeColor("muted-foreground");
+  const border = useThemeColor("border");
+  const [showNotice, setShowNotice] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const other = group.members.find((m) => m.userId !== myUserId);
+
+  const refresh = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ["discipleship"] }),
+      qc.invalidateQueries({ queryKey: ["groups"] }),
+    ]);
+
+  const handleInvite = () => {
+    if (!other) return;
+    Alert.alert(
+      "Start discipleship",
+      `Invite ${other.displayName} as your disciple? They'll be asked to accept first.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Send invite",
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await ApiClient.inviteDisciple(group.id, other.userId);
+              await refresh();
+            } catch (err) {
+              Alert.alert("Couldn't invite", err instanceof ApiError ? err.message : "Please try again.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAccept = async () => {
+    if (!rel) return;
+    setBusy(true);
+    try {
+      await ApiClient.acceptDiscipleship(rel.id);
+      await refresh();
+      setShowNotice(false);
+    } catch (err) {
+      Alert.alert("Couldn't accept", err instanceof ApiError ? err.message : "Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    if (!rel) return;
+    setBusy(true);
+    try {
+      await ApiClient.declineDiscipleship(rel.id);
+      await refresh();
+      setShowNotice(false);
+    } catch (err) {
+      Alert.alert("Couldn't decline", err instanceof ApiError ? err.message : "Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  let body: ReactNode;
+  if (!rel) {
+    body = other ? (
+      <DiscipleChip icon={HeartHandshake} label="Start discipleship" color={accent} onPress={handleInvite} />
+    ) : (
+      <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, fontStyle: "italic" }}>
+        Add the other person to this group to start discipleship.
+      </Text>
+    );
+  } else if (rel.status === "pending") {
+    body =
+      rel.role === "disciple" ? (
+        <DiscipleChip icon={HeartHandshake} label="Review discipleship invite" color={accent} onPress={() => setShowNotice(true)} />
+      ) : (
+        <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, fontStyle: "italic" }}>
+          Invite sent — waiting for {rel.counterpart.displayName} to accept.
+        </Text>
+      );
+  } else if (rel.status === "active") {
+    body =
+      rel.role === "discipler" ? (
+        <View className="flex-row flex-wrap gap-2">
+          <DiscipleChip icon={Eye} label={`${rel.counterpart.displayName}'s responses`} color={accent} onPress={() => router.push(`/discipleship/${rel.id}/responses`)} />
+          <DiscipleChip icon={Flag} label="Flagged" color={accent} onPress={() => router.push(`/discipleship/${rel.id}/flagged`)} />
+          <DiscipleChip icon={MessageSquare} label="Mailbox" color={accent} badge={rel.unreadCount} onPress={() => router.push(`/discipleship/${rel.id}/mailbox`)} />
+        </View>
+      ) : (
+        <DiscipleChip icon={MessageSquare} label="Mailbox" color={accent} badge={rel.unreadCount} onPress={() => router.push(`/discipleship/${rel.id}/mailbox`)} />
+      );
+  }
+
+  return (
+    <View className="gap-2" style={{ borderTopWidth: 1, borderTopColor: border, paddingTop: 12 }}>
+      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 10, color: muted, letterSpacing: 1, textTransform: "uppercase" }}>
+        Discipleship
+      </Text>
+      {body}
+      <PrivacyNoticeModal
+        visible={showNotice}
+        disciplerName={rel?.counterpart.displayName ?? "Someone"}
+        busy={busy}
+        onAccept={handleAccept}
+        onDecline={handleDecline}
+      />
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function GroupsScreen() {
   const groups = useGroups();
+  const active = useActiveDevotional();
+  const discipleships = useDiscipleships();
+  const profile = useProfile();
   const qc = useQueryClient();
   const router = useRouter();
   const primary = useThemeColor("primary");
@@ -326,9 +585,16 @@ export default function GroupsScreen() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
+  // Matches the reader's local "done for today" lock so the personal card agrees
+  // with what you see when you tap in — even after the UTC day has rolled over.
+  const localDone = useLocalDoneToday(active.data?.planId);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await qc.invalidateQueries({ queryKey: ["groups"] });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["progress", "active"] }),
+      qc.invalidateQueries({ queryKey: ["groups"] }),
+    ]);
     setRefreshing(false);
   };
 
@@ -496,38 +762,6 @@ export default function GroupsScreen() {
 
   return (
     <Screen edges={["top"]}>
-      {groups.isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={primary} />
-        </View>
-      ) : groups.isError ? (
-        <ErrorState
-          message="We couldn't load your groups. Check your connection and try again."
-          onRetry={() => groups.refetch()}
-        />
-      ) : groupList.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="mb-1 font-serif text-xl font-bold text-foreground">No groups yet</Text>
-          <Text className="mb-6 text-center text-sm text-muted-foreground">
-            Walk through the Word with others — start a group or join one.
-          </Text>
-          <View className="flex-row gap-3">
-            <Pressable
-              onPress={() => setShowCreate(true)}
-              className="h-11 items-center justify-center rounded-xl bg-primary px-6"
-            >
-              <Text className="text-sm font-semibold text-primary-foreground">Create</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setShowJoin(true)}
-              style={{ borderWidth: 1, borderColor: border }}
-              className="h-11 items-center justify-center rounded-xl px-6"
-            >
-              <Text style={{ color: fg }} className="text-sm font-semibold">Join with Code</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : (
         <ScrollView
           contentContainerClassName="mx-auto w-full max-w-lg px-6 py-8"
           showsVerticalScrollIndicator={false}
@@ -535,8 +769,88 @@ export default function GroupsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />
           }
         >
-          <ScreenHeader eyebrow="Your Relationships" title="Groups" />
+          <ScreenHeader eyebrow="Your Reading" title="Devotionals" />
 
+          {/* ── Personal devotional (relocated from the former Devotionals tab) ── */}
+          <SectionLabel label="Personal" />
+
+          {active.isLoading ? (
+            <ActivityIndicator color={primary} />
+          ) : active.data ? (
+            <View className="overflow-hidden rounded-xl border border-border bg-card">
+              <View className="flex-row items-center gap-3 px-4 py-5">
+                <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: primary }} />
+                <View className="flex-1">
+                  <Text className="font-serif text-lg font-bold text-foreground">
+                    {active.data.planTitle}
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-muted-foreground">
+                    {active.data.chapter ? `${active.data.chapter} · ` : ""}
+                    Day {active.data.currentDay}/{active.data.totalDays}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => router.push(`/devotional/${active.data!.planId}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={active.data.doneToday || localDone ? "Done today — tap to re-read" : "Continue reading"}
+                >
+                  {active.data.doneToday || localDone ? (
+                    <View className="flex-row items-center gap-1">
+                      <PopIn>
+                        <CheckCircle2 size={15} color={primary} />
+                      </PopIn>
+                      <Text className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                        Done today
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text className="text-sm font-semibold uppercase tracking-wider text-primary">
+                      Continue
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <EmptyNote text="You don't have an active personal plan. Browse plans to start one." />
+          )}
+
+          <Divider />
+
+          {/* ── Groups ─────────────────────────────────────────────────────────── */}
+          <SectionLabel label="Groups" />
+
+          {groups.isLoading ? (
+            <ActivityIndicator color={primary} />
+          ) : groups.isError ? (
+            <ErrorState
+              message="We couldn't load your groups. Check your connection and try again."
+              onRetry={() => groups.refetch()}
+            />
+          ) : groupList.length === 0 ? (
+            <View className="items-center px-4 py-6">
+              <Text className="mb-1 font-serif text-xl font-bold text-foreground">No groups yet</Text>
+              <Text className="mb-6 text-center text-sm text-muted-foreground">
+                Walk through the Word with others — start a group or join one.
+              </Text>
+              <View className="flex-row gap-3">
+                <Pressable
+                  onPress={() => setShowCreate(true)}
+                  className="h-11 items-center justify-center rounded-xl bg-primary px-6"
+                >
+                  <Text className="text-sm font-semibold text-primary-foreground">Create</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowJoin(true)}
+                  style={{ borderWidth: 1, borderColor: border }}
+                  className="h-11 items-center justify-center rounded-xl px-6"
+                >
+                  <Text style={{ color: fg }} className="text-sm font-semibold">Join with Code</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <>
           {groupList.map((group, idx) => {
             const config = GROUP_TYPE_CONFIG[group.groupType] ?? { label: group.groupType, color: primary };
             const doneCount = group.members.filter((m) => m.doneToday).length;
@@ -643,6 +957,16 @@ export default function GroupsScreen() {
                       )}
                     </View>
 
+                    {/* Discipleship (one-on-one only) */}
+                    {group.groupType === "one-on-one" && (
+                      <DiscipleshipSection
+                        group={group}
+                        rel={(discipleships.data ?? []).find((r) => r.groupId === group.id)}
+                        myUserId={profile.data?.userId}
+                        accent={config.color}
+                      />
+                    )}
+
                     {/* Actions row */}
                     <View className="flex-row gap-3">
                       {group.plan && (
@@ -702,8 +1026,9 @@ export default function GroupsScreen() {
               <Text style={{ color: primary }} className="text-sm font-semibold">Join with code</Text>
             </Pressable>
           </View>
+            </>
+          )}
         </ScrollView>
-      )}
 
       {/* ── Create group modal ─────────────────────────────────────────────── */}
       <BottomSheet visible={showCreate} onClose={() => !creating && closeCreate()}>

@@ -1,8 +1,32 @@
 import { useCallback, useRef, useState } from "react";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
+
+// `expo-speech-recognition` is a native module that is NOT bundled in Expo Go —
+// it requires a dev/standalone build. Importing it eagerly throws
+// "Cannot find native module 'ExpoSpeechRecognition'" and crashes the whole app.
+// Load it defensively so the app degrades gracefully (STT simply unavailable)
+// instead of hard-crashing when the guided/commute screen opens in Expo Go.
+let SpeechModule: typeof import("expo-speech-recognition") | null = null;
+try {
+  SpeechModule = require("expo-speech-recognition");
+} catch {
+  SpeechModule = null;
+}
+
+const ExpoSpeechRecognitionModule = SpeechModule?.ExpoSpeechRecognitionModule ?? null;
+const nativeUseSpeechRecognitionEvent = SpeechModule?.useSpeechRecognitionEvent ?? null;
+
+/** True only in a build that actually bundles the native speech module (i.e. not Expo Go). */
+export const SPEECH_RECOGNITION_AVAILABLE =
+  !!ExpoSpeechRecognitionModule && !!nativeUseSpeechRecognitionEvent;
+
+// SPEECH_RECOGNITION_AVAILABLE is a module-level constant — it never changes at
+// runtime — so this conditional hook call has a stable order across every render
+// and is safe under the rules of hooks.
+function useSpeechRecognitionEvent(event: string, handler: (e: any) => void) {
+  if (SPEECH_RECOGNITION_AVAILABLE) {
+    nativeUseSpeechRecognitionEvent!(event as never, handler as never);
+  }
+}
 
 type Options = {
   /** Fires once with the captured transcript when a turn ends (silence or stop). */
@@ -41,16 +65,20 @@ export function useSpeechRecognition({ onFinal }: Options = {}) {
   });
 
   const start = useCallback(async () => {
+    if (!SPEECH_RECOGNITION_AVAILABLE) {
+      setError("unavailable");
+      return false;
+    }
     setError(null);
     setTranscript("");
     latest.current = "";
-    const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    const perm = await ExpoSpeechRecognitionModule!.requestPermissionsAsync();
     if (!perm.granted) {
       setError("permission_denied");
       return false;
     }
     setIsListening(true);
-    ExpoSpeechRecognitionModule.start({
+    ExpoSpeechRecognitionModule!.start({
       lang: "en-US",
       interimResults: true,
       continuous: false,
@@ -59,8 +87,9 @@ export function useSpeechRecognition({ onFinal }: Options = {}) {
   }, []);
 
   const stop = useCallback(() => {
+    if (!SPEECH_RECOGNITION_AVAILABLE) return;
     // Triggers the "end" event, which delivers the final transcript.
-    ExpoSpeechRecognitionModule.stop();
+    ExpoSpeechRecognitionModule!.stop();
   }, []);
 
   return { transcript, isListening, error, start, stop };

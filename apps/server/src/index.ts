@@ -12,6 +12,8 @@ import { progress } from "./routes/progress.js";
 import { submissions } from "./routes/submissions.js";
 import { groupsRoute } from "./routes/groups.js";
 import { tts } from "./routes/tts.js";
+import { community } from "./routes/community.js";
+import { discipleship } from "./routes/discipleship.js";
 
 const app = new Hono();
 
@@ -35,6 +37,8 @@ app.route("/api/progress", progress);
 app.route("/api/submissions", submissions);
 app.route("/api/groups", groupsRoute);
 app.route("/api/tts", tts);
+app.route("/api/community", community);
+app.route("/api/discipleship", discipleship);
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, (info) => {

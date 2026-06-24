@@ -1,6 +1,12 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { profiles, groups, groupMembers, devotionalSubmissions } from "../db/schema.js";
+import {
+  profiles,
+  groups,
+  groupMembers,
+  devotionalSubmissions,
+  discipleRelationships,
+} from "../db/schema.js";
 
 type PushMessage = {
   to: string;
@@ -141,4 +147,58 @@ export async function notifyGroupCompleteIfDone(
       }))
     );
   }
+}
+
+// ─── Discipleship Kit ─────────────────────────────────────────────────────────
+
+async function pushToUser(userId: string, title: string, body: string): Promise<void> {
+  const [recipient] = await db
+    .select({ pushToken: profiles.pushToken })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  const token = recipient?.pushToken;
+  if (!token) return;
+  await sendPush([{ to: token, title, body, sound: "default" }]);
+}
+
+// Notify the disciple that someone wants to disciple them.
+export async function notifyDiscipleshipInvite(
+  disciplerId: string,
+  discipleId: string
+): Promise<void> {
+  const [discipler] = await db
+    .select({ displayName: profiles.displayName })
+    .from(profiles)
+    .where(eq(profiles.userId, disciplerId))
+    .limit(1);
+  if (!discipler) return;
+  await pushToUser(
+    discipleId,
+    "Discipleship invite",
+    `${discipler.displayName} would like to disciple you. Open IronSharp to respond.`
+  );
+}
+
+// Notify the other party in a relationship that a new mailbox message arrived.
+export async function notifyMailboxMessage(
+  relationshipId: string,
+  senderId: string
+): Promise<void> {
+  const [rel] = await db
+    .select({ disciplerId: discipleRelationships.disciplerId, discipleId: discipleRelationships.discipleId })
+    .from(discipleRelationships)
+    .where(eq(discipleRelationships.id, relationshipId))
+    .limit(1);
+  if (!rel) return;
+
+  const recipientId = senderId === rel.disciplerId ? rel.discipleId : rel.disciplerId;
+  const [sender] = await db
+    .select({ displayName: profiles.displayName })
+    .from(profiles)
+    .where(eq(profiles.userId, senderId))
+    .limit(1);
+  if (!sender) return;
+
+  await pushToUser(recipientId, "New message", `${sender.displayName} sent you a message.`);
 }

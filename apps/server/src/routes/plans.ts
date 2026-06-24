@@ -111,6 +111,9 @@ plans.get("/:planId/days/:dayNumber", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
   const dayNumber = Number(c.req.param("dayNumber"));
+  if (!Number.isInteger(dayNumber) || dayNumber < 1) {
+    return c.json({ error: "Invalid dayNumber" }, 400);
+  }
   const [plan] = await db
     .select({ id: devotionalPlans.id })
     .from(devotionalPlans)

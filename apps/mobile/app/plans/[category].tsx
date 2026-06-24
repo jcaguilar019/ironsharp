@@ -28,7 +28,7 @@ const GROUP_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   "family":      { label: "Family",      color: "#7FAF8A" },
   "small-group": { label: "Small Group", color: "#C49A78" },
   "large-group": { label: "Large Group", color: "#9B8EC4" },
-  "community":   { label: "Community",   color: "#7A9EAF" },
+  "community":   { label: "Church",      color: "#7A9EAF" },
 };
 
 export default function PlanList() {

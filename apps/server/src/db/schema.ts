@@ -87,6 +87,11 @@ export const devotionalDays = pgTable(
     dayNumber: integer("day_number").notNull(),
     chapter: text("chapter").notNull(),
     theme: text("theme"),
+    // Per-day passage setup shown in the "Passage Context" drawer. Inline on the
+    // day (not the shared book/chapter passageNotes table) so two days on the same
+    // chapter can carry different context. Both this and studyNotes are required
+    // for every day of a new plan — see generate.ts validation.
+    passageContext: text("passage_context"),
     studyNotes: jsonb("study_notes").notNull().default([]),
     reflection: text("reflection"),
     reflectionQ1: text("reflection_q1").notNull(),
@@ -229,7 +234,11 @@ export const discipleRelationships = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     disciplerId: text("discipler_id").notNull(),
     discipleId: text("disciple_id").notNull(),
+    // Discipleship is a role assignment *inside* an existing one-on-one group.
+    groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"), // pending | active | ended
+    // Stamped when the disciple accepts the one-time privacy notice.
+    privacyNoticeAcceptedAt: timestamp("privacy_notice_accepted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -250,12 +259,15 @@ export const devotionalSubmissions = pgTable(
     dayNumber: integer("day_number").notNull(),
     response1: text("response1"),
     response2: text("response2"),
+    // Optional Q3 — a custom question the discipler sets for the disciple.
+    response3: text("response3"),
     prayer: text("prayer"),
     voiceMemoUrl: text("voice_memo_url"),
     audioQ1Url: text("audio_q1_url"),
     audioQ2Url: text("audio_q2_url"),
     q1Private: boolean("q1_private").notNull().default(false),
     q2Private: boolean("q2_private").notNull().default(false),
+    q3Private: boolean("q3_private").notNull().default(false),
     prayerPrivate: boolean("prayer_private").notNull().default(true),
     voiceMemoPrivate: boolean("voice_memo_private").notNull().default(false),
     submissionSource: text("submission_source").notNull().default("typed"), // typed | commute | voice_memo
@@ -328,6 +340,161 @@ export const disciplerNotes = pgTable(
   })
 );
 
+/* ============================================================
+ * DISCIPLESHIP KIT  (tools that activate inside a one-on-one
+ * relationship — see disciple_relationships above)
+ * ============================================================ */
+
+// A custom daily question (Q3) the discipler sets for the disciple. One per
+// (relationship, date) — re-sending the same day overwrites.
+export const customQuestions = pgTable(
+  "custom_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    discipleshipRelationshipId: uuid("discipleship_relationship_id")
+      .notNull()
+      .references(() => discipleRelationships.id, { onDelete: "cascade" }),
+    discipleId: text("disciple_id").notNull(),
+    questionText: text("question_text").notNull(),
+    forDate: date("for_date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    relationshipDateUnique: unique("custom_questions_unique").on(
+      t.discipleshipRelationshipId,
+      t.forDate
+    ),
+  })
+);
+
+// A discipler's private flag on one field of a disciple's submission. Invisible
+// to the disciple. Reads only ever touch post-privacy-strip data.
+export const flaggedResponses = pgTable(
+  "flagged_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    discipleshipRelationshipId: uuid("discipleship_relationship_id")
+      .notNull()
+      .references(() => discipleRelationships.id, { onDelete: "cascade" }),
+    responseId: uuid("response_id")
+      .notNull()
+      .references(() => devotionalSubmissions.id, { onDelete: "cascade" }),
+    questionType: text("question_type").notNull(), // q1 | q2 | q3 | praise
+    flaggedAt: timestamp("flagged_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    flagUnique: unique("flagged_responses_unique").on(
+      t.discipleshipRelationshipId,
+      t.responseId,
+      t.questionType
+    ),
+  })
+);
+
+// Two-way text thread between discipler and disciple. Text-only this build;
+// messageType/audioUrl reserved so voice can be added without a migration.
+export const mailboxMessages = pgTable(
+  "mailbox_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    discipleshipRelationshipId: uuid("discipleship_relationship_id")
+      .notNull()
+      .references(() => discipleRelationships.id, { onDelete: "cascade" }),
+    senderId: text("sender_id").notNull(),
+    messageType: text("message_type").notNull().default("text"), // text | voice (reserved)
+    messageText: text("message_text"),
+    audioUrl: text("audio_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+  },
+  (t) => ({
+    threadIdx: index("idx_mailbox_messages_thread").on(
+      t.discipleshipRelationshipId,
+      t.createdAt
+    ),
+  })
+);
+
+/* ============================================================
+ * COMMUNITY DEVOTIONAL  (one shared reading per calendar day)
+ *
+ * Authored solely by the founder (an admin — see lib/admin.ts). Content is
+ * keyed by `publish_date` so everyone in the app reads the same devotional on
+ * the same calendar day. Engagement mirrors the group feed: each member may
+ * post one response per day and react to other members' responses.
+ * ============================================================ */
+
+export const communityDevotionals = pgTable(
+  "community_devotionals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // The calendar day (YYYY-MM-DD) everyone reads this on — one reading per day.
+    publishDate: date("publish_date").notNull().unique(),
+    title: text("title").notNull(),
+    subtitle: text("subtitle"),
+    passageReference: text("passage_reference").notNull(), // e.g. "Romans 14:1–12"
+    passageContext: text("passage_context"),
+    studyNotes: jsonb("study_notes").notNull().default([]), // StudyNoteEntry[]
+    reflectionQ1: text("reflection_q1").notNull(),
+    reflectionQ2: text("reflection_q2").notNull(),
+    prayerPrompt: text("prayer_prompt"),
+    status: text("status").notNull().default("draft"), // draft | published
+    createdByUserId: text("created_by_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    statusDateIdx: index("idx_community_devotionals_status_date").on(t.status, t.publishDate),
+  })
+);
+
+export const communityResponses = pgTable(
+  "community_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    communityDevotionalId: uuid("community_devotional_id")
+      .notNull()
+      .references(() => communityDevotionals.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    response1: text("response1"),
+    response2: text("response2"),
+    prayer: text("prayer"),
+    q1Private: boolean("q1_private").notNull().default(false),
+    q2Private: boolean("q2_private").notNull().default(false),
+    prayerPrivate: boolean("prayer_private").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    devotionalUserUnique: unique("community_responses_unique").on(
+      t.communityDevotionalId,
+      t.userId
+    ),
+    devotionalIdx: index("idx_community_responses_devotional").on(t.communityDevotionalId),
+  })
+);
+
+export const communityReactions = pgTable(
+  "community_reactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    responseId: uuid("response_id")
+      .notNull()
+      .references(() => communityResponses.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    reactionType: text("reaction_type").notNull(), // amen | hit_me | fire
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    reactionUnique: unique("community_reactions_unique").on(
+      t.responseId,
+      t.userId,
+      t.reactionType
+    ),
+    responseIdx: index("idx_community_reactions_response").on(t.responseId),
+  })
+);
+
 export const schema = {
   bibleChapters,
   devotionalPlans,
@@ -342,4 +509,10 @@ export const schema = {
   devotionalSubmissions,
   submissionReactions,
   disciplerNotes,
+  customQuestions,
+  flaggedResponses,
+  mailboxMessages,
+  communityDevotionals,
+  communityResponses,
+  communityReactions,
 };

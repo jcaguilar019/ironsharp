@@ -179,7 +179,7 @@ export default function CreatePlan() {
           "One at a time",
           "Your plan was created. Finish your current devotional first, then you can start this one."
         );
-        router.replace("/(tabs)/devotional");
+        router.replace("/(tabs)/groups");
       } else {
         Alert.alert("Something went wrong", "Generation failed. Please try again.");
       }

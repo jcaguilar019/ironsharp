@@ -50,7 +50,7 @@ export default function GuidedDevotional() {
       .join(" ");
     if (content) s.push({ kind: "read", label: "Reading", text: content });
     if (day.reflectionQ1) s.push({ kind: "prompt", label: "Reflect", field: "response1", question: day.reflectionQ1 });
-    if (day.reflectionQ2) s.push({ kind: "prompt", label: "Reflect", field: "response2", question: day.reflectionQ2 });
+    if (day.reflectionQ2) s.push({ kind: "prompt", label: "Act", field: "response2", question: day.reflectionQ2 });
     if (day.prayerPrompt) s.push({ kind: "prompt", label: "Pray", field: "prayer", question: day.prayerPrompt });
     return s;
   }, [dayQ.data]);

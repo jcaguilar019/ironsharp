@@ -45,8 +45,13 @@ function parseFocusVerses(ref: string): string | null {
   const match = ref.match(/:(.+)$/);
   return match ? match[1].trim() : null;
 }
-import { useProgress, useGroupDayResponses, useGroups } from "@/lib/queries";
+import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion } from "@/lib/queries";
 import type { GroupDayResponse } from "@/lib/api";
+
+/** The viewer's local calendar date as "YYYY-MM-DD" (en-CA renders ISO). */
+function localDateString(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
 
 // ─── Skeleton loading lines ───────────────────────────────────────────────────
 
@@ -98,7 +103,7 @@ function SkeletonLines({ count = 3 }: { count?: number }) {
 
 // ─── Feature 1: Passage Context Drawer ───────────────────────────────────────
 
-function PassageContextDrawer({ passageRef }: { passageRef: string }) {
+function PassageContextDrawer({ passageRef, inlineContext }: { passageRef: string; inlineContext?: string | null }) {
   const cardBg = useThemeColor("card");
   const mutedBg = useThemeColor("muted");
   const borderColor = useThemeColor("border");
@@ -117,16 +122,19 @@ function PassageContextDrawer({ passageRef }: { passageRef: string }) {
     chevronAnim.setValue(0);
   }, [passageRef]);
 
-  const { data, isLoading } = useQuery({
+  // Prefer the per-day context stored on the day itself. Only fall back to the
+  // legacy book/chapter passageNotes table when a day has none (older content).
+  const { data, isLoading: fetching } = useQuery({
     queryKey: ["passageNotes", passageRef],
     queryFn: () =>
       parsed
         ? ApiClient.getPassageNotes(parsed.book, parsed.chapter)
         : Promise.resolve({ passageNotes: null }),
-    enabled: !!parsed && open,
+    enabled: !inlineContext && !!parsed && open,
   });
 
-  const context = data?.passageNotes?.context ?? null;
+  const context = inlineContext ?? data?.passageNotes?.context ?? null;
+  const isLoading = !inlineContext && fetching;
 
   const toggle = () => {
     const toOpen = !open;
@@ -712,7 +720,7 @@ export default function DevotionalReader() {
             await ApiClient.stopPlan(planId);
             await qc.invalidateQueries({ queryKey: ["progress"] });
             await qc.invalidateQueries({ queryKey: ["progress", "active"] });
-            router.replace("/(tabs)/devotional");
+            router.replace("/(tabs)/groups");
           },
         },
       ]
@@ -726,6 +734,7 @@ export default function DevotionalReader() {
   const input1Ref = useRef<TextInput>(null);
   const input2Ref = useRef<TextInput>(null);
   const input3Ref = useRef<TextInput>(null);
+  const inputQ3Ref = useRef<TextInput>(null);
 
   const scrollToInput = (ref: React.RefObject<TextInput | null>) => {
     if (!ref.current || !scrollRef.current) return;
@@ -774,11 +783,25 @@ export default function DevotionalReader() {
     enabled: !!planId,
   });
 
+  // Discipleship Q3: only when the viewer is the disciple in an active
+  // relationship scoped to *this* group, and the discipler set a question today.
+  const discipleships = useDiscipleships();
+  const todayDate = localDateString();
+  const discipleRel = groupId
+    ? (discipleships.data ?? []).find(
+        (r) => r.groupId === groupId && r.role === "disciple" && r.status === "active"
+      )
+    : undefined;
+  const customQuestionQ = useCustomQuestion(discipleRel?.id, todayDate);
+  const q3 = customQuestionQ.data ?? null;
+
   const [response1, setResponse1] = useState("");
   const [response2, setResponse2] = useState("");
+  const [response3, setResponse3] = useState("");
   const [prayer, setPrayer] = useState("");
   const [q1Private, setQ1Private] = useState(false);
   const [q2Private, setQ2Private] = useState(false);
+  const [q3Private, setQ3Private] = useState(false);
   const [prayerPrivate, setPrayerPrivate] = useState(true);
   const [passageRead, setPassageRead] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -805,9 +828,11 @@ export default function DevotionalReader() {
           const d = JSON.parse(raw);
           if (d.response1 !== undefined) setResponse1(d.response1);
           if (d.response2 !== undefined) setResponse2(d.response2);
+          if (d.response3 !== undefined) setResponse3(d.response3);
           if (d.prayer !== undefined) setPrayer(d.prayer);
           if (d.q1Private !== undefined) setQ1Private(d.q1Private);
           if (d.q2Private !== undefined) setQ2Private(d.q2Private);
+          if (d.q3Private !== undefined) setQ3Private(d.q3Private);
           if (d.prayerPrivate !== undefined) setPrayerPrivate(d.prayerPrivate);
           if (d.passageRead) { setPassageRead(true); }
         } catch {}
@@ -823,14 +848,14 @@ export default function DevotionalReader() {
     draftTimerRef.current = setTimeout(() => {
       import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
         AsyncStorage.setItem(draftKey, JSON.stringify({
-          response1, response2, prayer, q1Private, q2Private, prayerPrivate, passageRead,
+          response1, response2, response3, prayer, q1Private, q2Private, q3Private, prayerPrivate, passageRead,
         }))
           .then(() => setSaveState("saved"))
           .catch(() => {});
       });
     }, 400);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
-  }, [response1, response2, prayer, q1Private, q2Private, prayerPrivate, passageRead, draftKey, isDoneState]);
+  }, [response1, response2, response3, prayer, q1Private, q2Private, q3Private, prayerPrivate, passageRead, draftKey, isDoneState]);
 
   // Prefill from any existing submission for this day.
   useEffect(() => {
@@ -838,9 +863,11 @@ export default function DevotionalReader() {
     if (s) {
       setResponse1(s.response1 ?? "");
       setResponse2(s.response2 ?? "");
+      setResponse3(s.response3 ?? "");
       setPrayer(s.prayer ?? "");
       setQ1Private(s.q1Private);
       setQ2Private(s.q2Private);
+      setQ3Private(s.q3Private);
       setPrayerPrivate(s.prayerPrivate);
     }
   }, [submissionQ.data]);
@@ -857,9 +884,12 @@ export default function DevotionalReader() {
         dayNumber: currentDay,
         response1,
         response2,
+        // Only send Q3 when the disciple was actually shown one today.
+        response3: q3 ? response3 : undefined,
         prayer,
         q1Private,
         q2Private,
+        q3Private: q3 ? q3Private : undefined,
         prayerPrivate,
         submissionSource: "typed",
       });
@@ -964,8 +994,8 @@ export default function DevotionalReader() {
           {/* Buttons */}
           <View className="gap-3">
             <Button
-              title="Back to Devotionals"
-              onPress={() => router.replace("/(tabs)/devotional")}
+              title="Back to Groups"
+              onPress={() => router.replace("/(tabs)/groups")}
             />
             <Button
               title="Re-read today's passage"
@@ -1171,12 +1201,12 @@ export default function DevotionalReader() {
               overflow: "hidden",
             }}
           >
-            <PassageContextDrawer passageRef={day?.chapter ?? ""} />
+            <PassageContextDrawer passageRef={day?.chapter ?? ""} inlineContext={day?.passageContext ?? null} />
             <View style={{ height: 1, backgroundColor: borderColor }} />
             <StudyNotesDrawer passageRef={day?.chapter ?? ""} notes={day?.studyNotes ?? []} />
           </View>
 
-          {/* Reflect, Apply, Prayer, Submit */}
+          {/* Reflect, Act, Prayer, Submit */}
           <View className="gap-2">
               <Text className="font-sans-semibold text-base text-foreground">
                 Reflect
@@ -1205,7 +1235,7 @@ export default function DevotionalReader() {
 
             <View className="gap-2">
               <Text className="font-sans-semibold text-base text-foreground">
-                Apply
+                Act
               </Text>
               <Text className="text-sm leading-relaxed text-muted-foreground">
                 {day?.reflectionQ2}
@@ -1228,6 +1258,34 @@ export default function DevotionalReader() {
                 color={accent}
               />
             </View>
+
+            {q3 && (
+              <View className="gap-2">
+                <Text style={{ color: accent }} className="font-sans-semibold text-xs uppercase tracking-wider">
+                  From your discipler
+                </Text>
+                <Text className="text-sm leading-relaxed text-muted-foreground">
+                  {q3.questionText}
+                </Text>
+                <TextInput
+                  ref={inputQ3Ref}
+                  value={response3}
+                  onChangeText={setResponse3}
+                  editable={!reread}
+                  onFocus={() => scrollToInput(inputQ3Ref)}
+                  placeholder="Your answer..."
+                  placeholderTextColor={muted}
+                  multiline
+                  textAlignVertical="top"
+                  className={inputClass}
+                />
+                <PrivacyToggle
+                  value={q3Private}
+                  onChange={setQ3Private}
+                  color={accent}
+                />
+              </View>
+            )}
 
             <View className="gap-2">
               <Text className="font-sans-semibold text-base text-foreground">

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { userPlanProgress, devotionalPlans, devotionalDays, devotionalSubmissions, profiles } from "../db/schema.js";
@@ -89,11 +90,22 @@ progress.get("/active", async (c) => {
   });
 });
 
+const startSchema = z.object({
+  planId: z.string().uuid(),
+  forGroup: z.boolean().optional(),
+});
+
+const updateProgressSchema = z.object({
+  currentDay: z.number().int().positive().optional(),
+  completed: z.boolean().optional(),
+});
+
 // POST /api/progress  → start (unlock) a plan
 progress.post("/", async (c) => {
   const userId = c.var.user.id;
-  const { planId, forGroup } = await c.req.json().catch(() => ({ planId: undefined, forGroup: false }));
-  if (!planId) return c.json({ error: "planId is required" }, 400);
+  const parsed = startSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { planId, forGroup } = parsed.data;
 
   // Already started — return existing row without consuming an unlock
   const [existing] = await db
@@ -183,7 +195,9 @@ progress.delete("/:planId", async (c) => {
 progress.patch("/:planId", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
-  const body = await c.req.json().catch(() => ({}));
+  const parsed = updateProgressSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const body = parsed.data;
 
   // Fetch current state before updating so we can detect transitions.
   const [before] = await db

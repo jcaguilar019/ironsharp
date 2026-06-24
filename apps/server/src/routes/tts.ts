@@ -1,10 +1,17 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { createHash } from "node:crypto";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 
 export const tts = new Hono<AppEnv>();
 
 tts.use("*", requireAuth);
+
+const ttsSchema = z.object({
+  text: z.string(),
+  voice: z.string().optional(),
+  instructions: z.string().optional(),
+});
 
 // OpenAI's voices (the ChatGPT voices). Allow-list so a bad client value can't
 // reach the API. "sage" is calm + warm — a good default for a devotional read.
@@ -37,12 +44,16 @@ tts.post("/", async (c) => {
   // Not a user error — the client falls back to the on-device voice on 503.
   if (!apiKey) return c.json({ error: "tts_not_configured" }, 503);
 
-  const body = await c.req.json().catch(() => ({}));
-  const text = typeof body.text === "string" ? body.text.trim() : "";
-  const reqVoice = typeof body.voice === "string" ? body.voice : DEFAULT_VOICE;
+  const parsed = ttsSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const body = parsed.data;
+  const text = body.text.trim();
+  // Voice + instructions degrade gracefully to defaults rather than 400 — a
+  // stale client value shouldn't break the read.
+  const reqVoice = body.voice ?? DEFAULT_VOICE;
   const voice = VOICES.has(reqVoice) ? reqVoice : DEFAULT_VOICE;
   const instructions =
-    typeof body.instructions === "string" && body.instructions.length < 600
+    body.instructions && body.instructions.length < 600
       ? body.instructions
       : DEFAULT_INSTRUCTIONS;
 

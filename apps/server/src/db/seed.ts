@@ -4,11 +4,14 @@ import { db, pool } from "./index.js";
 import { devotionalPlans, devotionalDays } from "./schema.js";
 import { PLANS } from "./seed-data.js";
 
+export type StudyNoteSeed = { verse_ref: string; note: string };
+
 export type DaySeed = {
   dayNumber: number;
   chapter: string;
   theme?: string | null;
-  studyNotes?: unknown;
+  passageContext?: string | null;
+  studyNotes?: StudyNoteSeed[];
   reflection?: string | null;
   reflectionQ1: string;
   reflectionQ2: string;
@@ -68,6 +71,7 @@ async function seed() {
         dayNumber: d.dayNumber,
         chapter: d.chapter,
         theme: d.theme ?? null,
+        passageContext: d.passageContext ?? null,
         studyNotes: (d.studyNotes ?? []) as never,
         reflection: d.reflection ?? null,
         reflectionQ1: d.reflectionQ1,

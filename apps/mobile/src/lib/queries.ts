@@ -98,3 +98,95 @@ export function useGroupDayResponses(planId: string, dayNumber: number, enabled:
     staleTime: 60_000,
   });
 }
+
+/** Today's shared Community Devotional + the community response feed. */
+export function useCommunityToday() {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["community", "today"],
+    queryFn: () => ApiClient.getCommunityToday(),
+    enabled: authed,
+  });
+}
+
+/** Past published Community Devotionals (archive list). */
+export function useCommunityArchive() {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["community", "archive"],
+    queryFn: () => ApiClient.getCommunityArchive().then((r) => r.devotionals),
+    enabled: authed,
+  });
+}
+
+/** A single archived Community Devotional + its feed. */
+export function useCommunityEntry(id: string | undefined) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["community", "entry", id],
+    queryFn: () => ApiClient.getCommunityEntry(id!),
+    enabled: authed && !!id,
+  });
+}
+
+/** Admin-only: every Community Devotional (drafts + published). */
+export function useCommunityAdminList(enabled: boolean) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["community", "admin", "list"],
+    queryFn: () => ApiClient.getCommunityAdminList().then((r) => r.devotionals),
+    enabled: authed && enabled,
+  });
+}
+
+/* ---------- Discipleship Kit ---------- */
+
+/** All discipleship relationships the user is part of (drives entry points + notice gate). */
+export function useDiscipleships() {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["discipleship"],
+    queryFn: () => ApiClient.getDiscipleships().then((r) => r.relationships),
+    enabled: authed,
+  });
+}
+
+/** Today's custom question (Q3) for a relationship, if the discipler set one. */
+export function useCustomQuestion(relationshipId: string | undefined, forDate: string | undefined) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["discipleship", relationshipId, "question", forDate],
+    queryFn: () => ApiClient.getCustomQuestion(relationshipId!, forDate!).then((r) => r.question),
+    enabled: authed && !!relationshipId && !!forDate,
+  });
+}
+
+/** The disciple's submissions, as seen by the discipler (private fields stripped). */
+export function useDiscipleResponses(relationshipId: string | undefined) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["discipleship", relationshipId, "responses"],
+    queryFn: () => ApiClient.getDiscipleResponses(relationshipId!).then((r) => r.responses),
+    enabled: authed && !!relationshipId,
+  });
+}
+
+/** Flagged Notes for a relationship. */
+export function useFlaggedResponses(relationshipId: string | undefined) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["discipleship", relationshipId, "flags"],
+    queryFn: () => ApiClient.getFlaggedResponses(relationshipId!).then((r) => r.flags),
+    enabled: authed && !!relationshipId,
+  });
+}
+
+/** The mailbox thread for a relationship (fetching marks the other party's messages read). */
+export function useMailbox(relationshipId: string | undefined) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["discipleship", relationshipId, "mailbox"],
+    queryFn: () => ApiClient.getMailbox(relationshipId!).then((r) => r.messages),
+    enabled: authed && !!relationshipId,
+  });
+}

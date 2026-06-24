@@ -81,6 +81,7 @@ export type DevotionalDay = {
   dayNumber: number;
   chapter: string;
   theme: string | null;
+  passageContext: string | null;
   studyNotes: StudyNoteEntry[];
   reflection: string | null;
   reflectionQ1: string;
@@ -125,6 +126,8 @@ export type Profile = {
   generatedWindowStart: string | null;
   planUnlocksCount: number;
   planUnlocksWindowStart: string | null;
+  /** Founder authoring rights (Community Devotional). Derived server-side. */
+  isAdmin?: boolean;
 };
 
 export type PlanProgress = {
@@ -234,16 +237,166 @@ export type Submission = {
   dayNumber: number;
   response1: string | null;
   response2: string | null;
+  response3: string | null;
   prayer: string | null;
   voiceMemoUrl: string | null;
   audioQ1Url: string | null;
   audioQ2Url: string | null;
   q1Private: boolean;
   q2Private: boolean;
+  q3Private: boolean;
   prayerPrivate: boolean;
   voiceMemoPrivate: boolean;
   submissionSource: string;
   submittedAt: string;
+};
+
+/* ---------- Community Devotional ---------- */
+
+export type CommunityDevotional = {
+  id: string;
+  publishDate: string; // YYYY-MM-DD
+  title: string;
+  subtitle: string | null;
+  passageReference: string;
+  passageContext: string | null;
+  studyNotes: StudyNoteEntry[];
+  reflectionQ1: string;
+  reflectionQ2: string;
+  prayerPrompt: string | null;
+  status: "draft" | "published";
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Payload for creating or editing a Community Devotional (admin only). */
+export type CommunityDevotionalInput = {
+  publishDate: string;
+  title: string;
+  subtitle?: string | null;
+  passageReference: string;
+  passageContext?: string | null;
+  studyNotes: StudyNoteEntry[];
+  reflectionQ1: string;
+  reflectionQ2: string;
+  prayerPrompt?: string | null;
+  status: "draft" | "published";
+};
+
+export type CommunityReactionType = "amen" | "hit_me" | "fire";
+export type CommunityReactionCounts = Record<CommunityReactionType, number>;
+
+export type CommunityFeedItem = {
+  id: string;
+  userId: string;
+  isOwn: boolean;
+  displayName: string;
+  avatarUrl: string | null;
+  response1: string | null;
+  response2: string | null;
+  prayer: string | null;
+  q1Private: boolean;
+  q2Private: boolean;
+  prayerPrivate: boolean;
+  updatedAt: string;
+  reactions: CommunityReactionCounts;
+  myReactions: CommunityReactionType[];
+};
+
+export type CommunityToday = {
+  devotional: CommunityDevotional | null;
+  feed: CommunityFeedItem[];
+  myResponse: CommunityFeedItem | null;
+};
+
+export type CommunityArchiveItem = {
+  id: string;
+  publishDate: string;
+  title: string;
+  subtitle: string | null;
+  passageReference: string;
+};
+
+export type CommunityResponseRow = {
+  id: string;
+  communityDevotionalId: string;
+  userId: string;
+  response1: string | null;
+  response2: string | null;
+  prayer: string | null;
+  q1Private: boolean;
+  q2Private: boolean;
+  prayerPrivate: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/* ---------- Discipleship Kit ---------- */
+
+export type DiscipleshipRole = "discipler" | "disciple";
+export type DiscipleshipStatus = "pending" | "active" | "ended";
+export type QuestionType = "q1" | "q2" | "q3" | "praise";
+
+export type DiscipleshipRelationship = {
+  id: string;
+  role: DiscipleshipRole;
+  status: DiscipleshipStatus;
+  groupId: string | null;
+  privacyNoticeAcceptedAt: string | null;
+  counterpart: {
+    userId: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  unreadCount: number;
+};
+
+export type CustomQuestion = {
+  id: string;
+  discipleshipRelationshipId: string;
+  discipleId: string;
+  questionText: string;
+  forDate: string; // YYYY-MM-DD
+  createdAt: string;
+};
+
+export type DiscipleResponse = {
+  id: string;
+  dayNumber: number;
+  chapter: string | null;
+  submittedAt: string;
+  response1: string | null;
+  response2: string | null;
+  response3: string | null;
+  prayer: string | null;
+  q1Private: boolean;
+  q2Private: boolean;
+  q3Private: boolean;
+  prayerPrivate: boolean;
+  q3Question: string | null;
+  flagged: QuestionType[];
+};
+
+export type FlaggedResponse = {
+  responseId: string;
+  questionType: QuestionType;
+  flaggedAt: string;
+  dayNumber: number;
+  chapter: string | null;
+  submittedAt: string;
+  text: string | null;
+};
+
+export type MailboxMessage = {
+  id: string;
+  discipleshipRelationshipId: string;
+  senderId: string;
+  messageType: string;
+  messageText: string | null;
+  audioUrl: string | null;
+  createdAt: string;
+  readAt: string | null;
 };
 
 /* ---------- Endpoint helpers ---------- */
@@ -414,16 +567,105 @@ export const ApiClient = {
     dayNumber: number;
     response1?: string;
     response2?: string;
+    response3?: string;
     prayer?: string;
     audioQ1Url?: string;
     audioQ2Url?: string;
     q1Private?: boolean;
     q2Private?: boolean;
+    q3Private?: boolean;
     prayerPrivate?: boolean;
     submissionSource?: string;
   }) =>
     api<{ submission: Submission }>("/api/submissions", {
       method: "PUT",
       body: JSON.stringify(body),
+    }),
+
+  // ── Community Devotional ──
+  getCommunityToday: () => api<CommunityToday>("/api/community/today"),
+  getCommunityEntry: (id: string) => api<CommunityToday>(`/api/community/entry/${id}`),
+  getCommunityArchive: () =>
+    api<{ devotionals: CommunityArchiveItem[] }>("/api/community/archive"),
+  saveCommunityResponse: (body: {
+    communityDevotionalId: string;
+    response1?: string | null;
+    response2?: string | null;
+    prayer?: string | null;
+    q1Private?: boolean;
+    q2Private?: boolean;
+    prayerPrivate?: boolean;
+  }) =>
+    api<{ response: CommunityResponseRow }>("/api/community/responses", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  toggleCommunityReaction: (responseId: string, reactionType: CommunityReactionType) =>
+    api<{ reacted: boolean }>("/api/community/reactions", {
+      method: "POST",
+      body: JSON.stringify({ responseId, reactionType }),
+    }),
+
+  // Admin / founder authoring
+  getCommunityAdminList: () =>
+    api<{ devotionals: CommunityDevotional[] }>("/api/community/admin/list"),
+  createCommunityDevotional: (body: CommunityDevotionalInput) =>
+    api<{ devotional: CommunityDevotional }>("/api/community/admin/create", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateCommunityDevotional: (id: string, body: CommunityDevotionalInput) =>
+    api<{ devotional: CommunityDevotional }>(`/api/community/admin/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  publishCommunityDevotional: (id: string) =>
+    api<{ devotional: CommunityDevotional }>(`/api/community/admin/${id}/publish`, {
+      method: "POST",
+    }),
+
+  // ── Discipleship Kit ──
+  getDiscipleships: () =>
+    api<{ relationships: DiscipleshipRelationship[] }>("/api/discipleship"),
+  inviteDisciple: (groupId: string, discipleId: string) =>
+    api<{ relationship: DiscipleshipRelationship }>("/api/discipleship/invite", {
+      method: "POST",
+      body: JSON.stringify({ groupId, discipleId }),
+    }),
+  acceptDiscipleship: (id: string) =>
+    api<{ relationship: DiscipleshipRelationship }>(`/api/discipleship/${id}/accept`, {
+      method: "POST",
+    }),
+  declineDiscipleship: (id: string) =>
+    api<{ ok: boolean }>(`/api/discipleship/${id}/decline`, { method: "POST" }),
+  getCustomQuestion: (id: string, forDate: string) =>
+    api<{ question: CustomQuestion | null }>(
+      `/api/discipleship/${id}/questions?forDate=${forDate}`
+    ),
+  setCustomQuestion: (id: string, body: { questionText: string; forDate: string }) =>
+    api<{ question: CustomQuestion }>(`/api/discipleship/${id}/questions`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getDiscipleResponses: (id: string) =>
+    api<{ responses: DiscipleResponse[] }>(`/api/discipleship/${id}/responses`),
+  flagResponse: (id: string, responseId: string, questionType: QuestionType) =>
+    api<{ ok: boolean }>(`/api/discipleship/${id}/flags`, {
+      method: "POST",
+      body: JSON.stringify({ responseId, questionType }),
+    }),
+  unflagResponse: (id: string, responseId: string, questionType: QuestionType) =>
+    api<{ ok: boolean }>(`/api/discipleship/${id}/flags`, {
+      method: "DELETE",
+      body: JSON.stringify({ responseId, questionType }),
+    }),
+  getFlaggedResponses: (id: string) =>
+    api<{ flags: FlaggedResponse[] }>(`/api/discipleship/${id}/flags`),
+  getMailbox: (id: string) =>
+    api<{ messages: MailboxMessage[] }>(`/api/discipleship/${id}/mailbox`),
+  sendMailboxMessage: (id: string, messageText: string) =>
+    api<{ message: MailboxMessage }>(`/api/discipleship/${id}/mailbox`, {
+      method: "POST",
+      body: JSON.stringify({ messageText }),
     }),
 };

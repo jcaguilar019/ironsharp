@@ -1,7 +1,7 @@
 import { ActivityIndicator, Platform, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { useEffect } from "react";
-import { BookOpen, Users, Home, Library, User, type LucideIcon } from "lucide-react-native";
+import { Globe, BookOpen, Home, Library, User, type LucideIcon } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useAuthed, useProfile } from "@/lib/queries";
@@ -98,17 +98,17 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="devotional"
+        name="groups"
         options={{
           title: "Devotionals",
           tabBarIcon: ({ focused }) => <TabIcon Icon={BookOpen} focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="groups"
+        name="community"
         options={{
-          title: "Groups",
-          tabBarIcon: ({ focused }) => <TabIcon Icon={Users} focused={focused} />,
+          title: "Community",
+          tabBarIcon: ({ focused }) => <TabIcon Icon={Globe} focused={focused} />,
         }}
       />
       <Tabs.Screen
