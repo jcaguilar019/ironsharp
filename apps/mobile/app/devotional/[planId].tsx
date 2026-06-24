@@ -1098,7 +1098,7 @@ export default function DevotionalReader() {
                 </View>
                 <View className="flex-1">
                   <Text className="font-sans-semibold text-sm text-foreground">
-                    Guided (hands-free)
+                    Commute Mode
                   </Text>
                   <Text className="mt-0.5 text-xs text-muted-foreground">
                     Reads aloud, pauses, and transcribes your spoken answers

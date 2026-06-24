@@ -125,7 +125,7 @@ export default function GuidedDevotional() {
     return (
       <Screen>
         <ErrorState
-          title="Couldn't start the guided reading"
+          title="Couldn't start Commute Mode"
           message="We couldn't load today's devotional. Check your connection and try again."
           onRetry={() => {
             planQ.refetch();
@@ -143,7 +143,7 @@ export default function GuidedDevotional() {
     <Screen edges={["top", "bottom"]}>
       {/* Close */}
       <View className="flex-row justify-end px-4 pt-2">
-        <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Exit guided reading" hitSlop={12} className="p-2">
+        <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Exit Commute Mode" hitSlop={12} className="p-2">
           <X size={24} color={muted} />
         </Pressable>
       </View>
@@ -153,7 +153,7 @@ export default function GuidedDevotional() {
         {session.phase === "ready" ? (
           <View className="grow items-center justify-center gap-5">
             <Volume2 size={40} color={primary} />
-            <Text className="text-center font-serif text-3xl font-bold text-foreground">Guided reading</Text>
+            <Text className="text-center font-serif text-3xl font-bold text-foreground">Commute Mode</Text>
             <Text className="text-center text-base leading-relaxed text-muted-foreground">
               {planQ.data?.title} · Day {currentDay}
               {"\n\n"}Find a quiet space. I'll read aloud, then pause so you can respond out loud — hands-free.
