@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
-import { Check } from "lucide-react-native";
+import { Check, Globe } from "lucide-react-native";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useThemeColor } from "@/components/useThemeColor";
@@ -35,40 +35,6 @@ function timeAgo(iso: string): string {
 function Label({ children }: { children: string }) {
   return (
     <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">{children}</Text>
-  );
-}
-
-function PrivacyToggle({
-  value,
-  onChange,
-  accent,
-}: {
-  value: boolean;
-  onChange: (v: boolean) => void;
-  accent: string;
-}) {
-  const muted = useThemeColor("muted-foreground");
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: value }}
-      className="mt-1 flex-row items-center gap-2 self-start py-1"
-    >
-      <View
-        style={{
-          width: 16,
-          height: 16,
-          borderRadius: 4,
-          borderWidth: 1.5,
-          borderColor: value ? accent : muted,
-          backgroundColor: value ? accent : "transparent",
-        }}
-      />
-      <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 12 }}>
-        Keep this private
-      </Text>
-    </Pressable>
   );
 }
 
@@ -216,9 +182,6 @@ export function CommunityDevotionalView({
   const [response1, setResponse1] = useState(mine?.response1 ?? "");
   const [response2, setResponse2] = useState(mine?.response2 ?? "");
   const [prayer, setPrayer] = useState(mine?.prayer ?? "");
-  const [q1Private, setQ1Private] = useState(mine?.q1Private ?? false);
-  const [q2Private, setQ2Private] = useState(mine?.q2Private ?? false);
-  const [prayerPrivate, setPrayerPrivate] = useState(mine?.prayerPrivate ?? true);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
@@ -236,9 +199,10 @@ export function CommunityDevotionalView({
         response1: response1.trim() || null,
         response2: response2.trim() || null,
         prayer: prayer.trim() || null,
-        q1Private,
-        q2Private,
-        prayerPrivate,
+        // Community is a public forum — every post is visible to everyone.
+        q1Private: false,
+        q2Private: false,
+        prayerPrivate: false,
       });
       onRefetch();
       setJustSaved(true);
@@ -316,21 +280,35 @@ export function CommunityDevotionalView({
       <View style={{ height: 1, backgroundColor: border, marginVertical: 24 }} />
 
       {/* ── Your response ───────────────────────────────────────────────── */}
-      <Text className="mb-4 font-serif text-lg font-bold text-foreground">Your Response</Text>
+      <Text className="mb-2 font-serif text-lg font-bold text-foreground">Your Response</Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 7,
+          marginBottom: 16,
+          backgroundColor: primary + "12",
+          borderRadius: 8,
+          paddingHorizontal: 10,
+          paddingVertical: 9,
+        }}
+      >
+        <Globe size={14} color={primary} />
+        <Text style={{ flex: 1, color: muted, fontFamily: "DMSans_400Regular", fontSize: 12, lineHeight: 17 }}>
+          This is a public forum — anything you post is visible to everyone in IronSharp.
+        </Text>
+      </View>
 
       <Label>{devotional.reflectionQ1}</Label>
       <Input value={response1} onChangeText={setResponse1} multiline placeholder="Write your reflection…" />
-      <PrivacyToggle value={q1Private} onChange={setQ1Private} accent={primary} />
 
       <View style={{ height: 14 }} />
       <Label>{devotional.reflectionQ2}</Label>
       <Input value={response2} onChangeText={setResponse2} multiline placeholder="Write your reflection…" />
-      <PrivacyToggle value={q2Private} onChange={setQ2Private} accent={primary} />
 
       <View style={{ height: 14 }} />
       <Label>Prayer (optional)</Label>
       <Input value={prayer} onChangeText={setPrayer} multiline placeholder="Write a prayer…" />
-      <PrivacyToggle value={prayerPrivate} onChange={setPrayerPrivate} accent={primary} />
 
       <Button
         title={mine ? "Update Response" : "Share Response"}
