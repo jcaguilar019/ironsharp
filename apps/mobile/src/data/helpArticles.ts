@@ -75,7 +75,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         q: "Where can I see past devotionals?",
-        a: "Open the Devotional tab — your active personal plan is at the top under Personal, and any group plans you're in show under Shared. Completed plans are visible from the Plans tab.",
+        a: "Your active personal plan is on the Home tab. Group plans you're in show in the Groups tab — tap a group to open its devotional. Completed plans are in the Plans tab under Completed.",
       },
       {
         q: "What happens if I miss a day?",
@@ -145,7 +145,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         q: "Where do I open my group's devotional?",
-        a: "Two places: the Devotional tab → Shared section shows all your group plans with a Continue Reading button, or tap the group card in the Groups tab and use the Open Devotional button.",
+        a: "Open the Groups tab, tap your group's card, and use the Open Devotional button.",
       },
       {
         q: "Can I assign a plan to my group?",
@@ -265,7 +265,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         q: "I assigned a plan to my group but it still shows as personal.",
-        a: "Open the devotional from the Groups tab or the Shared section of the Devotional tab — those routes open it in group context. Opening from the Home screen will show your personal progress for that plan.",
+        a: "Open the devotional from your group's card in the Groups tab — that opens it in group context. Opening the same plan from Home shows your personal progress instead.",
       },
       {
         q: "My streak disappeared.",

@@ -664,7 +664,7 @@ function GroupResponseCard({
           {response.response1 && !response.q1Private && (
             <View style={{ gap: 3 }}>
               <Text style={{ color: muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Reflection 1
+                Reflect
               </Text>
               <Text style={{ color: fgColor, fontSize: 14, lineHeight: 20 }}>
                 {response.response1}
@@ -674,7 +674,7 @@ function GroupResponseCard({
           {response.response2 && !response.q2Private && (
             <View style={{ gap: 3 }}>
               <Text style={{ color: muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Reflection 2
+                Act
               </Text>
               <Text style={{ color: fgColor, fontSize: 14, lineHeight: 20 }}>
                 {response.response2}
@@ -1177,7 +1177,7 @@ export default function DevotionalReader() {
                 }}
               >
                 <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 9, letterSpacing: 2, color: muted, textTransform: "uppercase" }}>
-                  Reflection
+                  Your Response
                 </Text>
                 {reflectionOpen
                   ? <ChevronUp size={14} color={muted} />

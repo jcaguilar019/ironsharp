@@ -43,9 +43,7 @@ import { useThemeColor } from "@/components/useThemeColor";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { useGroups, useActiveDevotional, useDiscipleships, useProfile } from "@/lib/queries";
-import { useLocalDoneToday } from "@/lib/useLocalDoneToday";
-import { PopIn } from "@/components/PopIn";
+import { useGroups, useDiscipleships, useProfile } from "@/lib/queries";
 import { GROUP_TYPE_CONFIG, GROUP_TYPE_KEYS } from "@/lib/groupTypes";
 import {
   ApiClient,
@@ -62,18 +60,6 @@ function SectionLabel({ label }: { label: string }) {
     <Text className="mb-3 text-sm uppercase tracking-wider text-muted-foreground">
       {label}
     </Text>
-  );
-}
-
-function EmptyNote({ text }: { text: string }) {
-  const muted = useThemeColor("muted-foreground");
-  const border = useThemeColor("border");
-  return (
-    <View style={{ borderLeftWidth: 2, borderLeftColor: border, paddingLeft: 12, marginBottom: 2 }}>
-      <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 15, color: muted, fontStyle: "italic" }}>
-        {text}
-      </Text>
-    </View>
   );
 }
 
@@ -634,7 +620,6 @@ function DiscipleshipHub({
 
 export default function GroupsScreen() {
   const groups = useGroups();
-  const active = useActiveDevotional();
   const discipleships = useDiscipleships();
   const profile = useProfile();
   const qc = useQueryClient();
@@ -651,10 +636,6 @@ export default function GroupsScreen() {
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
-
-  // Matches the reader's local "done for today" lock so the personal card agrees
-  // with what you see when you tap in — even after the UTC day has rolled over.
-  const localDone = useLocalDoneToday(active.data?.planId);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -845,53 +826,7 @@ export default function GroupsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />
           }
         >
-          <ScreenHeader eyebrow="Your Reading" title="Devotionals" />
-
-          {/* ── Personal devotional (relocated from the former Devotionals tab) ── */}
-          <SectionLabel label="Personal" />
-
-          {active.isLoading ? (
-            <ActivityIndicator color={primary} />
-          ) : active.data ? (
-            <View className="overflow-hidden rounded-xl border border-border bg-card">
-              <View className="flex-row items-center gap-3 px-4 py-5">
-                <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: primary }} />
-                <View className="flex-1">
-                  <Text className="font-serif text-lg font-bold text-foreground">
-                    {active.data.planTitle}
-                  </Text>
-                  <Text className="mt-0.5 text-sm text-muted-foreground">
-                    {active.data.chapter ? `${active.data.chapter} · ` : ""}
-                    Day {active.data.currentDay}/{active.data.totalDays}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => router.push(`/devotional/${active.data!.planId}`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={active.data.doneToday || localDone ? "Done today — tap to re-read" : "Continue reading"}
-                >
-                  {active.data.doneToday || localDone ? (
-                    <View className="flex-row items-center gap-1">
-                      <PopIn>
-                        <CheckCircle2 size={15} color={primary} />
-                      </PopIn>
-                      <Text className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                        Done today
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text className="text-sm font-semibold uppercase tracking-wider text-primary">
-                      Continue
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <EmptyNote text="You don't have an active personal plan. Browse plans to start one." />
-          )}
-
-          <Divider />
+          <ScreenHeader eyebrow="Read together" title="Groups" />
 
           {/* ── Discipleship ───────────────────────────────────────────────────── */}
           <DiscipleshipHub
