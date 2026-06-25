@@ -7,6 +7,7 @@ import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
+import { useToast } from "@/components/Toast";
 import { useDiscipleResponses } from "@/lib/queries";
 import { ApiClient, ApiError, type DiscipleResponse, type QuestionType } from "@/lib/api";
 
@@ -23,6 +24,7 @@ export default function DiscipleResponsesScreen() {
   const id = String(relationshipId);
   const qc = useQueryClient();
   const responses = useDiscipleResponses(id);
+  const toast = useToast();
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
@@ -42,7 +44,7 @@ export default function DiscipleResponsesScreen() {
         forDate: when === "today" ? localDate(0) : localDate(1),
       });
       setQuestion("");
-      Alert.alert("Question sent", `Your disciple will see it ${when}.`);
+      toast.show(`Question sent — your disciple will see it ${when}.`);
     } catch (err) {
       Alert.alert("Couldn't send", err instanceof ApiError ? err.message : "Please try again.");
     } finally {

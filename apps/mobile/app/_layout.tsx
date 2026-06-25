@@ -22,6 +22,7 @@ import { isDarkTheme } from "@/theme/themes";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SessionProvider } from "@/lib/session";
 import { useOtaUpdates } from "@/lib/useOtaUpdates";
+import { ToastProvider } from "@/components/Toast";
 
 // ── DIAGNOSTIC: capture every uncaught JS error to NSLog ────────────────────
 // On TestFlight the only way to see anything is the device's unified log
@@ -98,7 +99,9 @@ export default function RootLayout() {
           <ThemeProvider>
             <ErrorBoundary>
               <SessionProvider>
-                <RootNavigator />
+                <ToastProvider>
+                  <RootNavigator />
+                </ToastProvider>
               </SessionProvider>
             </ErrorBoundary>
           </ThemeProvider>

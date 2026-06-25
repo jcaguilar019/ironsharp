@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { Check, Copy, Tag } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
+import { Button } from "@/components/Button";
+import { useToast } from "@/components/Toast";
 import { useProfile } from "@/lib/queries";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient, ApiError } from "@/lib/api";
@@ -18,6 +20,7 @@ import {
 export default function MembershipScreen() {
   const profile = useProfile();
   const qc = useQueryClient();
+  const toast = useToast();
   const border = useThemeColor("border");
   const card = useThemeColor("card");
   const fg = useThemeColor("foreground");
@@ -48,10 +51,7 @@ export default function MembershipScreen() {
       // Confirm success — previously the modal just closed silently, which
       // read as "nothing happened" even when the code worked.
       const tierName = TIER_DISPLAY[res.tier as MembershipTier]?.name ?? res.tier;
-      Alert.alert(
-        "Code applied 🎉",
-        res.label ?? `You're now on the ${tierName} plan.`
-      );
+      toast.show(res.label ?? `Code applied — you're now on ${tierName}.`);
     } catch (err) {
       setPromoError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
@@ -247,17 +247,12 @@ export default function MembershipScreen() {
                 {promoError}
               </Text>
             )}
-            <Pressable
+            <Button
+              title="Redeem"
               onPress={handleRedeem}
-              disabled={!promoCode.trim() || redeeming}
-              style={{ opacity: !promoCode.trim() || redeeming ? 0.5 : 1 }}
-              className="h-12 items-center justify-center rounded-xl bg-primary"
-            >
-              {redeeming
-                ? <ActivityIndicator color="#fff" />
-                : <Text className="text-base font-semibold text-primary-foreground">Redeem</Text>
-              }
-            </Pressable>
+              disabled={!promoCode.trim()}
+              loading={redeeming}
+            />
           </Pressable>
         </Pressable>
         </KeyboardAvoidingView>

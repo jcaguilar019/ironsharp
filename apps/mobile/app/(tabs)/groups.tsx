@@ -43,6 +43,7 @@ import { useThemeColor } from "@/components/useThemeColor";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { useToast } from "@/components/Toast";
 import { useGroups, useDiscipleships, useProfile } from "@/lib/queries";
 import { GROUP_TYPE_CONFIG, GROUP_TYPE_KEYS } from "@/lib/groupTypes";
 import {
@@ -433,6 +434,7 @@ function DiscipleshipSection({
   accent: string;
 }) {
   const qc = useQueryClient();
+  const toast = useToast();
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
 
@@ -454,6 +456,7 @@ function DiscipleshipSection({
                 qc.invalidateQueries({ queryKey: ["discipleship"] }),
                 qc.invalidateQueries({ queryKey: ["groups"] }),
               ]);
+              toast.show("Invite sent");
             } catch (err) {
               Alert.alert("Couldn't invite", err instanceof ApiError ? err.message : "Please try again.");
             }
@@ -624,6 +627,7 @@ export default function GroupsScreen() {
   const profile = useProfile();
   const qc = useQueryClient();
   const router = useRouter();
+  const toast = useToast();
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
@@ -743,7 +747,7 @@ export default function GroupsScreen() {
       await qc.invalidateQueries({ queryKey: ["groups"] });
       setShowJoin(false);
       setJoinCode("");
-      Alert.alert("Joined!", `You're now in ${group.name}.`);
+      toast.show(`Joined ${group.name}`);
     } catch (err) {
       Alert.alert(
         "Could not join",
