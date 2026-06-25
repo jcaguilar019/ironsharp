@@ -30,7 +30,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         q: "Do I need to pay to use IronSharp?",
-        a: "No. The Free tier lets you browse the full plan library, unlock up to 3 plans per month, and do your daily devotional. Paid tiers unlock groups, Commute Mode, AI-generated plans, and more.",
+        a: "No. The Free tier lets you browse the full plan library, unlock up to 3 plans per month, and do your daily devotional. Paid tiers unlock larger groups, AI-generated plans, and more.",
       },
       {
         q: "What does a daily devotional look like?",
@@ -83,7 +83,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         q: "Is there a read-aloud or audio option?",
-        a: "Commute Mode — a hands-free version of the devotional with text-to-speech and voice responses — is coming soon for Connect and Sharpen members.",
+        a: "Yes — it's called Commute Mode. It reads the passage and reflection questions aloud, then lets you respond out loud, hands-free. Open any devotional, tap the play button, and choose Commute Mode.",
       },
     ],
   },
@@ -224,11 +224,11 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         q: "What does Connect include?",
-        a: "Unlock up to 5 plans/month, 1 AI-generated plan token per month, Commute Mode, and groups of up to 5 people.",
+        a: "Unlock up to 5 plans/month, 1 AI-generated plan token per month, and groups of up to 5 people.",
       },
       {
         q: "What does Sharpen include?",
-        a: "Unlimited plan unlocks, 2 AI-generated plan tokens per month, Commute Mode, and unlimited groups of any size.",
+        a: "Unlimited plan unlocks, 2 AI-generated plan tokens per month, and unlimited groups of any size.",
       },
       {
         q: "How do I upgrade or downgrade?",

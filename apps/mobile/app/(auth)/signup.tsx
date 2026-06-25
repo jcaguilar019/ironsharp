@@ -16,8 +16,8 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (password.length < 6) {
-      Alert.alert("Password too short", "Use at least 6 characters.");
+    if (password.length < 8) {
+      Alert.alert("Password too short", "Use at least 8 characters.");
       return;
     }
     if (password !== confirm) {

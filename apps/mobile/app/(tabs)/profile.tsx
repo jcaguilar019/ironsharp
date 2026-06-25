@@ -213,14 +213,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* TEMP Phase-0 entry — remove before merging to production */}
-        <Pressable
-          onPress={() => router.push("/speech-test")}
-          className="mt-4 flex-row items-center justify-center gap-2 rounded-xl border border-dashed border-border p-3 active:bg-muted/40"
-        >
-          <Text className="text-sm text-muted-foreground">Speech test (dev)</Text>
-        </Pressable>
-
         <Pressable
           onPress={handleSignOut}
           className="mt-6 flex-row items-center justify-center gap-2 rounded-xl border border-border p-4 active:bg-muted/40"

@@ -176,7 +176,7 @@ export function UpgradePromptModal({ visible, currentTier, onDismiss }: Props) {
 
 function upgradeTeaser(from: MembershipTier, to: MembershipTier): string {
   if (from === "free" && to === "connect") {
-    return "Unlock more plans, get your first AI-generated devotional, and carry your quiet time with you in Commute Mode.";
+    return "Unlock more plans and get your first AI-generated devotional.";
   }
   if (from === "connect" && to === "sharpen") {
     return "No limits. Unlimited plans, unlimited groups, and the discipler tools to pour into the people around you.";

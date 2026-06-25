@@ -88,7 +88,6 @@ export const TIER_DISPLAY: Record<MembershipTier, TierDisplay> = {
     features: [
       "5 plan unlocks per month",
       "1 AI-generated plan per month",
-      "Commute Mode (read aloud)",
       "Create groups up to 5 people",
       "Share plans with up to 4 others",
       "Join 1 outside group up to 8 people",
@@ -103,10 +102,9 @@ export const TIER_DISPLAY: Record<MembershipTier, TierDisplay> = {
     features: [
       "Unlimited plan unlocks",
       "2 AI-generated plans per month",
-      "Commute Mode (read aloud)",
       "Unlimited groups, any size",
       "Unlimited sharing circle",
-      "Discipler tools (coming soon)",
+      "Discipler tools",
     ],
   },
   family: {
