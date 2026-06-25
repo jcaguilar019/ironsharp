@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bibleChapters } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
+import { fetchChapterFromApiBible } from "../lib/api-bible.js";
 
 export const bible = new Hono<AppEnv>();
 
@@ -55,6 +56,16 @@ bible.get("/:book/:chapter", async (c) => {
     )
     .limit(1);
 
-  if (!row) return c.json({ chapter: null }, 404);
-  return c.json({ chapter: row });
+  if (row) return c.json({ chapter: row });
+
+  // Not in our local DB (e.g. WEB) — fall back to a live api.bible fetch.
+  try {
+    const live = await fetchChapterFromApiBible(book, chapter, translation);
+    if (live) return c.json({ chapter: live });
+    return c.json({ chapter: null }, 404);
+  } catch (err) {
+    console.error("api.bible fetch failed:", err);
+    // 502 → the mobile client surfaces a connection error to the reader.
+    return c.json({ chapter: null }, 502);
+  }
 });

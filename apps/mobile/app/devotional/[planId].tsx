@@ -336,6 +336,9 @@ function StudyNotesDrawer({ passageRef, notes }: { passageRef: string; notes: St
 const TRANSLATIONS = [
   { id: "KJV", label: "King James Version" },
   { id: "BBE", label: "Basic English" },
+  { id: "WEB", label: "World English Bible" },
+  { id: "NLT", label: "New Living Translation" },
+  { id: "NKJV", label: "New King James Version" },
 ];
 
 const TRANSLATION_STORAGE_KEY = "@ironsharp/bible_translation";
@@ -370,7 +373,7 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
 
   useEffect(() => { setPage(0); setCollapsed(false); }, [passageRef]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["bibleChapter", passageRef, translation],
     queryFn: () =>
       parsed
@@ -450,6 +453,10 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
           <View className="px-4 pb-3">
             {isLoading ? (
               <SkeletonLines count={6} />
+            ) : isError ? (
+              <Text className="font-serif-italic text-center text-sm" style={{ color: mutedFg }}>
+                Unable to load passage. Please check your connection.
+              </Text>
             ) : displayVerses.length > 0 ? (
               pageVerses.map((verseText, i) => (
                 <View key={startIndex + i} className="mb-3 flex-row gap-2">
