@@ -265,6 +265,10 @@ export const devotionalSubmissions = pgTable(
     response2: text("response2"),
     // Optional Q3 — a custom question the discipler sets for the disciple.
     response3: text("response3"),
+    // Snapshot of the Q3 prompt the disciple actually answered. Lets the discipler's
+    // view show the exact question regardless of timezone/date drift, instead of
+    // reconstructing it by matching the submission's (UTC) date to a question's date.
+    q3Question: text("q3_question"),
     prayer: text("prayer"),
     voiceMemoUrl: text("voice_memo_url"),
     audioQ1Url: text("audio_q1_url"),
@@ -340,6 +344,34 @@ export const disciplerNotes = pgTable(
   (t) => ({
     threadIdx: index("idx_discipler_notes_thread").on(t.fromUserId, t.toUserId, t.createdAt),
     recipientIdx: index("idx_discipler_notes_recipient").on(t.toUserId),
+  })
+);
+
+// Notes kept inside a discipleship relationship. A note is either PRIVATE (only
+// its author sees it — e.g. a discipler's follow-up reminders) or SHARED (both
+// parties see it — e.g. prayer requests, things to discuss next meeting). `kind`
+// is a light tag so prayer requests can surface together.
+export const discipleshipNotes = pgTable(
+  "discipleship_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    relationshipId: uuid("relationship_id")
+      .notNull()
+      .references(() => discipleRelationships.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id").notNull(),
+    body: text("body").notNull(),
+    shared: boolean("shared").notNull().default(false),
+    kind: text("kind").notNull().default("note"), // note | prayer
+    // Optional: pin a note to a specific submission (a response to follow up on).
+    relatedSubmissionId: uuid("related_submission_id").references(
+      () => devotionalSubmissions.id,
+      { onDelete: "set null" }
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    relIdx: index("idx_discipleship_notes_rel").on(t.relationshipId, t.createdAt),
   })
 );
 

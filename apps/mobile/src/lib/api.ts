@@ -238,6 +238,7 @@ export type Submission = {
   response1: string | null;
   response2: string | null;
   response3: string | null;
+  q3Question: string | null;
   prayer: string | null;
   voiceMemoUrl: string | null;
   audioQ1Url: string | null;
@@ -386,6 +387,17 @@ export type FlaggedResponse = {
   chapter: string | null;
   submittedAt: string;
   text: string | null;
+};
+
+export type DiscipleshipNote = {
+  id: string;
+  body: string;
+  shared: boolean;
+  kind: "note" | "prayer";
+  authorUserId: string;
+  authorName: string;
+  isMine: boolean;
+  createdAt: string;
 };
 
 export type MailboxMessage = {
@@ -568,6 +580,7 @@ export const ApiClient = {
     response1?: string;
     response2?: string;
     response3?: string;
+    q3Question?: string | null;
     prayer?: string;
     audioQ1Url?: string;
     audioQ2Url?: string;
@@ -669,4 +682,16 @@ export const ApiClient = {
       method: "POST",
       body: JSON.stringify({ messageText }),
     }),
+  getNotes: (id: string) =>
+    api<{ notes: DiscipleshipNote[] }>(`/api/discipleship/${id}/notes`),
+  createNote: (
+    id: string,
+    body: { body: string; shared?: boolean; kind?: "note" | "prayer"; relatedSubmissionId?: string | null }
+  ) =>
+    api<{ note: DiscipleshipNote }>(`/api/discipleship/${id}/notes`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteNote: (id: string, noteId: string) =>
+    api<{ ok: boolean }>(`/api/discipleship/${id}/notes/${noteId}`, { method: "DELETE" }),
 };

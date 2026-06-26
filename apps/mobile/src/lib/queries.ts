@@ -190,3 +190,13 @@ export function useMailbox(relationshipId: string | undefined) {
     enabled: authed && !!relationshipId,
   });
 }
+
+/** Notes for a relationship — every shared note + your own private notes. */
+export function useNotes(relationshipId: string | undefined) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["discipleship", relationshipId, "notes"],
+    queryFn: () => ApiClient.getNotes(relationshipId!).then((r) => r.notes),
+    enabled: authed && !!relationshipId,
+  });
+}

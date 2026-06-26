@@ -4,7 +4,7 @@ import { useSpeechRecognition } from "./useSpeechRecognition";
 
 export type GuidedStep =
   | { kind: "read"; label: string; text: string }
-  | { kind: "prompt"; label: string; field: "response1" | "response2" | "prayer"; question: string };
+  | { kind: "prompt"; label: string; field: "response1" | "response2" | "response3" | "prayer"; question: string };
 
 export type GuidedPhase =
   | "ready"
@@ -16,7 +16,7 @@ export type GuidedPhase =
   | "saving"
   | "done";
 
-export type GuidedAnswers = { response1?: string; response2?: string; prayer?: string };
+export type GuidedAnswers = { response1?: string; response2?: string; response3?: string; prayer?: string };
 
 const PAUSE_MS = 1500; // a beat to process after a question, before we listen
 const CAPTURED_MS = 1300; // show what was heard before moving on

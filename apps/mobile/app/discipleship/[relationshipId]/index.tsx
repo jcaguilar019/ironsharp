@@ -13,14 +13,14 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, CornerUpLeft, Flag, Lock, Send, Star, X } from "lucide-react-native";
+import { ChevronLeft, CornerUpLeft, Flag, Lock, Plus, Send, Star, Trash2, X } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Avatar } from "@/components/Avatar";
 import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import { useToast } from "@/components/Toast";
-import { useDiscipleships, useDiscipleResponses, useMailbox, useProfile } from "@/lib/queries";
+import { useDiscipleships, useDiscipleResponses, useMailbox, useNotes, useProfile } from "@/lib/queries";
 import { ApiClient, ApiError, type DiscipleResponse, type QuestionType } from "@/lib/api";
 
 function formatTime(iso: string): string {
@@ -32,6 +32,8 @@ function localDate(offsetDays = 0): string {
   d.setDate(d.getDate() + offsetDays);
   return d.toLocaleDateString("en-CA");
 }
+
+type TabKey = "responses" | "messages" | "notes";
 
 /**
  * One person-centered screen for a discipleship relationship. Discipler sees a
@@ -56,8 +58,10 @@ export default function DiscipleshipScreen() {
   const isDiscipler = rel?.role === "discipler";
   const counterpartName = rel?.counterpart.displayName ?? "Discipleship";
 
-  const [tab, setTab] = useState<"responses" | "messages">("responses");
-  const effectiveTab = isDiscipler ? tab : "messages";
+  const [tab, setTab] = useState<TabKey>("responses");
+  // Discipler reviews responses; both parties share Messages + Notes.
+  const tabKeys: TabKey[] = isDiscipler ? ["responses", "messages", "notes"] : ["messages", "notes"];
+  const effectiveTab: TabKey = tabKeys.includes(tab) ? tab : tabKeys[0];
 
   // Mailbox draft is lifted here so "reply" from a response can prefill it.
   const [draft, setDraft] = useState("");
@@ -91,35 +95,33 @@ export default function DiscipleshipScreen() {
         </View>
       </View>
 
-      {/* Segmented control (discipler only — disciple just messages) */}
-      {isDiscipler && (
-        <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
-          {(["responses", "messages"] as const).map((t) => {
-            const active = tab === t;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => setTab(t)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  paddingVertical: 9,
-                  borderRadius: 10,
-                  backgroundColor: active ? withAlpha(primary, 0.12) : "transparent",
-                  borderWidth: 1,
-                  borderColor: active ? primary : border,
-                }}
-              >
-                <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 13, color: active ? primary : muted }}>
-                  {t === "responses" ? "Responses" : "Messages"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
+      {/* Segmented control */}
+      <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+        {tabKeys.map((t) => {
+          const active = effectiveTab === t;
+          return (
+            <Pressable
+              key={t}
+              onPress={() => setTab(t)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                paddingVertical: 9,
+                borderRadius: 10,
+                backgroundColor: active ? withAlpha(primary, 0.12) : "transparent",
+                borderWidth: 1,
+                borderColor: active ? primary : border,
+              }}
+            >
+              <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 13, color: active ? primary : muted }}>
+                {t === "responses" ? "Responses" : t === "messages" ? "Messages" : "Notes"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -135,6 +137,8 @@ export default function DiscipleshipScreen() {
               setTab("messages");
             }}
           />
+        ) : effectiveTab === "notes" ? (
+          <NotesPanel id={id} accent={primary} />
         ) : (
           <MessagesPanel id={id} myId={myId} accent={primary} draft={draft} setDraft={setDraft} />
         )}
@@ -502,5 +506,183 @@ function MessagesPanel({
         </Pressable>
       </View>
     </>
+  );
+}
+
+// ─── Notes (private to the author, or shared with both) ───────────────────────
+
+function NotesTogglePill({
+  label,
+  active,
+  onPress,
+  accent,
+  border,
+  muted,
+  icon: Icon,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  accent: string;
+  border: string;
+  muted: string;
+  icon?: typeof Lock;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: active ? accent : border,
+        backgroundColor: active ? withAlpha(accent, 0.12) : "transparent",
+      }}
+    >
+      {Icon ? <Icon size={12} color={active ? accent : muted} /> : null}
+      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 12, color: active ? accent : muted }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function NotesTag({ label, color, subtle }: { label: string; color: string; subtle?: boolean }) {
+  return (
+    <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: withAlpha(color, subtle ? 0.1 : 0.16) }}>
+      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 10, color, letterSpacing: 0.3 }}>{label.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+function NotesPanel({ id, accent }: { id: string; accent: string }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const notesQ = useNotes(id);
+
+  const fg = useThemeColor("foreground");
+  const muted = useThemeColor("muted-foreground");
+  const border = useThemeColor("border");
+  const card = useThemeColor("card");
+
+  const [body, setBody] = useState("");
+  const [shared, setShared] = useState(false);
+  const [kind, setKind] = useState<"note" | "prayer">("note");
+  const [busy, setBusy] = useState(false);
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["discipleship", id, "notes"] });
+
+  const add = async () => {
+    const text = body.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      await ApiClient.createNote(id, { body: text, shared, kind });
+      setBody("");
+      setKind("note");
+      await invalidate();
+      toast.show(shared ? "Shared note added" : "Private note added");
+    } catch (e) {
+      toast.show(e instanceof ApiError ? e.message : "Couldn't add note");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (noteId: string) => {
+    try {
+      await ApiClient.deleteNote(id, noteId);
+      await invalidate();
+      toast.show("Note deleted");
+    } catch {
+      toast.show("Couldn't delete note");
+    }
+  };
+
+  const notes = notesQ.data ?? [];
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      {/* Composer */}
+      <View style={{ borderWidth: 1, borderColor: border, borderRadius: 14, backgroundColor: card, padding: 12, marginBottom: 18 }}>
+        <TextInput
+          value={body}
+          onChangeText={setBody}
+          placeholder={kind === "prayer" ? "Add a prayer request…" : "Add a note for next time…"}
+          placeholderTextColor={muted}
+          multiline
+          style={{ minHeight: 44, color: fg, fontFamily: "DMSans_400Regular", fontSize: 15, textAlignVertical: "top" }}
+        />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <NotesTogglePill label="Note" active={kind === "note"} onPress={() => setKind("note")} accent={accent} border={border} muted={muted} />
+          <NotesTogglePill label="Prayer" active={kind === "prayer"} onPress={() => setKind("prayer")} accent={accent} border={border} muted={muted} />
+          <View style={{ width: 1, height: 20, backgroundColor: border, marginHorizontal: 2 }} />
+          <NotesTogglePill
+            label={shared ? "Shared" : "Private"}
+            active={shared}
+            icon={shared ? undefined : Lock}
+            onPress={() => setShared((s) => !s)}
+            accent={accent}
+            border={border}
+            muted={muted}
+          />
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={add}
+            disabled={!body.trim() || busy}
+            accessibilityRole="button"
+            accessibilityLabel="Add note"
+            style={{
+              opacity: !body.trim() || busy ? 0.5 : 1,
+              backgroundColor: accent,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Plus size={15} color="#fff" />
+            <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 13 }}>Add</Text>
+          </Pressable>
+        </View>
+        <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 11, color: muted, marginTop: 8 }}>
+          {shared ? "Shared notes are visible to both of you." : "Private notes are only visible to you."}
+        </Text>
+      </View>
+
+      {/* List */}
+      {notesQ.isLoading ? (
+        <ActivityIndicator color={accent} style={{ marginTop: 24 }} />
+      ) : notes.length === 0 ? (
+        <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 14, color: muted, textAlign: "center", marginTop: 24, lineHeight: 21 }}>
+          No notes yet. Keep prayer requests and follow-ups for next time here.
+        </Text>
+      ) : (
+        notes.map((n) => (
+          <View key={n.id} style={{ borderWidth: 1, borderColor: border, borderRadius: 12, backgroundColor: card, padding: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              {n.kind === "prayer" ? <NotesTag label="Prayer" color={accent} /> : null}
+              <NotesTag label={n.shared ? "Shared" : "Private"} color={muted} subtle />
+              <View style={{ flex: 1 }} />
+              {n.isMine ? (
+                <Pressable onPress={() => remove(n.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Delete note">
+                  <Trash2 size={15} color={muted} />
+                </Pressable>
+              ) : null}
+            </View>
+            <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 15, color: fg, lineHeight: 21 }}>{n.body}</Text>
+            <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 11, color: muted, marginTop: 6 }}>
+              {(n.isMine ? "You" : n.authorName) + " · " + formatTime(n.createdAt)}
+            </Text>
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }

@@ -7,9 +7,13 @@ import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
-import { useProgress } from "@/lib/queries";
+import { useProgress, useGroups, useDiscipleships, useCustomQuestion } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
 import { useGuidedSession, type GuidedStep, type GuidedAnswers } from "@/lib/useGuidedSession";
+
+function localDateString(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
 
 const VOICE_OPTS = {
   voice: "sage",
@@ -18,8 +22,9 @@ const VOICE_OPTS = {
 };
 
 export default function GuidedDevotional() {
-  const { planId: rawPlanId } = useLocalSearchParams<{ planId: string }>();
+  const { planId: rawPlanId, groupId: groupIdParam } = useLocalSearchParams<{ planId: string; groupId?: string }>();
   const planId = String(rawPlanId);
+  const groupId = groupIdParam ?? null;
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -29,7 +34,18 @@ export default function GuidedDevotional() {
 
   const progress = useProgress();
   const progressRow = (progress.data ?? []).find((p) => p.planId === planId);
-  const currentDay = progressRow?.currentDay ?? 1;
+  const groups = useGroups();
+  const activeGroup = groupId ? (groups.data ?? []).find((g) => g.id === groupId) : null;
+  // Group runs follow the group's day; personal runs follow personal progress.
+  const currentDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
+
+  // If this is a disciple reading their one-on-one, surface the discipler's Q3.
+  const discipleships = useDiscipleships();
+  const discipleRel = groupId
+    ? (discipleships.data ?? []).find((r) => r.groupId === groupId && r.role === "disciple" && r.status === "active")
+    : undefined;
+  const customQuestionQ = useCustomQuestion(discipleRel?.id, localDateString());
+  const q3 = customQuestionQ.data ?? null;
 
   const planQ = useQuery({ queryKey: ["plan", planId], queryFn: () => ApiClient.getPlan(planId).then((r) => r.plan) });
   const dayQ = useQuery({
@@ -51,9 +67,10 @@ export default function GuidedDevotional() {
     if (content) s.push({ kind: "read", label: "Reading", text: content });
     if (day.reflectionQ1) s.push({ kind: "prompt", label: "Reflect", field: "response1", question: day.reflectionQ1 });
     if (day.reflectionQ2) s.push({ kind: "prompt", label: "Act", field: "response2", question: day.reflectionQ2 });
+    if (q3) s.push({ kind: "prompt", label: "Daily Question", field: "response3", question: q3.questionText });
     if (day.prayerPrompt) s.push({ kind: "prompt", label: "Pray", field: "prayer", question: day.prayerPrompt });
     return s;
-  }, [dayQ.data]);
+  }, [dayQ.data, q3]);
 
   const onComplete = useCallback(
     async (answers: GuidedAnswers) => {
@@ -62,25 +79,40 @@ export default function GuidedDevotional() {
         dayNumber: currentDay,
         response1: answers.response1,
         response2: answers.response2,
+        // Only send Q3 when the disciple was actually asked one.
+        response3: q3 ? answers.response3 : undefined,
+        q3Question: q3 ? q3.questionText : undefined,
         prayer: answers.prayer,
         submissionSource: "voice",
+        groupId,
       });
-      if (isLastDay) await ApiClient.updateProgress(planId, { completed: true });
-      else await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
+      if (groupId) {
+        await ApiClient.updateGroupProgress(groupId, {
+          nextDay: isLastDay ? undefined : currentDay + 1,
+          completed: isLastDay,
+        });
+      } else if (progressRow) {
+        if (isLastDay) await ApiClient.updateProgress(planId, { completed: true });
+        else await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
+      }
 
       // Mirror the reader: lock the plan until local midnight so Home /
-      // Devotionals show "Done today".
+      // Devotionals show "Done today". Scoped per instance (personal vs group).
       const midnight = new Date();
       midnight.setDate(midnight.getDate() + 1);
       midnight.setHours(0, 0, 0, 0);
+      const lockKey = groupId
+        ? `@ironsharp/devotional_locked_until_${planId}_${groupId}`
+        : `@ironsharp/devotional_locked_until_${planId}`;
       const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
-      await AsyncStorage.setItem(`@ironsharp/devotional_locked_until_${planId}`, String(midnight.getTime()));
+      await AsyncStorage.setItem(lockKey, String(midnight.getTime()));
 
       await qc.invalidateQueries({ queryKey: ["progress"] });
       await qc.invalidateQueries({ queryKey: ["progress", "active"] });
+      if (groupId) await qc.invalidateQueries({ queryKey: ["groups"] });
       await qc.invalidateQueries({ queryKey: ["profile"] });
     },
-    [planId, currentDay, isLastDay, qc]
+    [planId, currentDay, isLastDay, qc, groupId, q3, progressRow]
   );
 
   const session = useGuidedSession(steps, VOICE_OPTS, onComplete);
@@ -114,7 +146,13 @@ export default function GuidedDevotional() {
     router.back();
   };
 
-  if (planQ.isLoading || dayQ.isLoading || progress.isLoading) {
+  if (
+    planQ.isLoading ||
+    dayQ.isLoading ||
+    progress.isLoading ||
+    (!!groupId && (groups.isLoading || discipleships.isLoading)) ||
+    customQuestionQ.isLoading
+  ) {
     return (
       <Screen center>
         <ActivityIndicator color={primary} />

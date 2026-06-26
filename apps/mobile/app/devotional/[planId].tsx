@@ -894,6 +894,9 @@ export default function DevotionalReader() {
         response2,
         // Only send Q3 when the disciple was actually shown one today.
         response3: q3 ? response3 : undefined,
+        // Snapshot the exact prompt answered, so the discipler's view always shows
+        // the right question (no timezone/date reconstruction).
+        q3Question: q3 ? q3.questionText : undefined,
         prayer,
         q1Private,
         q2Private,
@@ -1099,7 +1102,7 @@ export default function DevotionalReader() {
               </Pressable>
 
               <Pressable
-                onPress={() => { setShowPlayMenu(false); router.push(`/guided/${planId}`); }}
+                onPress={() => { setShowPlayMenu(false); router.push(`/guided/${planId}${groupId ? `?groupId=${groupId}` : ""}`); }}
                 className="flex-row items-start gap-3 border-t border-border px-4 py-3.5 active:opacity-70"
               >
                 <View className="mt-0.5 h-8 w-8 items-center justify-center rounded-lg bg-primary/10">

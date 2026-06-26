@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   discipleRelationships,
@@ -12,6 +12,7 @@ import {
   customQuestions,
   flaggedResponses,
   mailboxMessages,
+  discipleshipNotes,
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { notifyDiscipleshipInvite, notifyMailboxMessage } from "../lib/push.js";
@@ -309,7 +310,9 @@ discipleship.get("/:id/responses", async (c) => {
       q2Private: s.q2Private,
       q3Private: s.q3Private,
       prayerPrivate: s.prayerPrivate,
-      q3Question: questionByDate.get(subDate) ?? null,
+      // Prefer the snapshot stored on the submission; fall back to date-matching
+      // for older rows saved before q3Question existed.
+      q3Question: s.q3Question ?? questionByDate.get(subDate) ?? null,
       flagged: flagsByResponse.get(s.id) ?? [],
     };
   });
@@ -506,4 +509,105 @@ discipleship.post("/:id/mailbox", async (c) => {
   );
 
   return c.json({ message: row });
+});
+
+// ─── Feature 6 — Notes (private to the author, or shared with both) ───────────
+
+// GET /api/discipleship/:id/notes — every shared note + your own private notes.
+discipleship.get("/:id/notes", async (c) => {
+  const userId = c.var.user.id;
+  const rel = await loadRelationship(c.req.param("id"));
+  if (!rel) return c.json({ error: "Not found" }, 404);
+  if (rel.disciplerId !== userId && rel.discipleId !== userId) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const rows = await db
+    .select()
+    .from(discipleshipNotes)
+    .where(
+      and(
+        eq(discipleshipNotes.relationshipId, rel.id),
+        or(eq(discipleshipNotes.shared, true), eq(discipleshipNotes.authorUserId, userId))
+      )
+    )
+    .orderBy(desc(discipleshipNotes.createdAt));
+
+  const authorIds = [...new Set(rows.map((r) => r.authorUserId))];
+  const people = authorIds.length
+    ? await db
+        .select({ userId: profiles.userId, displayName: profiles.displayName })
+        .from(profiles)
+        .where(inArray(profiles.userId, authorIds))
+    : [];
+  const nameById = new Map(people.map((p) => [p.userId, p.displayName]));
+
+  const notes = rows.map((r) => ({
+    id: r.id,
+    body: r.body,
+    shared: r.shared,
+    kind: r.kind,
+    authorUserId: r.authorUserId,
+    authorName: nameById.get(r.authorUserId) ?? "Someone",
+    isMine: r.authorUserId === userId,
+    createdAt: r.createdAt,
+  }));
+
+  return c.json({ notes });
+});
+
+const noteSchema = z.object({
+  body: z.string().trim().min(1).max(5000),
+  shared: z.boolean().optional(),
+  kind: z.enum(["note", "prayer"]).optional(),
+  relatedSubmissionId: z.string().uuid().nullish(),
+});
+
+// POST /api/discipleship/:id/notes — either party adds a note.
+discipleship.post("/:id/notes", async (c) => {
+  const userId = c.var.user.id;
+  const rel = await loadRelationship(c.req.param("id"));
+  if (!rel) return c.json({ error: "Not found" }, 404);
+  if (rel.disciplerId !== userId && rel.discipleId !== userId) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const parsed = noteSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+
+  const [row] = await db
+    .insert(discipleshipNotes)
+    .values({
+      relationshipId: rel.id,
+      authorUserId: userId,
+      body: parsed.data.body,
+      shared: parsed.data.shared ?? false,
+      kind: parsed.data.kind ?? "note",
+      relatedSubmissionId: parsed.data.relatedSubmissionId ?? null,
+    })
+    .returning();
+
+  return c.json({ note: row }, 201);
+});
+
+// DELETE /api/discipleship/:id/notes/:noteId — only the author can delete.
+discipleship.delete("/:id/notes/:noteId", async (c) => {
+  const userId = c.var.user.id;
+  const rel = await loadRelationship(c.req.param("id"));
+  if (!rel) return c.json({ error: "Not found" }, 404);
+  if (rel.disciplerId !== userId && rel.discipleId !== userId) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const noteId = c.req.param("noteId");
+  const [note] = await db
+    .select({ authorUserId: discipleshipNotes.authorUserId, relationshipId: discipleshipNotes.relationshipId })
+    .from(discipleshipNotes)
+    .where(eq(discipleshipNotes.id, noteId))
+    .limit(1);
+  if (!note || note.relationshipId !== rel.id) return c.json({ error: "Not found" }, 404);
+  if (note.authorUserId !== userId) return c.json({ error: "You can only delete your own notes." }, 403);
+
+  await db.delete(discipleshipNotes).where(eq(discipleshipNotes.id, noteId));
+  return c.json({ ok: true });
 });
