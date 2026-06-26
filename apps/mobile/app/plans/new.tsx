@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   ImageSourcePropType,
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -93,6 +94,15 @@ export default function NewPlanFlow() {
   const [browseCat, setBrowseCat] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
 
+  // Focus the name field only after the open transition settles. Focusing during
+  // the push makes the keyboard animate in mid-transition and stutters the screen.
+  const nameRef = useRef<TextInput>(null);
+  useEffect(() => {
+    if (initialStep !== "group") return;
+    const task = InteractionManager.runAfterInteractions(() => nameRef.current?.focus());
+    return () => task.cancel();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const goBack = () => {
     if (step === "plan" && browseCat) return setBrowseCat(null);
     if (step === "plan" && !params.groupId) return setStep("group");
@@ -176,11 +186,11 @@ export default function NewPlanFlow() {
         {step === "group" && (
           <View>
             <TextInput
+              ref={nameRef}
               value={name}
               onChangeText={setName}
               placeholder="Name your group — e.g. The Forge"
               placeholderTextColor={muted}
-              autoFocus
               style={{
                 borderWidth: 1,
                 borderColor: border,
