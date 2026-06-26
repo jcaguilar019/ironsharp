@@ -835,18 +835,27 @@ export default function GroupsScreen() {
 
           {/* ── Your plans ─────────────────────────────────────────────────────── */}
           <SectionLabel label="Your Plans" />
-          <Button title="Start a new plan" onPress={() => router.push("/plans")} />
-          <Pressable
-            onPress={() => router.push("/plans/completed")}
-            accessibilityRole="button"
-            accessibilityLabel="Completed plans"
-            className="mt-3 flex-row items-center justify-center gap-2 py-2"
-          >
-            <CheckCircle2 size={15} color={muted} />
-            <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 14 }}>
-              Completed plans
-            </Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 20 }}>
+            <Pressable
+              onPress={() => router.push("/plans")}
+              className="flex-row items-center gap-1.5 py-3"
+              accessibilityRole="button"
+              accessibilityLabel="Start a new plan"
+            >
+              <Plus size={15} color={primary} />
+              <Text style={{ color: primary }} className="text-sm font-semibold">Start a new plan</Text>
+            </Pressable>
+            <Text style={{ color: border }}>·</Text>
+            <Pressable
+              onPress={() => router.push("/plans/completed")}
+              className="flex-row items-center gap-1.5 py-3"
+              accessibilityRole="button"
+              accessibilityLabel="Completed plans"
+            >
+              <CheckCircle2 size={15} color={primary} />
+              <Text style={{ color: primary }} className="text-sm font-semibold">Completed</Text>
+            </Pressable>
+          </View>
 
           <Divider />
 
