@@ -107,7 +107,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="groups"
         options={{
-          title: "Groups",
+          title: "Plans",
           tabBarIcon: ({ focused }) => <TabIcon Icon={BookOpen} focused={focused} />,
         }}
       />

@@ -571,7 +571,7 @@ export default function GroupsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />
           }
         >
-          <ScreenHeader eyebrow="Read together" title="Groups" />
+          <ScreenHeader eyebrow="Read together" title="Plans" />
 
           {/* ── Discipleship ───────────────────────────────────────────────────── */}
           <DiscipleshipHub
