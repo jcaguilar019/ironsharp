@@ -63,11 +63,10 @@ function TokenCoins({ count, limit }: { count: number; limit: number }) {
  */
 export default function NewPlanScreen() {
   const router = useRouter();
-  const { data, isError, refetch } = usePlans();
+  const { isError, refetch } = usePlans();
   const tokens = useGenerateTokens();
   const white = "#FFFFFF";
 
-  const countByCategory = data?.countByCategory ?? {};
   const tokensRemaining = tokens.data?.tokensRemaining ?? 0;
   const tierLimit = tokens.data?.tierLimit ?? 0;
   const resetsAt = tokens.data?.resetsAt;
@@ -94,7 +93,7 @@ export default function NewPlanScreen() {
   if (isError) {
     return (
       <Screen edges={["top"]}>
-        <Header title="Start a Plan" subtitle="Browse or create" />
+        <Header title="New Plan" subtitle="Browse or create" />
         <ErrorState
           message="We couldn't load plans. Check your connection and try again."
           onRetry={() => refetch()}
@@ -140,13 +139,12 @@ export default function NewPlanScreen() {
               <Text className="mt-2 font-serif text-base font-bold uppercase text-white">
                 Create Your Own
               </Text>
-              <Text className="text-xs text-white/70">Build a custom plan</Text>
+              <Text className="text-xs text-white/70">Generate with AI</Text>
               <TokenCoins count={tokensRemaining} limit={tierLimit} />
             </View>
           </Pressable>
 
           {CATEGORIES.map((cat) => {
-            const count = countByCategory[cat.id] ?? 0;
             const img = CATEGORY_IMAGES[cat.id];
             return (
               <Pressable
@@ -180,9 +178,7 @@ export default function NewPlanScreen() {
                   <Text className="font-serif text-base font-bold uppercase text-white">
                     {cat.title}
                   </Text>
-                  <Text className="text-xs text-white/70">
-                    {count > 0 ? `${count} Plan${count > 1 ? "s" : ""}` : cat.subtitle}
-                  </Text>
+                  <Text className="text-xs text-white/70">{cat.subtitle}</Text>
                 </View>
               </Pressable>
             );
