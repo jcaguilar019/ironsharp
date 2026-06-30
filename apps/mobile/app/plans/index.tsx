@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Hammer, Sparkles } from "lucide-react-native";
+import { Sparkles } from "lucide-react-native";
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   mens:           require("../../assets/images/categories/mens.jpg"),
@@ -25,41 +25,14 @@ const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { ErrorState } from "@/components/ErrorState";
+import { TokenCoins } from "@/components/TokenCoins";
 import { usePlans, useGenerateTokens } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/categories";
 
-function TokenCoins({ count, limit }: { count: number; limit: number }) {
-  if (limit === 0) return null;
-  return (
-    <View style={{ flexDirection: "row", gap: 5, marginTop: 6 }}>
-      {Array.from({ length: limit }, (_, i) => {
-        const active = i < count;
-        return (
-          <View
-            key={i}
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: active ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.18)",
-              borderWidth: active ? 0 : 1,
-              borderColor: "rgba(255,255,255,0.4)",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {active && <Hammer size={11} color="#3B2A1A" />}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
 /**
- * The "Start a Plan" flow — browse the premade library or generate a custom plan
- * with AI. Reached from the Groups tab ("Your Plans" → Start a new plan); not a
- * bottom-nav tab.
+ * The solo "Choose a plan" flow — browse the premade library by category or
+ * generate a custom plan with AI. Reached from Home (when you have no active
+ * plan); not a bottom-nav tab. Plans picked here are personal.
  */
 export default function NewPlanScreen() {
   const router = useRouter();
@@ -93,7 +66,7 @@ export default function NewPlanScreen() {
   if (isError) {
     return (
       <Screen edges={["top"]}>
-        <Header title="New Plan" subtitle="Browse or create" />
+        <Header title="Choose a plan" subtitle="Browse or create" />
         <ErrorState
           message="We couldn't load plans. Check your connection and try again."
           onRetry={() => refetch()}
@@ -104,7 +77,7 @@ export default function NewPlanScreen() {
 
   return (
     <Screen edges={["top"]}>
-      <Header title="Start a Plan" subtitle="Browse or create" />
+      <Header title="Choose a plan" subtitle="Browse or create" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg px-6 py-6"
         showsVerticalScrollIndicator={false}
