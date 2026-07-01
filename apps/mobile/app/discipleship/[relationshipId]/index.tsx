@@ -199,6 +199,7 @@ function ResponsesPanel({
   onReply: (prefill: string) => void;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const responses = useDiscipleResponses(id);
   const fg = useThemeColor("foreground");
   const muted = useThemeColor("muted-foreground");
@@ -242,6 +243,25 @@ function ResponsesPanel({
     );
   }
   if (responses.isError) {
+    if (responses.error instanceof ApiError && responses.error.status === 403) {
+      return (
+        <View className="flex-1 items-center justify-center px-8">
+          <Lock size={26} color={muted} />
+          <Text className="mt-3 text-center font-serif text-xl font-bold text-foreground">
+            Sharpen access ended
+          </Text>
+          <Text className="mt-1 text-center text-sm text-muted-foreground">
+            Your discipler tools were available through this plan. Upgrade to Sharpen to keep discipling.
+          </Text>
+          <Pressable
+            onPress={() => router.push("/settings/membership")}
+            className="mt-5 h-11 items-center justify-center rounded-xl bg-primary px-6"
+          >
+            <Text className="text-sm font-semibold text-primary-foreground">See plans</Text>
+          </Pressable>
+        </View>
+      );
+    }
     return <ErrorState message="We couldn't load responses." onRetry={() => responses.refetch()} />;
   }
 

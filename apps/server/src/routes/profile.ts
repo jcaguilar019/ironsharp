@@ -184,6 +184,7 @@ profile.post("/redeem-promo", async (c) => {
     membershipTier: reward.tier,
     membershipSource: "promo",
     membershipStartedAt: now,
+    membershipTierChangedAt: now,
     updatedAt: now,
   };
   if (reward.tier === "family") {

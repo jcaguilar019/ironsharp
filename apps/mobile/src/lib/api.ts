@@ -122,6 +122,7 @@ export type Profile = {
   familyAccountId: string | null;
   createdAt: string;
   membershipTier: "free" | "connect" | "sharpen" | "family";
+  membershipExpiresAt: string | null;
   generatedCount: number;
   generatedWindowStart: string | null;
   planUnlocksCount: number;

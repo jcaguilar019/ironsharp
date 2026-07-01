@@ -16,11 +16,17 @@ import {
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { notifyDiscipleshipInvite, notifyMailboxMessage } from "../lib/push.js";
+import { effectiveTier, isDisciplerTier, disciplerAccessLostAt } from "../lib/membership.js";
 
 export const discipleship = new Hono<AppEnv>();
 discipleship.use("*", requireAuth);
 
 const QUESTION_TYPES = ["q1", "q2", "q3", "praise"] as const;
+
+const DISCIPLER_TIER_ERROR = {
+  error: "Discipler tools are available on the Sharpen plan and above.",
+  code: "DISCIPLER_TIER",
+} as const;
 
 type Relationship = typeof discipleRelationships.$inferSelect;
 
@@ -32,6 +38,37 @@ async function loadRelationship(id: string): Promise<Relationship | null> {
     .where(eq(discipleRelationships.id, id))
     .limit(1);
   return rel ?? null;
+}
+
+/**
+ * Whether a discipler may use their ongoing tools for a relationship. True if
+ * they're Sharpen+, or — after dropping below Sharpen — still within the grace
+ * window: the group's current plan was already underway when they downgraded.
+ * The tools lock once that plan ends (currentPlanId cleared).
+ */
+async function disciplerHasAccess(disciplerUserId: string, groupId: string | null): Promise<boolean> {
+  const [p] = await db
+    .select({
+      membershipTier: profiles.membershipTier,
+      membershipExpiresAt: profiles.membershipExpiresAt,
+      membershipTierChangedAt: profiles.membershipTierChangedAt,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, disciplerUserId))
+    .limit(1);
+  if (!p) return false;
+  if (isDisciplerTier(effectiveTier(p))) return true;
+
+  const lostAt = disciplerAccessLostAt(p);
+  if (!lostAt || !groupId) return false;
+
+  const [g] = await db
+    .select({ currentPlanId: groups.currentPlanId, currentPlanStartedAt: groups.currentPlanStartedAt })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+  if (!g?.currentPlanId || !g.currentPlanStartedAt) return false;
+  return g.currentPlanStartedAt.getTime() <= lostAt.getTime();
 }
 
 // ─── Feature 1 — Initiation ───────────────────────────────────────────────────
@@ -50,6 +87,17 @@ discipleship.post("/invite", async (c) => {
   const { groupId, discipleId } = parsed.data;
 
   if (discipleId === userId) return c.json({ error: "You can't disciple yourself." }, 400);
+
+  // Becoming a discipler is a Sharpen-and-above perk (checked on the inviter;
+  // the disciple can be any tier). No grace here — you must be Sharpen+ to start.
+  const [inviter] = await db
+    .select({ membershipTier: profiles.membershipTier, membershipExpiresAt: profiles.membershipExpiresAt })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  if (!inviter || !isDisciplerTier(effectiveTier(inviter))) {
+    return c.json(DISCIPLER_TIER_ERROR, 403);
+  }
 
   // The group must be a one-on-one that both users belong to.
   const [group] = await db
@@ -203,6 +251,7 @@ discipleship.post("/:id/questions", async (c) => {
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can set a question." }, 403);
   if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
+  if (!(await disciplerHasAccess(userId, rel.groupId))) return c.json(DISCIPLER_TIER_ERROR, 403);
 
   const parsed = questionSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
@@ -254,6 +303,7 @@ discipleship.get("/:id/responses", async (c) => {
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can view responses." }, 403);
   if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
+  if (!(await disciplerHasAccess(userId, rel.groupId))) return c.json(DISCIPLER_TIER_ERROR, 403);
   if (!rel.groupId) return c.json({ responses: [] });
 
   const [group] = await db
@@ -346,6 +396,7 @@ discipleship.post("/:id/flags", async (c) => {
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can flag." }, 403);
   if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
+  if (!(await disciplerHasAccess(userId, rel.groupId))) return c.json(DISCIPLER_TIER_ERROR, 403);
 
   const parsed = flagSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
@@ -399,6 +450,7 @@ discipleship.get("/:id/flags", async (c) => {
   if (!rel) return c.json({ error: "Not found" }, 404);
   if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can view flags." }, 403);
   if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
+  if (!(await disciplerHasAccess(userId, rel.groupId))) return c.json(DISCIPLER_TIER_ERROR, 403);
   if (!rel.groupId) return c.json({ flags: [] });
 
   const [group] = await db

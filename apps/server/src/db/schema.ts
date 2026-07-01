@@ -168,6 +168,9 @@ export const profiles = pgTable("profiles", {
   membershipTier: text("membership_tier").notNull().default("free"), // free | connect | sharpen | family
   membershipStartedAt: timestamp("membership_started_at", { withTimezone: true }),
   membershipExpiresAt: timestamp("membership_expires_at", { withTimezone: true }),
+  // Stamped whenever membershipTier changes — anchors the discipleship grace
+  // window (a downgraded discipler keeps their tools until the current plan ends).
+  membershipTierChangedAt: timestamp("membership_tier_changed_at", { withTimezone: true }),
   membershipSource: text("membership_source").notNull().default("none"), // none | stripe | apple_iap | google_iap | promo
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -198,6 +201,9 @@ export const groups = pgTable("groups", {
   currentPlanId: uuid("current_plan_id").references(() => devotionalPlans.id, {
     onDelete: "set null",
   }),
+  // When the current plan was assigned — used to tell whether a plan was already
+  // underway when a discipler dropped below Sharpen (the grace window).
+  currentPlanStartedAt: timestamp("current_plan_started_at", { withTimezone: true }),
   currentDay: integer("current_day").notNull().default(1),
   streakCount: integer("streak_count").notNull().default(0),
   lastStreakDate: date("last_streak_date"),

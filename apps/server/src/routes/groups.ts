@@ -629,7 +629,7 @@ groupsRoute.patch("/:id/plan", async (c) => {
 
   await db
     .update(groups)
-    .set({ currentPlanId: planId, currentDay: 1, updatedAt: new Date() })
+    .set({ currentPlanId: planId, currentPlanStartedAt: new Date(), currentDay: 1, updatedAt: new Date() })
     .where(eq(groups.id, groupId));
 
   await db
@@ -717,7 +717,7 @@ groupsRoute.patch("/:id/day", async (c) => {
       }
       await db
         .update(groups)
-        .set({ currentPlanId: null, currentDay: 1, updatedAt: new Date() })
+        .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
         .where(eq(groups.id, groupId));
     } else if (nextDay !== undefined) {
       await db

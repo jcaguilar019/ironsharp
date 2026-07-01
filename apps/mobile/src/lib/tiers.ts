@@ -128,6 +128,25 @@ export const TIER_ORDER: MembershipTier[] = ["free", "connect", "sharpen", "fami
 
 export const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * The tier the user effectively has right now — an expired paid membership
+ * counts as Free. Mirrors effectiveTier() on the server.
+ */
+export function effectiveTier(
+  p: { membershipTier: MembershipTier; membershipExpiresAt: string | null } | null | undefined
+): MembershipTier {
+  if (!p) return "free";
+  if (p.membershipExpiresAt && new Date(p.membershipExpiresAt).getTime() < Date.now()) {
+    return "free";
+  }
+  return p.membershipTier;
+}
+
+/** Discipler tools are a Sharpen-and-above perk. */
+export function isDisciplerTier(tier: MembershipTier): boolean {
+  return tier === "sharpen" || tier === "family";
+}
+
 export function planUnlocksRemaining(
   tier: MembershipTier,
   count: number,

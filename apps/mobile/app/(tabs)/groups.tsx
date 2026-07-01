@@ -49,6 +49,7 @@ import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
 import { Avatar } from "@/components/Avatar";
 import { useGroups, useDiscipleships, useProfile } from "@/lib/queries";
 import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
+import { effectiveTier, isDisciplerTier } from "@/lib/tiers";
 import {
   ApiClient,
   ApiError,
@@ -168,13 +169,16 @@ function DiscipleshipSection({
   rel,
   myUserId,
   accent,
+  canDisciple,
 }: {
   group: Group;
   rel: DiscipleshipRelationship | undefined;
   myUserId: string | undefined;
   accent: string;
+  canDisciple: boolean;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const toast = useToast();
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
@@ -183,6 +187,17 @@ function DiscipleshipSection({
 
   const handleInvite = () => {
     if (!other) return;
+    if (!canDisciple) {
+      Alert.alert(
+        "Sharpen required",
+        "Discipler tools are available on the Sharpen plan and above.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "See plans", onPress: () => router.push("/settings/membership") },
+        ]
+      );
+      return;
+    }
     Alert.alert(
       "Start discipleship",
       `Invite ${other.displayName} as your disciple? They'll be asked to accept first.`,
@@ -564,6 +579,7 @@ export default function GroupsScreen() {
   };
 
   const groupList = groups.data ?? [];
+  const canDisciple = isDisciplerTier(effectiveTier(profile.data));
 
   return (
     <Screen edges={["top"]}>
@@ -746,6 +762,7 @@ export default function GroupsScreen() {
                         rel={(discipleships.data ?? []).find((r) => r.groupId === group.id)}
                         myUserId={profile.data?.userId}
                         accent={config.color}
+                        canDisciple={canDisciple}
                       />
                     )}
 
