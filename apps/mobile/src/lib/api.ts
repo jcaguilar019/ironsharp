@@ -615,6 +615,8 @@ export const ApiClient = {
       method: "PATCH",
       body: JSON.stringify({ planId }),
     }),
+  stopGroupPlan: (groupId: string) =>
+    api<{ ok: boolean }>(`/api/groups/${groupId}/plan`, { method: "DELETE" }),
 
   getGroupDayResponses: (planId: string, dayNumber: number) =>
     api<{ responses: GroupDayResponse[] }>(

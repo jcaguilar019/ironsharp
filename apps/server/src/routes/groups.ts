@@ -640,6 +640,47 @@ groupsRoute.patch("/:id/plan", async (c) => {
   return c.json({ ok: true });
 });
 
+// DELETE /api/groups/:id/plan — the creator/leader ends the group's current
+// plan. Same as a solo "stop": clears the active plan (progress) but keeps
+// everyone's submissions. Can't be undone.
+groupsRoute.delete("/:id/plan", async (c) => {
+  const userId = c.var.user.id;
+  const groupId = c.req.param("id");
+
+  const [group] = await db
+    .select({ createdBy: groups.createdBy, currentPlanId: groups.currentPlanId })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+  if (!group) return c.json({ error: "Group not found" }, 404);
+  if (group.createdBy !== userId) {
+    return c.json({ error: "Only the group creator can end the plan." }, 403);
+  }
+
+  // Stopping is a full reset — wipe every member's reflections for this group's
+  // copy of the plan, then clear the active plan and everyone's done flag.
+  if (group.currentPlanId) {
+    await db
+      .delete(devotionalSubmissions)
+      .where(
+        and(
+          eq(devotionalSubmissions.groupId, groupId),
+          eq(devotionalSubmissions.planId, group.currentPlanId)
+        )
+      );
+  }
+  await db
+    .update(groups)
+    .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
+    .where(eq(groups.id, groupId));
+  await db
+    .update(groupMembers)
+    .set({ doneToday: false })
+    .where(eq(groupMembers.groupId, groupId));
+
+  return c.json({ ok: true });
+});
+
 // PATCH /api/groups/:id/day — mark the calling user done; advance group day when everyone's finished
 groupsRoute.patch("/:id/day", async (c) => {
   const userId = c.var.user.id;
