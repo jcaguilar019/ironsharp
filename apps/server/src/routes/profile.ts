@@ -9,11 +9,14 @@ import {
   devotionalSubmissions,
   groupMembers,
   discipleRelationships,
-  disciplerNotes,
   customQuestions,
   flaggedResponses,
   mailboxMessages,
   devotionalPlans,
+  communityResponses,
+  communityReactions,
+  communityReports,
+  promoRedemptions,
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import type { MembershipTier } from "../lib/tiers.js";
@@ -179,6 +182,24 @@ profile.post("/redeem-promo", async (c) => {
   const reward = PROMO_CODES[normalized];
   if (!reward) return c.json({ error: "Invalid promo code." }, 400);
 
+  // Codes never downgrade an account, and each (user, code) redeems once.
+  const TIER_RANK: Record<MembershipTier, number> = { free: 0, connect: 1, sharpen: 2, family: 3 };
+  const [current] = await db
+    .select({ membershipTier: profiles.membershipTier })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  const currentTier = (current?.membershipTier ?? "free") as MembershipTier;
+  if (TIER_RANK[reward.tier] <= TIER_RANK[currentTier]) {
+    return c.json({ error: "You're already on an equal or better plan." }, 400);
+  }
+  const [already] = await db
+    .select({ id: promoRedemptions.id })
+    .from(promoRedemptions)
+    .where(and(eq(promoRedemptions.userId, userId), eq(promoRedemptions.code, normalized)))
+    .limit(1);
+  if (already) return c.json({ error: "You've already redeemed this code." }, 400);
+
   const now = new Date();
   const updates: Record<string, unknown> = {
     membershipTier: reward.tier,
@@ -195,6 +216,12 @@ profile.post("/redeem-promo", async (c) => {
     .set(updates)
     .where(eq(profiles.userId, userId))
     .returning();
+
+  // Record the redemption (unique on user+code backs up the check above).
+  await db
+    .insert(promoRedemptions)
+    .values({ userId, code: normalized, tier: reward.tier })
+    .onConflictDoNothing();
 
   return c.json({
     profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId),
@@ -344,9 +371,13 @@ profile.delete("/", async (c) => {
   // Delete app-side data in a transaction so a mid-flight failure leaves no partial state.
   // Neon Auth deletion runs after — it can't join the same transaction (cross-schema).
   await db.transaction(async (tx) => {
-    await tx.delete(disciplerNotes).where(
-      or(eq(disciplerNotes.fromUserId, userId), eq(disciplerNotes.toUserId, userId))
-    );
+    // Community engagement: reactions/reports this user left on others'
+    // responses, then their own responses (whose reactions + reports cascade
+    // via FK), and their promo-redemption records.
+    await tx.delete(communityReactions).where(eq(communityReactions.userId, userId));
+    await tx.delete(communityReports).where(eq(communityReports.reporterUserId, userId));
+    await tx.delete(communityResponses).where(eq(communityResponses.userId, userId));
+    await tx.delete(promoRedemptions).where(eq(promoRedemptions.userId, userId));
     // Discipleship Kit children. They'd cascade from disciple_relationships, but
     // delete them explicitly first so ordering can't bite us.
     const rels = await tx

@@ -14,12 +14,14 @@ generate.use("*", requireAuth);
 const WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const generateSchema = z.object({
-  bookOrTopic: z.string().trim().min(1),
+  // Length caps: these fields are interpolated into the model prompt —
+  // unbounded text is a token-cost vector, not a feature.
+  bookOrTopic: z.string().trim().min(1).max(120),
   inputType: z.enum(["book", "topic"]),
   days: z.number().int().min(1).max(30),
-  themeFocus: z.string().trim().min(1),
+  themeFocus: z.string().trim().min(1).max(200),
   who: z.enum(["just-me", "friend", "small-group", "discipleship"]),
-  context: z.string().optional(),
+  context: z.string().max(1000).optional(),
 });
 
 // ─── System prompt (cached by Anthropic — static across all generations) ───────

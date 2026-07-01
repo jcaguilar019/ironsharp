@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
-import { Check, Globe } from "lucide-react-native";
+import { Check, Flag, Globe } from "lucide-react-native";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { useToast } from "@/components/Toast";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import {
@@ -11,6 +12,7 @@ import {
   type CommunityToday,
   type CommunityFeedItem,
   type CommunityReactionType,
+  type CommunityReportReason,
 } from "@/lib/api";
 
 const REACTIONS: { type: CommunityReactionType; label: string }[] = [
@@ -44,11 +46,13 @@ function FeedCard({
   q1: q1Label,
   q2: q2Label,
   onReact,
+  onReport,
 }: {
   item: CommunityFeedItem;
   q1: string;
   q2: string;
   onReact: (item: CommunityFeedItem, type: CommunityReactionType) => void;
+  onReport: (item: CommunityFeedItem) => void;
 }) {
   const fg = useThemeColor("foreground");
   const muted = useThemeColor("muted-foreground");
@@ -92,6 +96,17 @@ function FeedCard({
         <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 11, color: muted }}>
           {timeAgo(item.updatedAt)}
         </Text>
+        {!item.isOwn ? (
+          <Pressable
+            onPress={() => onReport(item)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Report ${item.displayName}'s response`}
+            style={{ padding: 2 }}
+          >
+            <Flag size={13} color={muted} />
+          </Pressable>
+        ) : null}
       </View>
 
       {item.response1 ? (
@@ -176,6 +191,7 @@ export function CommunityDevotionalView({
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
   const primary = useThemeColor("primary");
+  const toast = useToast();
 
   const devotional = data.devotional!;
   const mine = data.myResponse;
@@ -221,6 +237,47 @@ export function CommunityDevotionalView({
     } catch (err) {
       Alert.alert("Couldn't react", err instanceof ApiError ? err.message : "Please try again.");
     }
+  };
+
+  const sendReport = async (item: CommunityFeedItem, reason: CommunityReportReason) => {
+    try {
+      await ApiClient.reportCommunityResponse(item.id, reason);
+      toast.show("Reported — thank you");
+    } catch (err) {
+      Alert.alert("Couldn't report", err instanceof ApiError ? err.message : "Please try again.");
+    }
+  };
+
+  const report = (item: CommunityFeedItem) => {
+    Alert.alert(
+      "Report this response?",
+      `Flag ${item.displayName}'s response for review. It stays visible until it's been looked at.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Spam", onPress: () => sendReport(item, "spam") },
+        { text: "Inappropriate", style: "destructive", onPress: () => sendReport(item, "inappropriate") },
+      ]
+    );
+  };
+
+  const deleteMine = async () => {
+    try {
+      await ApiClient.deleteCommunityResponse(devotional.id);
+      setResponse1("");
+      setResponse2("");
+      setPrayer("");
+      onRefetch();
+      toast.show("Response deleted");
+    } catch (err) {
+      Alert.alert("Couldn't delete", err instanceof ApiError ? err.message : "Please try again.");
+    }
+  };
+
+  const confirmDeleteMine = () => {
+    Alert.alert("Delete your response?", "This removes it from the community feed.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: deleteMine },
+    ]);
   };
 
   const others = data.feed.filter((f) => !f.isOwn);
@@ -327,6 +384,19 @@ export function CommunityDevotionalView({
         </View>
       ) : null}
 
+      {mine ? (
+        <Pressable
+          onPress={confirmDeleteMine}
+          accessibilityRole="button"
+          accessibilityLabel="Delete my response"
+          className="mt-3 items-center"
+        >
+          <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 13 }}>
+            Delete my response
+          </Text>
+        </Pressable>
+      ) : null}
+
       <View style={{ height: 1, backgroundColor: border, marginVertical: 24 }} />
 
       {/* ── Community feed ──────────────────────────────────────────────── */}
@@ -343,6 +413,7 @@ export function CommunityDevotionalView({
             q1={devotional.reflectionQ1}
             q2={devotional.reflectionQ2}
             onReact={react}
+            onReport={report}
           />
         ))
       )}

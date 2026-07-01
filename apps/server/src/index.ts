@@ -15,6 +15,12 @@ import { tts } from "./routes/tts.js";
 import { community } from "./routes/community.js";
 import { discipleship } from "./routes/discipleship.js";
 
+// Surface missing AI keys at startup — without this they only fail at request
+// time (plan generation → 500, TTS → 503), which reads as a mystery outage.
+for (const key of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] as const) {
+  if (!process.env[key]) console.warn(`[startup] ${key} is not set — endpoints that need it will fail.`);
+}
+
 const app = new Hono();
 
 app.use("*", logger());

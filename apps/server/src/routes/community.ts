@@ -6,6 +6,7 @@ import {
   communityDevotionals,
   communityResponses,
   communityReactions,
+  communityReports,
   profiles,
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
@@ -271,6 +272,54 @@ community.post("/reactions", async (c) => {
   return c.json({ reacted: true });
 });
 
+/* ── Moderation (Community only — groups are invite-only and unmoderated) ───── */
+
+const REPORT_REASONS = ["inappropriate", "spam", "other"] as const;
+const reportSchema = z.object({
+  responseId: z.string().uuid(),
+  reason: z.enum(REPORT_REASONS).default("other"),
+});
+
+// POST /api/community/reports → report a response for the founder to review.
+// The response stays visible until an admin acts on it.
+community.post("/reports", async (c) => {
+  const userId = c.var.user.id;
+  const parsed = reportSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
+  const { responseId, reason } = parsed.data;
+
+  const [target] = await db
+    .select({ id: communityResponses.id, userId: communityResponses.userId })
+    .from(communityResponses)
+    .where(eq(communityResponses.id, responseId))
+    .limit(1);
+  if (!target) return c.json({ error: "Response not found" }, 404);
+  if (target.userId === userId) return c.json({ error: "You can't report your own response." }, 400);
+
+  // One report per (response, reporter) — re-reporting is a quiet no-op.
+  await db
+    .insert(communityReports)
+    .values({ responseId, reporterUserId: userId, reason })
+    .onConflictDoNothing();
+  return c.json({ ok: true });
+});
+
+// DELETE /api/community/responses/:devotionalId → remove the caller's OWN
+// response to a reading (its reactions and reports cascade away with it).
+community.delete("/responses/:devotionalId", async (c) => {
+  const userId = c.var.user.id;
+  const devotionalId = c.req.param("devotionalId");
+  await db
+    .delete(communityResponses)
+    .where(
+      and(
+        eq(communityResponses.communityDevotionalId, devotionalId),
+        eq(communityResponses.userId, userId)
+      )
+    );
+  return c.json({ ok: true });
+});
+
 /* ── Admin / founder authoring ──────────────────────────────────────────────── */
 
 // GET /api/community/admin/list → every reading (drafts + published), newest date first.
@@ -278,8 +327,76 @@ community.get("/admin/list", async (c) => {
   const rows = await db
     .select()
     .from(communityDevotionals)
-    .orderBy(desc(communityDevotionals.publishDate));
+    .orderBy(desc(communityDevotionals.publishDate))
+    .limit(200);
   return c.json({ devotionals: rows });
+});
+
+// GET /api/community/admin/reports → open reports with the reported content.
+// Shows full responses (including private fields) — the founder needs the whole
+// picture to judge a report.
+community.get("/admin/reports", async (c) => {
+  const rows = await db
+    .select({
+      id: communityReports.id,
+      reason: communityReports.reason,
+      createdAt: communityReports.createdAt,
+      reporterUserId: communityReports.reporterUserId,
+      responseId: communityResponses.id,
+      responseUserId: communityResponses.userId,
+      response1: communityResponses.response1,
+      response2: communityResponses.response2,
+      prayer: communityResponses.prayer,
+      devotionalId: communityResponses.communityDevotionalId,
+    })
+    .from(communityReports)
+    .innerJoin(communityResponses, eq(communityResponses.id, communityReports.responseId))
+    .where(eq(communityReports.status, "open"))
+    .orderBy(desc(communityReports.createdAt))
+    .limit(200);
+
+  const ids = [...new Set(rows.flatMap((r) => [r.responseUserId, r.reporterUserId]))];
+  const people = ids.length
+    ? await db
+        .select({ userId: profiles.userId, displayName: profiles.displayName })
+        .from(profiles)
+        .where(inArray(profiles.userId, ids))
+    : [];
+  const nameById = new Map(people.map((p) => [p.userId, p.displayName]));
+
+  const reports = rows.map((r) => ({
+    id: r.id,
+    reason: r.reason,
+    createdAt: r.createdAt,
+    responseId: r.responseId,
+    devotionalId: r.devotionalId,
+    authorName: nameById.get(r.responseUserId) ?? "Someone",
+    reporterName: nameById.get(r.reporterUserId) ?? "Someone",
+    response1: r.response1,
+    response2: r.response2,
+    prayer: r.prayer,
+  }));
+  return c.json({ reports });
+});
+
+// POST /api/community/admin/reports/:id/dismiss → leave the content up.
+community.post("/admin/reports/:id/dismiss", async (c) => {
+  const [row] = await db
+    .update(communityReports)
+    .set({ status: "dismissed" })
+    .where(eq(communityReports.id, c.req.param("id")))
+    .returning();
+  if (!row) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
+// DELETE /api/community/admin/responses/:responseId → take a response down
+// (its reactions and reports cascade away).
+community.delete("/admin/responses/:responseId", async (c) => {
+  await db
+    .delete(communityResponses)
+    .where(eq(communityResponses.id, c.req.param("responseId")));
+  return c.json({ ok: true });
 });
 
 // POST /api/community/admin/create → create a reading scheduled for a date.

@@ -31,6 +31,23 @@ function idFor(text: string, voice: string, instructions: string) {
   return createHash("sha256").update(`${MODEL}\n${voice}\n${instructions}\n${text}`).digest("hex");
 }
 
+// Per-user daily generation quota — every cache MISS is a paid OpenAI call.
+// Cache hits don't count. In-memory (resets on deploy), fine at beta scale;
+// a devotional day is ~4 segments, so 60 is roomy without being hammerable.
+const DAILY_LIMIT = 60;
+const usage = new Map<string, { day: string; count: number }>();
+function underDailyQuota(userId: string): boolean {
+  const day = new Date().toISOString().slice(0, 10);
+  const u = usage.get(userId);
+  if (!u || u.day !== day) {
+    usage.set(userId, { day, count: 1 });
+    return true;
+  }
+  if (u.count >= DAILY_LIMIT) return false;
+  u.count += 1;
+  return true;
+}
+
 // POST /api/tts  → { text, voice?, instructions? } → { id } (generates + caches)
 tts.post("/", async (c) => {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -51,6 +68,9 @@ tts.post("/", async (c) => {
 
   const id = idFor(text, voice, instructions);
   if (cache.has(id)) return c.json({ id, cached: true });
+  // Quota applies only to generation (cache misses) — the client falls back to
+  // the on-device voice on 429, same as the 503 path.
+  if (!underDailyQuota(c.var.user.id)) return c.json({ error: "tts_daily_limit" }, 429);
 
   let res: Response;
   try {

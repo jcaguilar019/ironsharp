@@ -139,6 +139,16 @@ export function useCommunityAdminList(enabled: boolean) {
   });
 }
 
+/** Open community reports awaiting founder review (admin only). */
+export function useCommunityReports(enabled: boolean) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["community", "admin", "reports"],
+    queryFn: () => ApiClient.getCommunityReports().then((r) => r.reports),
+    enabled: authed && enabled,
+  });
+}
+
 /* ---------- Discipleship Kit ---------- */
 
 /** All discipleship relationships the user is part of (drives entry points + notice gate). */

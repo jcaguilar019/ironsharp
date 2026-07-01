@@ -319,6 +319,21 @@ export type CommunityArchiveItem = {
   passageReference: string;
 };
 
+export type CommunityReportReason = "inappropriate" | "spam" | "other";
+
+export type CommunityReport = {
+  id: string;
+  reason: CommunityReportReason;
+  createdAt: string;
+  responseId: string;
+  devotionalId: string;
+  authorName: string;
+  reporterName: string;
+  response1: string | null;
+  response2: string | null;
+  prayer: string | null;
+};
+
 export type CommunityResponseRow = {
   id: string;
   communityDevotionalId: string;
@@ -619,10 +634,23 @@ export const ApiClient = {
       method: "POST",
       body: JSON.stringify({ responseId, reactionType }),
     }),
+  reportCommunityResponse: (responseId: string, reason: CommunityReportReason) =>
+    api<{ ok: boolean }>("/api/community/reports", {
+      method: "POST",
+      body: JSON.stringify({ responseId, reason }),
+    }),
+  deleteCommunityResponse: (devotionalId: string) =>
+    api<{ ok: boolean }>(`/api/community/responses/${devotionalId}`, { method: "DELETE" }),
 
   // Admin / founder authoring
   getCommunityAdminList: () =>
     api<{ devotionals: CommunityDevotional[] }>("/api/community/admin/list"),
+  getCommunityReports: () =>
+    api<{ reports: CommunityReport[] }>("/api/community/admin/reports"),
+  dismissCommunityReport: (id: string) =>
+    api<{ ok: boolean }>(`/api/community/admin/reports/${id}/dismiss`, { method: "POST" }),
+  adminRemoveCommunityResponse: (responseId: string) =>
+    api<{ ok: boolean }>(`/api/community/admin/responses/${responseId}`, { method: "DELETE" }),
   createCommunityDevotional: (body: CommunityDevotionalInput) =>
     api<{ devotional: CommunityDevotional }>("/api/community/admin/create", {
       method: "POST",

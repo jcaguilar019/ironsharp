@@ -1005,8 +1005,21 @@ export default function DevotionalReader() {
 
           {/* Buttons */}
           <View className="gap-3">
+            {isLastDay && (
+              <Button
+                title={groupId ? "Choose your group's next plan" : "Start a new plan"}
+                onPress={() =>
+                  groupId
+                    ? router.replace(
+                        `/plans/new?groupId=${groupId}&groupName=${encodeURIComponent(activeGroup?.name ?? "")}`
+                      )
+                    : router.replace("/plans")
+                }
+              />
+            )}
             <Button
-              title="Back to Groups"
+              title="Back to Plans"
+              variant={isLastDay ? "outline" : "primary"}
               onPress={() => router.replace("/(tabs)/groups")}
             />
             <Button

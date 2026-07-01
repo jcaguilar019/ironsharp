@@ -6,7 +6,7 @@ import { Screen } from "@/components/Screen";
 import { StreakFlame } from "@/components/StreakFlame";
 import { Avatar } from "@/components/Avatar";
 import { useThemeColor } from "@/components/useThemeColor";
-import { useProfile, useActiveDevotional, useCommunityToday, useDiscipleships } from "@/lib/queries";
+import { useProfile, useActiveDevotional, useCommunityToday, useDiscipleships, useGroups } from "@/lib/queries";
 import { useLocalDoneToday } from "@/lib/useLocalDoneToday";
 
 export default function HomeScreen() {
@@ -23,6 +23,13 @@ export default function HomeScreen() {
   const communityCount = community.data?.feed?.length ?? 0;
   const discipleships = useDiscipleships();
   const activeDisc = (discipleships.data ?? []).find((r) => r.status === "active") ?? null;
+  const groups = useGroups();
+  // When there's no personal plan, the Home card falls back to the first group
+  // reading — a group-only user has "time with God" today too, not "Choose a Plan".
+  const groupReading = active ? null : ((groups.data ?? []).find((g) => g.plan) ?? null);
+  const myId = profile.data?.userId;
+  const groupDone = !!groupReading?.members.find((m) => m.userId === myId)?.doneToday;
+  const cardDone = active ? doneToday : groupDone;
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
 
@@ -107,7 +114,11 @@ export default function HomeScreen() {
         <Pressable
           onPress={() =>
             router.push(
-              active ? `/devotional/${active.planId}` : "/plans"
+              active
+                ? `/devotional/${active.planId}`
+                : groupReading
+                  ? `/devotional/${groupReading.plan!.id}?groupId=${groupReading.id}`
+                  : "/plans"
             )
           }
           className="mb-6 w-full rounded-2xl border border-border bg-card p-7"
@@ -121,16 +132,21 @@ export default function HomeScreen() {
           <Text className="mb-1 text-sm text-muted-foreground">
             {active
               ? `${active.planTitle} · Day ${active.currentDay} of ${active.totalDays}`
-              : "Start a plan to begin"}
+              : groupReading
+                ? `${groupReading.plan!.title} · Day ${groupReading.currentDay} of ${groupReading.plan!.totalDays}`
+                : "Start a plan to begin"}
           </Text>
           <Text className="mb-2 font-serif text-2xl font-bold text-foreground">
-            {active?.chapter ?? "Choose a Plan"}
+            {active?.chapter ?? groupReading?.plan?.chapter ?? groupReading?.plan?.title ?? "Choose a Plan"}
           </Text>
           <Text className="mb-3 font-serif-italic text-base leading-relaxed text-muted-foreground">
-            {active?.theme ?? "Head to Plans to pick your first devotional and start your journey."}
+            {active?.theme ??
+              (groupReading
+                ? `Reading together with ${groupReading.name}.`
+                : "Head to Plans to pick your first devotional and start your journey.")}
           </Text>
           <View className="flex-row items-center gap-2 pt-1">
-            {doneToday ? (
+            {cardDone ? (
               <>
                 <PopIn>
                   <CheckCircle2 size={18} color={primary} />

@@ -14,12 +14,13 @@ import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
-import { useCommunityAdminList, useProfile } from "@/lib/queries";
+import { useCommunityAdminList, useCommunityReports, useProfile } from "@/lib/queries";
 import {
   ApiClient,
   ApiError,
   type CommunityDevotional,
   type CommunityDevotionalInput,
+  type CommunityReport,
   type StudyNoteEntry,
 } from "@/lib/api";
 
@@ -47,6 +48,7 @@ export default function CommunityAdmin() {
   const qc = useQueryClient();
   const isAdmin = profile.data?.isAdmin ?? false;
   const list = useCommunityAdminList(isAdmin);
+  const reports = useCommunityReports(isAdmin);
 
   const fg = useThemeColor("foreground");
   const muted = useThemeColor("muted-foreground");
@@ -58,6 +60,34 @@ export default function CommunityAdmin() {
   const [editing, setEditing] = useState<Editing>(null);
   const [form, setForm] = useState<CommunityDevotionalInput>(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  // ── Report moderation ────────────────────────────────────────────────────────
+  const removeReported = (r: CommunityReport) => {
+    Alert.alert("Remove this response?", "It disappears from the feed for everyone. This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await ApiClient.adminRemoveCommunityResponse(r.responseId);
+            await qc.invalidateQueries({ queryKey: ["community"] });
+          } catch (err) {
+            Alert.alert("Couldn't remove", err instanceof ApiError ? err.message : "Please try again.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const dismissReport = async (r: CommunityReport) => {
+    try {
+      await ApiClient.dismissCommunityReport(r.id);
+      await qc.invalidateQueries({ queryKey: ["community", "admin", "reports"] });
+    } catch (err) {
+      Alert.alert("Couldn't dismiss", err instanceof ApiError ? err.message : "Please try again.");
+    }
+  };
 
   const inputStyle = {
     borderWidth: 1,
@@ -322,6 +352,57 @@ export default function CommunityAdmin() {
           contentContainerClassName="mx-auto w-full max-w-lg px-6 py-4"
           showsVerticalScrollIndicator={false}
         >
+          {/* ── Reported responses (open reports) ─────────────────────────── */}
+          {(reports.data ?? []).length > 0 ? (
+            <View style={{ marginBottom: 18 }}>
+              <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                Reported responses
+              </Text>
+              {(reports.data ?? []).map((r) => (
+                <View
+                  key={r.id}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: withAlpha(destructive, 0.45),
+                    borderRadius: 12,
+                    backgroundColor: card,
+                    padding: 14,
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
+                    {r.authorName}'s response · reported by {r.reporterName} · {r.reason}
+                  </Text>
+                  {[r.response1, r.response2, r.prayer].filter(Boolean).map((t, i) => (
+                    <Text
+                      key={i}
+                      numberOfLines={4}
+                      style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20, marginTop: 6 }}
+                    >
+                      {t}
+                    </Text>
+                  ))}
+                  <View className="mt-3 flex-row gap-3">
+                    <Pressable
+                      onPress={() => removeReported(r)}
+                      style={{ backgroundColor: destructive, borderRadius: 8 }}
+                      className="px-3 py-2"
+                    >
+                      <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 12 }}>Remove response</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => dismissReport(r)}
+                      style={{ borderWidth: 1, borderColor: border, borderRadius: 8 }}
+                      className="px-3 py-2"
+                    >
+                      <Text style={{ color: fg, fontFamily: "DMSans_500Medium", fontSize: 12 }}>Dismiss</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {(list.data ?? []).map((d) => (
             <View
               key={d.id}

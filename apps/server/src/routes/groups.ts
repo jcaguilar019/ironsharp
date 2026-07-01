@@ -313,6 +313,15 @@ groupsRoute.post("/:id/members", async (c) => {
     .limit(1);
   if (!membership) return c.json({ error: "Not a member" }, 403);
 
+  // The invited user must actually exist — no FK backs this, so a bad id would
+  // otherwise insert a ghost member.
+  const [target] = await db
+    .select({ userId: profiles.userId })
+    .from(profiles)
+    .where(eq(profiles.userId, targetUserId))
+    .limit(1);
+  if (!target) return c.json({ error: "User not found" }, 404);
+
   // Enforce creator's tier group size limit
   const [group] = await db
     .select({ createdBy: groups.createdBy })

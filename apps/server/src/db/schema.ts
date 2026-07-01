@@ -328,25 +328,6 @@ export const groupPlanHistory = pgTable(
   })
 );
 
-export const disciplerNotes = pgTable(
-  "discipler_notes",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    fromUserId: text("from_user_id").notNull(),
-    toUserId: text("to_user_id").notNull(),
-    note: text("note").notNull(),
-    relatedSubmissionId: uuid("related_submission_id").references(
-      () => devotionalSubmissions.id,
-      { onDelete: "set null" }
-    ),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    threadIdx: index("idx_discipler_notes_thread").on(t.fromUserId, t.toUserId, t.createdAt),
-    recipientIdx: index("idx_discipler_notes_recipient").on(t.toUserId),
-  })
-);
-
 // Notes kept inside a discipleship relationship. A note is either PRIVATE (only
 // its author sees it — e.g. a discipler's follow-up reminders) or SHARED (both
 // parties see it — e.g. prayer requests, things to discuss next meeting). `kind`
@@ -530,6 +511,45 @@ export const communityReactions = pgTable(
   })
 );
 
+// A user's report of a community response — the Community feed is the only UGC
+// surface open to strangers (groups are invite-only, so they stay unmoderated).
+// Reports queue for the founder in the community admin screen; the response
+// stays visible until acted on.
+export const communityReports = pgTable(
+  "community_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    responseId: uuid("response_id")
+      .notNull()
+      .references(() => communityResponses.id, { onDelete: "cascade" }),
+    reporterUserId: text("reporter_user_id").notNull(),
+    reason: text("reason").notNull().default("other"), // inappropriate | spam | other
+    status: text("status").notNull().default("open"), // open | dismissed
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    reportUnique: unique("community_reports_unique").on(t.responseId, t.reporterUserId),
+    statusIdx: index("idx_community_reports_status").on(t.status, t.createdAt),
+  })
+);
+
+// One row per promo code a user has redeemed — blocks re-redemption and leaves
+// an audit trail for when real billing ships.
+export const promoRedemptions = pgTable(
+  "promo_redemptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull(),
+    code: text("code").notNull(),
+    tier: text("tier").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    redemptionUnique: unique("promo_redemptions_unique").on(t.userId, t.code),
+    userIdx: index("idx_promo_redemptions_user").on(t.userId),
+  })
+);
+
 export const schema = {
   bibleChapters,
   devotionalPlans,
@@ -543,11 +563,12 @@ export const schema = {
   discipleRelationships,
   devotionalSubmissions,
   submissionReactions,
-  disciplerNotes,
   customQuestions,
   flaggedResponses,
   mailboxMessages,
   communityDevotionals,
   communityResponses,
   communityReactions,
+  communityReports,
+  promoRedemptions,
 };
