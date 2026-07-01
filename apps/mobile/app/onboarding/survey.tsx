@@ -18,6 +18,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { Input } from "@/components/Input";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient } from "@/lib/api";
+import { US_STATES } from "@/lib/usStates";
 import { useOnboarding } from "./_layout";
 
 const MIDDLE_SCHOOL = "Junior High or Middle School";
@@ -50,18 +51,6 @@ const GOAL_OPTIONS = [
   "I want faith to be part of our home, not just Sundays",
   "I want to pour into someone else's life",
   "I want to get back on track with my relationship with God",
-];
-
-const US_STATES = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
-  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
-  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
-  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
-  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
-  "Washington", "West Virginia", "Wisconsin", "Wyoming",
 ];
 
 type ChurchOption = "yes" | "no" | "looking" | null;
