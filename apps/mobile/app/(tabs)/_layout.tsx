@@ -1,10 +1,12 @@
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Globe, BookOpen, Home, User, type LucideIcon } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
-import { useAuthed, useProfile } from "@/lib/queries";
+import { ApiClient } from "@/lib/api";
+import { useAuthed, useProfile, useArchiveNotices } from "@/lib/queries";
 import { useUpgradePrompt } from "@/lib/useUpgradePrompt";
 import { UpgradePromptModal } from "@/components/UpgradePromptModal";
 import {
@@ -34,6 +36,9 @@ function TabIcon({ Icon, focused }: { Icon: LucideIcon; focused: boolean }) {
 export default function TabsLayout() {
   const { authed, isPending } = useAuthed();
   const profile = useProfile();
+  const qc = useQueryClient();
+  const archiveNotices = useArchiveNotices();
+  const noticeShownRef = useRef(false);
   const upgradePrompt = useUpgradePrompt(profile.data);
   const active = useThemeColor("primary");
   const inactive = useThemeColor("muted-foreground");
@@ -65,6 +70,33 @@ export default function TabsLayout() {
       console.error("[IronSharp] notification scheduling failed:", e);
     }
   }, [authed, profile.data?.notifMorningReminder, profile.data?.notifDailyNudge]);
+
+  // One-time in-app notice on app open: a group the user was in got deleted.
+  useEffect(() => {
+    if (!authed || noticeShownRef.current) return;
+    const notices = archiveNotices.data ?? [];
+    if (notices.length === 0) return;
+    noticeShownRef.current = true;
+
+    const message = notices
+      .map((n) => `${n.archivedByName} deleted the group “${n.groupName}.”`)
+      .join("\n\n");
+
+    Alert.alert(notices.length > 1 ? "Groups deleted" : "Group deleted", message, [
+      {
+        text: "OK",
+        onPress: async () => {
+          try {
+            await ApiClient.markArchiveNoticesSeen();
+            await qc.invalidateQueries({ queryKey: ["groups", "archive-notices"] });
+          } catch {
+            // Non-fatal — the notice just shows again next launch.
+            noticeShownRef.current = false;
+          }
+        },
+      },
+    ]);
+  }, [authed, archiveNotices.data]);
 
   if (isPending || (authed && profile.isLoading)) {
     return (

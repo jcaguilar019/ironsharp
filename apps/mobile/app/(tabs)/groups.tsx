@@ -14,6 +14,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
+  Archive,
   ArrowDown,
   ArrowUp,
   BookOpen,
@@ -28,6 +29,7 @@ import {
   HeartHandshake,
   Link,
   MessageSquare,
+  MoreVertical,
   Pencil,
   Plus,
   Trash2,
@@ -426,6 +428,7 @@ export default function GroupsScreen() {
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -571,7 +574,21 @@ export default function GroupsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />
           }
         >
-          <ScreenHeader eyebrow="Read together" title="Plans" />
+          <ScreenHeader
+            eyebrow="Read together"
+            title="Plans"
+            right={
+              <Pressable
+                onPress={() => setMenuOpen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="More options"
+                className="h-9 w-9 items-center justify-center rounded-full active:bg-muted/40"
+              >
+                <MoreVertical size={22} color={fg} />
+              </Pressable>
+            }
+          />
 
           {/* ── Discipleship ───────────────────────────────────────────────────── */}
           <DiscipleshipHub
@@ -902,6 +919,43 @@ export default function GroupsScreen() {
               disabled={!joinCode.trim()}
               loading={joining}
             />
+      </BottomSheet>
+
+      {/* ── Overflow (⋮) menu ──────────────────────────────────────────────── */}
+      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
+        <View className="mb-2 flex-row items-center justify-between">
+          <Text className="font-serif text-xl font-bold text-foreground">Menu</Text>
+          <Pressable
+            onPress={() => setMenuOpen(false)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <X size={20} color={muted} />
+          </Pressable>
+        </View>
+        <Pressable
+          onPress={() => {
+            setMenuOpen(false);
+            router.push("/plans/past-groups");
+          }}
+          className="flex-row items-center gap-3 rounded-xl px-1 py-4 active:bg-muted/40"
+        >
+          <Archive size={20} color={primary} />
+          <Text className="flex-1 text-base text-foreground">Past groups</Text>
+          <ChevronRight size={18} color={muted} />
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            setMenuOpen(false);
+            router.push("/plans/completed");
+          }}
+          className="flex-row items-center gap-3 rounded-xl px-1 py-4 active:bg-muted/40"
+        >
+          <CheckCircle2 size={20} color={primary} />
+          <Text className="flex-1 text-base text-foreground">Completed plans</Text>
+          <ChevronRight size={18} color={muted} />
+        </Pressable>
       </BottomSheet>
 
       {/* ── Delete group confirmation ──────────────────────────────────────── */}

@@ -203,6 +203,10 @@ export const groups = pgTable("groups", {
   lastStreakDate: date("last_streak_date"),
   inviteCode: text("invite_code").notNull().unique(),
   createdBy: text("created_by").notNull(),
+  // Soft-delete: the creator "deletes" a group by archiving it, so members keep
+  // their past entries. Null = active. archivedBy records who archived it.
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  archivedBy: text("archived_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -221,6 +225,9 @@ export const groupMembers = pgTable(
     doneToday: boolean("done_today").notNull().default(false),
     streakCount: integer("streak_count").notNull().default(0),
     lastStreakDate: date("last_streak_date"),
+    // Whether this member has seen the one-time "group deleted" notice for an
+    // archived group. Reset to false when the group is archived.
+    archiveNoticeSeen: boolean("archive_notice_seen").notNull().default(false),
   },
   (t) => ({
     groupUserUnique: unique("group_members_unique").on(t.groupId, t.userId),

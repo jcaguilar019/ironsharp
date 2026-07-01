@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, count, eq, gte, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   groups,
@@ -58,7 +58,8 @@ groupsRoute.get("/", async (c) => {
     .from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
     .leftJoin(devotionalPlans, eq(groups.currentPlanId, devotionalPlans.id))
-    .where(eq(groupMembers.userId, userId))
+    // Archived groups are hidden from the active list — they live under "Past groups".
+    .where(and(eq(groupMembers.userId, userId), isNull(groups.archivedAt)))
     .orderBy(groupMembers.displayOrder);
 
   const result = await Promise.all(
@@ -140,6 +141,196 @@ groupsRoute.get("/", async (c) => {
   );
 
   return c.json({ groups: result });
+});
+
+// GET /api/groups/archive-notices — one-time "your group was deleted" notices
+// (archived groups this user belongs to and hasn't acknowledged; not the archiver).
+groupsRoute.get("/archive-notices", async (c) => {
+  const userId = c.var.user.id;
+
+  const rows = await db
+    .select({ groupId: groups.id, groupName: groups.name, archivedBy: groups.archivedBy })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(
+      and(
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.archiveNoticeSeen, false),
+        isNotNull(groups.archivedAt),
+        ne(groups.archivedBy, userId)
+      )
+    );
+
+  const notices = await Promise.all(
+    rows.map(async (r) => {
+      let archivedByName = "The group creator";
+      if (r.archivedBy) {
+        const [p] = await db
+          .select({ displayName: profiles.displayName })
+          .from(profiles)
+          .where(eq(profiles.userId, r.archivedBy))
+          .limit(1);
+        if (p?.displayName) archivedByName = p.displayName;
+      }
+      return { groupId: r.groupId, groupName: r.groupName, archivedByName };
+    })
+  );
+
+  return c.json({ notices });
+});
+
+// POST /api/groups/archive-notices/seen — acknowledge the notices so they don't show again
+groupsRoute.post("/archive-notices/seen", async (c) => {
+  const userId = c.var.user.id;
+
+  // Scope strictly to the caller's memberships in *archived* groups, so a future
+  // archive of a currently-active group still shows its notice.
+  const rows = await db
+    .select({ groupId: groupMembers.groupId })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(
+      and(
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.archiveNoticeSeen, false),
+        isNotNull(groups.archivedAt)
+      )
+    );
+
+  const ids = rows.map((r) => r.groupId);
+  if (ids.length > 0) {
+    await db
+      .update(groupMembers)
+      .set({ archiveNoticeSeen: true })
+      .where(and(eq(groupMembers.userId, userId), inArray(groupMembers.groupId, ids)));
+  }
+
+  return c.json({ ok: true });
+});
+
+// GET /api/groups/archived — archived groups the user belongs to, each with the
+// plans it completed or was midway through, and its members (for the past view).
+groupsRoute.get("/archived", async (c) => {
+  const userId = c.var.user.id;
+
+  const rows = await db
+    .select({ group: groups })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(and(eq(groupMembers.userId, userId), isNotNull(groups.archivedAt)))
+    .orderBy(desc(groups.archivedAt));
+
+  const result = await Promise.all(
+    rows.map(async ({ group }) => {
+      const [members, history, currentPlanRow, archiver] = await Promise.all([
+        db
+          .select({ userId: groupMembers.userId, displayName: profiles.displayName, avatarUrl: profiles.avatarUrl })
+          .from(groupMembers)
+          .leftJoin(profiles, eq(groupMembers.userId, profiles.userId))
+          .where(eq(groupMembers.groupId, group.id)),
+        db
+          .select({ planId: groupPlanHistory.planId, title: groupPlanHistory.planTitle, completedAt: groupPlanHistory.completedAt })
+          .from(groupPlanHistory)
+          .where(eq(groupPlanHistory.groupId, group.id))
+          .orderBy(desc(groupPlanHistory.completedAt)),
+        group.currentPlanId
+          ? db
+              .select({ id: devotionalPlans.id, title: devotionalPlans.title, totalDays: devotionalPlans.totalDays })
+              .from(devotionalPlans)
+              .where(eq(devotionalPlans.id, group.currentPlanId))
+              .limit(1)
+          : Promise.resolve([]),
+        group.archivedBy
+          ? db.select({ displayName: profiles.displayName }).from(profiles).where(eq(profiles.userId, group.archivedBy)).limit(1)
+          : Promise.resolve([]),
+      ]);
+
+      const currentPlan = (currentPlanRow as { id: string; title: string; totalDays: number }[])[0];
+      const plans = [
+        ...(currentPlan
+          ? [{ planId: currentPlan.id, title: currentPlan.title, totalDays: currentPlan.totalDays, status: "in-progress" as const, completedAt: null as string | null }]
+          : []),
+        ...history.map((h) => ({
+          planId: h.planId,
+          title: h.title,
+          totalDays: null as number | null,
+          status: "completed" as const,
+          completedAt: h.completedAt ? h.completedAt.toISOString() : null,
+        })),
+      ];
+
+      return {
+        id: group.id,
+        name: group.name,
+        groupType: group.groupType,
+        archivedAt: group.archivedAt ? group.archivedAt.toISOString() : null,
+        archivedByName: (archiver as { displayName: string | null }[])[0]?.displayName ?? "The group creator",
+        members: members.map((m) => ({ userId: m.userId, displayName: m.displayName ?? "Member", avatarUrl: m.avatarUrl ?? null })),
+        plans,
+      };
+    })
+  );
+
+  return c.json({ groups: result });
+});
+
+// GET /api/groups/:id/responses?planId= — every member's responses for a group's
+// plan (for the read-only past view). Private answers are hidden from non-authors.
+groupsRoute.get("/:id/responses", async (c) => {
+  const userId = c.var.user.id;
+  const groupId = c.req.param("id");
+  const planId = c.req.query("planId");
+  if (!planId) return c.json({ error: "planId required" }, 400);
+
+  const [membership] = await db
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
+    .limit(1);
+  if (!membership) return c.json({ error: "Not a member" }, 403);
+
+  const [subs, members] = await Promise.all([
+    db
+      .select({
+        userId: devotionalSubmissions.userId,
+        dayNumber: devotionalSubmissions.dayNumber,
+        response1: devotionalSubmissions.response1,
+        response2: devotionalSubmissions.response2,
+        prayer: devotionalSubmissions.prayer,
+        q1Private: devotionalSubmissions.q1Private,
+        q2Private: devotionalSubmissions.q2Private,
+        prayerPrivate: devotionalSubmissions.prayerPrivate,
+        submittedAt: devotionalSubmissions.submittedAt,
+      })
+      .from(devotionalSubmissions)
+      .where(and(eq(devotionalSubmissions.groupId, groupId), eq(devotionalSubmissions.planId, planId))),
+    db
+      .select({ userId: groupMembers.userId, displayName: profiles.displayName, avatarUrl: profiles.avatarUrl })
+      .from(groupMembers)
+      .leftJoin(profiles, eq(groupMembers.userId, profiles.userId))
+      .where(eq(groupMembers.groupId, groupId)),
+  ]);
+
+  const responses = subs.map((s) => {
+    const isOwn = s.userId === userId;
+    return {
+      userId: s.userId,
+      isOwn,
+      dayNumber: s.dayNumber,
+      response1: isOwn || !s.q1Private ? s.response1 : null,
+      response2: isOwn || !s.q2Private ? s.response2 : null,
+      prayer: isOwn || !s.prayerPrivate ? s.prayer : null,
+      q1Private: s.q1Private,
+      q2Private: s.q2Private,
+      prayerPrivate: s.prayerPrivate,
+      submittedAt: s.submittedAt ? s.submittedAt.toISOString() : null,
+    };
+  });
+
+  return c.json({
+    members: members.map((m) => ({ userId: m.userId, displayName: m.displayName ?? "Member", avatarUrl: m.avatarUrl ?? null })),
+    responses,
+  });
 });
 
 // POST /api/groups — create a new group
@@ -556,7 +747,16 @@ groupsRoute.delete("/:id", async (c) => {
   if (!group) return c.json({ error: "Not found" }, 404);
 
   if (group.createdBy === userId) {
-    await db.delete(groups).where(eq(groups.id, groupId));
+    // Archive rather than hard-delete so members keep their past entries. It
+    // drops off everyone's active list, and other members get a one-time notice.
+    await db
+      .update(groups)
+      .set({ archivedAt: new Date(), archivedBy: userId, updatedAt: new Date() })
+      .where(eq(groups.id, groupId));
+    await db
+      .update(groupMembers)
+      .set({ archiveNoticeSeen: false })
+      .where(and(eq(groupMembers.groupId, groupId), ne(groupMembers.userId, userId)));
   } else {
     await db
       .delete(groupMembers)
