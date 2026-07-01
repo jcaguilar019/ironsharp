@@ -130,7 +130,12 @@ export default function HomeScreen() {
             {active?.theme ?? "Head to Plans to pick your first devotional and start your journey."}
           </Text>
           <View className="flex-row items-center gap-2 pt-1">
-            {doneToday ? (
+            {!active ? (
+              <>
+                <BookOpen size={18} color={primary} />
+                <Text className="font-sans-medium text-base text-primary">Choose a Plan →</Text>
+              </>
+            ) : doneToday ? (
               <>
                 <PopIn>
                   <CheckCircle2 size={18} color={primary} />
