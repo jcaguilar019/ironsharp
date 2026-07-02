@@ -124,6 +124,8 @@ export type Profile = {
   notifPartnerDone: boolean;
   notifDailyNudge: boolean;
   notifGroupComplete: boolean;
+  notifDiscipleship: boolean;
+  notifMailbox: boolean;
   familyCode: string | null;
   familyAccountId: string | null;
   createdAt: string;
@@ -511,7 +513,7 @@ export const ApiClient = {
       method: "POST",
       body: JSON.stringify({ token }),
     }),
-  saveNotifPrefs: (prefs: Partial<Pick<Profile, "notifMorningReminder" | "notifPartnerDone" | "notifDailyNudge" | "notifGroupComplete">>) =>
+  saveNotifPrefs: (prefs: Partial<Pick<Profile, "notifMorningReminder" | "notifPartnerDone" | "notifDailyNudge" | "notifGroupComplete" | "notifDiscipleship" | "notifMailbox">>) =>
     api<{ ok: boolean }>("/api/profile/notification-prefs", {
       method: "PATCH",
       body: JSON.stringify(prefs),

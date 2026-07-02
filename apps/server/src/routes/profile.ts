@@ -54,6 +54,8 @@ const notifPrefsSchema = z.object({
   notifPartnerDone: z.boolean().optional(),
   notifDailyNudge: z.boolean().optional(),
   notifGroupComplete: z.boolean().optional(),
+  notifDiscipleship: z.boolean().optional(),
+  notifMailbox: z.boolean().optional(),
 });
 const familyJoinSchema = z.object({ code: z.string().trim().min(1) });
 
@@ -316,7 +318,7 @@ profile.patch("/notification-prefs", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
   const body = parsed.data as Record<string, unknown>;
 
-  const allowed = ["notifMorningReminder", "notifPartnerDone", "notifDailyNudge", "notifGroupComplete"] as const;
+  const allowed = ["notifMorningReminder", "notifPartnerDone", "notifDailyNudge", "notifGroupComplete", "notifDiscipleship", "notifMailbox"] as const;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   for (const key of allowed) {
     if (typeof body[key] === "boolean") updates[key] = body[key];

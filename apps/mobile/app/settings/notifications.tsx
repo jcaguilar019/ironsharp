@@ -18,6 +18,8 @@ type Prefs = {
   notifPartnerDone: boolean;
   notifDailyNudge: boolean;
   notifGroupComplete: boolean;
+  notifDiscipleship: boolean;
+  notifMailbox: boolean;
 };
 
 const ROWS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
@@ -41,6 +43,16 @@ const ROWS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
     label: "Group complete",
     hint: "Pinged when everyone in your group has submitted.",
   },
+  {
+    key: "notifDiscipleship",
+    label: "Discipleship invites",
+    hint: "When someone asks to walk with you as your discipler.",
+  },
+  {
+    key: "notifMailbox",
+    label: "Mailbox messages",
+    hint: "When your discipler or disciple writes to you.",
+  },
 ];
 
 export default function NotificationSettings() {
@@ -57,6 +69,8 @@ export default function NotificationSettings() {
         notifPartnerDone: profile.data.notifPartnerDone,
         notifDailyNudge: profile.data.notifDailyNudge,
         notifGroupComplete: profile.data.notifGroupComplete,
+        notifDiscipleship: profile.data.notifDiscipleship ?? true,
+        notifMailbox: profile.data.notifMailbox ?? true,
       });
     }
   }, [profile.data]);
@@ -86,6 +100,8 @@ export default function NotificationSettings() {
     notifPartnerDone: true,
     notifDailyNudge: true,
     notifGroupComplete: true,
+    notifDiscipleship: true,
+    notifMailbox: true,
   };
 
   return (

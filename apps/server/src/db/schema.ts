@@ -161,6 +161,8 @@ export const profiles = pgTable("profiles", {
   notifPartnerDone: boolean("notif_partner_done").notNull().default(true),
   notifDailyNudge: boolean("notif_daily_nudge").notNull().default(true),
   notifGroupComplete: boolean("notif_group_complete").notNull().default(true),
+  notifDiscipleship: boolean("notif_discipleship").notNull().default(true),
+  notifMailbox: boolean("notif_mailbox").notNull().default(true),
   // family membership
   familyCode: text("family_code").unique(),
   familyAccountId: text("family_account_id"),

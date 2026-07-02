@@ -79,6 +79,7 @@ export async function notifyPartnerDone(
       title: "Partner finished",
       body: `${submitter.displayName} completed today's devotional.`,
       sound: "default",
+      data: { url: "/(tabs)/groups" },
     }))
   );
 }
@@ -154,6 +155,7 @@ export async function notifyGroupCompleteIfDone(
         title: "Group complete",
         body: `Everyone in ${group.name} finished today. Well done.`,
         sound: "default",
+        data: { url: "/(tabs)/groups" },
       }))
     );
   }
@@ -161,15 +163,29 @@ export async function notifyGroupCompleteIfDone(
 
 // ─── Discipleship Kit ─────────────────────────────────────────────────────────
 
-async function pushToUser(userId: string, title: string, body: string): Promise<void> {
+async function pushToUser(
+  userId: string,
+  title: string,
+  body: string,
+  url?: string,
+  pref?: "notifDiscipleship" | "notifMailbox"
+): Promise<void> {
   const [recipient] = await db
-    .select({ pushToken: profiles.pushToken })
+    .select({
+      pushToken: profiles.pushToken,
+      notifDiscipleship: profiles.notifDiscipleship,
+      notifMailbox: profiles.notifMailbox,
+    })
     .from(profiles)
     .where(eq(profiles.userId, userId))
     .limit(1);
   const token = recipient?.pushToken;
   if (!token) return;
-  await sendPush([{ to: token, title, body, sound: "default" }]);
+  // Respect the recipient's per-type opt-out.
+  if (pref && recipient && !recipient[pref]) return;
+  await sendPush([
+    { to: token, title, body, sound: "default", ...(url ? { data: { url } } : {}) },
+  ]);
 }
 
 // Notify the disciple that someone wants to disciple them.
@@ -186,7 +202,9 @@ export async function notifyDiscipleshipInvite(
   await pushToUser(
     discipleId,
     "Discipleship invite",
-    `${discipler.displayName} would like to disciple you. Open IronSharp to respond.`
+    `${discipler.displayName} would like to disciple you. Open IronSharp to respond.`,
+    "/(tabs)/groups",
+    "notifDiscipleship"
   );
 }
 
@@ -210,5 +228,11 @@ export async function notifyMailboxMessage(
     .limit(1);
   if (!sender) return;
 
-  await pushToUser(recipientId, "New message", `${sender.displayName} sent you a message.`);
+  await pushToUser(
+    recipientId,
+    "New message",
+    `${sender.displayName} sent you a message.`,
+    `/discipleship/${relationshipId}`,
+    "notifMailbox"
+  );
 }

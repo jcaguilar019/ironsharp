@@ -1,5 +1,5 @@
 import { ActivityIndicator, Alert, Platform, View } from "react-native";
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Globe, BookOpen, Home, User, type LucideIcon } from "lucide-react-native";
@@ -15,6 +15,7 @@ import {
   cancelMorningReminder,
   scheduleDailyNudge,
   cancelDailyNudge,
+  wireNotificationRouting,
 } from "@/lib/notifications";
 import type { MembershipTier } from "@/lib/tiers";
 
@@ -70,6 +71,22 @@ export default function TabsLayout() {
       console.error("[IronSharp] notification scheduling failed:", e);
     }
   }, [authed, profile.data?.notifMorningReminder, profile.data?.notifDailyNudge]);
+
+  // Route notification taps (cold-start + foreground) to their data.url screen.
+  useEffect(() => {
+    if (!authed) return;
+    let cleanup: (() => void) | undefined;
+    wireNotificationRouting((url) => {
+      try {
+        router.push(url as never);
+      } catch (e) {
+        console.error("[IronSharp] notification route failed:", e);
+      }
+    }).then((c) => {
+      cleanup = c;
+    });
+    return () => cleanup?.();
+  }, [authed]);
 
   // One-time in-app notice on app open: a group the user was in got deleted.
   useEffect(() => {

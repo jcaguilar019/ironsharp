@@ -2,6 +2,7 @@
   "expo": {
     "name": "IronSharp",
     "slug": "iron-sharp",
+    "platforms": ["ios", "android"],
     "scheme": "ironsharp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ironsharp.app",
-      "buildNumber": "28",
+      "buildNumber": "29",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "IronSharp uses your photos to set your profile picture.",
         "NSCameraUsageDescription": "IronSharp uses your camera to take a profile photo.",
