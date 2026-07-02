@@ -182,11 +182,22 @@ progress.post("/", async (c) => {
   return c.json({ progress: row }, 201);
 });
 
-// DELETE /api/progress/:planId  → abandon a plan
+// DELETE /api/progress/:planId  → abandon a plan and wipe its reflections
 progress.delete("/:planId", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
 
+  // Stopping is a full reset — remove progress AND the user's personal
+  // reflections for this plan (groupId IS NULL leaves any group copy untouched).
+  await db
+    .delete(devotionalSubmissions)
+    .where(
+      and(
+        eq(devotionalSubmissions.userId, userId),
+        eq(devotionalSubmissions.planId, planId),
+        isNull(devotionalSubmissions.groupId)
+      )
+    );
   await db
     .delete(userPlanProgress)
     .where(and(eq(userPlanProgress.userId, userId), eq(userPlanProgress.planId, planId)));

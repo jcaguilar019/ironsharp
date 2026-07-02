@@ -14,6 +14,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
+  Archive,
   ArrowDown,
   ArrowUp,
   BookOpen,
@@ -28,6 +29,7 @@ import {
   HeartHandshake,
   Link,
   MessageSquare,
+  MoreVertical,
   Pencil,
   Plus,
   Trash2,
@@ -47,6 +49,7 @@ import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
 import { Avatar } from "@/components/Avatar";
 import { useGroups, useDiscipleships, useProfile } from "@/lib/queries";
 import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
+import { effectiveTier, isDisciplerTier } from "@/lib/tiers";
 import {
   ApiClient,
   ApiError,
@@ -166,13 +169,16 @@ function DiscipleshipSection({
   rel,
   myUserId,
   accent,
+  canDisciple,
 }: {
   group: Group;
   rel: DiscipleshipRelationship | undefined;
   myUserId: string | undefined;
   accent: string;
+  canDisciple: boolean;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
   const toast = useToast();
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
@@ -181,6 +187,17 @@ function DiscipleshipSection({
 
   const handleInvite = () => {
     if (!other) return;
+    if (!canDisciple) {
+      Alert.alert(
+        "Sharpen required",
+        "Discipler tools are available on the Sharpen plan and above.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "See plans", onPress: () => router.push("/settings/membership") },
+        ]
+      );
+      return;
+    }
     Alert.alert(
       "Start discipleship",
       `Invite ${other.displayName} as your disciple? They'll be asked to accept first.`,
@@ -426,6 +443,7 @@ export default function GroupsScreen() {
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -561,6 +579,7 @@ export default function GroupsScreen() {
   };
 
   const groupList = groups.data ?? [];
+  const canDisciple = isDisciplerTier(effectiveTier(profile.data));
 
   return (
     <Screen edges={["top"]}>
@@ -571,7 +590,21 @@ export default function GroupsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />
           }
         >
-          <ScreenHeader eyebrow="Read together" title="Plans" />
+          <ScreenHeader
+            eyebrow="Read together"
+            title="Plans"
+            right={
+              <Pressable
+                onPress={() => setMenuOpen(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="More options"
+                className="h-9 w-9 items-center justify-center rounded-full active:bg-muted/40"
+              >
+                <MoreVertical size={22} color={fg} />
+              </Pressable>
+            }
+          />
 
           {/* ── Discipleship ───────────────────────────────────────────────────── */}
           <DiscipleshipHub
@@ -729,6 +762,7 @@ export default function GroupsScreen() {
                         rel={(discipleships.data ?? []).find((r) => r.groupId === group.id)}
                         myUserId={profile.data?.userId}
                         accent={config.color}
+                        canDisciple={canDisciple}
                       />
                     )}
 
@@ -904,15 +938,52 @@ export default function GroupsScreen() {
             />
       </BottomSheet>
 
+      {/* ── Overflow (⋮) menu ──────────────────────────────────────────────── */}
+      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
+        <View className="mb-2 flex-row items-center justify-between">
+          <Text className="font-serif text-xl font-bold text-foreground">Menu</Text>
+          <Pressable
+            onPress={() => setMenuOpen(false)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <X size={20} color={muted} />
+          </Pressable>
+        </View>
+        <Pressable
+          onPress={() => {
+            setMenuOpen(false);
+            router.push("/plans/past-groups");
+          }}
+          className="flex-row items-center gap-3 rounded-xl px-1 py-4 active:bg-muted/40"
+        >
+          <Archive size={20} color={primary} />
+          <Text className="flex-1 text-base text-foreground">Past groups</Text>
+          <ChevronRight size={18} color={muted} />
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            setMenuOpen(false);
+            router.push("/plans/completed");
+          }}
+          className="flex-row items-center gap-3 rounded-xl px-1 py-4 active:bg-muted/40"
+        >
+          <CheckCircle2 size={20} color={primary} />
+          <Text className="flex-1 text-base text-foreground">Completed plans</Text>
+          <ChevronRight size={18} color={muted} />
+        </Pressable>
+      </BottomSheet>
+
       {/* ── Delete group confirmation ──────────────────────────────────────── */}
       <ConfirmModal
         visible={!!deleteTarget}
         title="Delete group"
         message={
           deleteTarget
-            ? `This permanently deletes "${deleteTarget.name}" for all ${deleteTarget.members.length} member${
+            ? `This ends "${deleteTarget.name}" for all ${deleteTarget.members.length} member${
                 deleteTarget.members.length === 1 ? "" : "s"
-              } and can't be undone.`
+              }. It moves to Past groups and everyone keeps their past entries.`
             : ""
         }
         confirmLabel="Delete group"

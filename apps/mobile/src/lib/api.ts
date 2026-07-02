@@ -122,6 +122,7 @@ export type Profile = {
   familyAccountId: string | null;
   createdAt: string;
   membershipTier: "free" | "connect" | "sharpen" | "family";
+  membershipExpiresAt: string | null;
   generatedCount: number;
   generatedWindowStart: string | null;
   planUnlocksCount: number;
@@ -214,6 +215,49 @@ export type UserSearchResult = {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+};
+
+export type ArchiveNotice = {
+  groupId: string;
+  groupName: string;
+  archivedByName: string;
+};
+
+export type ArchivedGroupMember = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export type ArchivedGroupPlan = {
+  planId: string | null;
+  title: string;
+  totalDays: number | null;
+  status: "completed" | "in-progress";
+  completedAt: string | null;
+};
+
+export type ArchivedGroup = {
+  id: string;
+  name: string;
+  groupType: string;
+  archivedAt: string | null;
+  archivedByName: string;
+  members: ArchivedGroupMember[];
+  plans: ArchivedGroupPlan[];
+};
+
+export type PastResponse = {
+  userId: string;
+  isOwn: boolean;
+  dayNumber: number;
+  response1: string | null;
+  response2: string | null;
+  prayer: string | null;
+  q1Private: boolean;
+  q2Private: boolean;
+  prayerPrivate: boolean;
+  submittedAt: string | null;
 };
 
 export type GroupDayResponse = {
@@ -539,6 +583,15 @@ export const ApiClient = {
     ),
 
   getGroups: () => api<{ groups: Group[] }>("/api/groups"),
+  getArchiveNotices: () =>
+    api<{ notices: ArchiveNotice[] }>("/api/groups/archive-notices"),
+  markArchiveNoticesSeen: () =>
+    api<{ ok: boolean }>("/api/groups/archive-notices/seen", { method: "POST" }),
+  getArchivedGroups: () => api<{ groups: ArchivedGroup[] }>("/api/groups/archived"),
+  getGroupPlanResponses: (groupId: string, planId: string) =>
+    api<{ members: ArchivedGroupMember[]; responses: PastResponse[] }>(
+      `/api/groups/${groupId}/responses?planId=${planId}`
+    ),
   createGroup: (body: { name: string; groupType: string }) =>
     api<{ group: Group }>("/api/groups", {
       method: "POST",
@@ -577,6 +630,8 @@ export const ApiClient = {
       method: "PATCH",
       body: JSON.stringify({ planId }),
     }),
+  stopGroupPlan: (groupId: string) =>
+    api<{ ok: boolean }>(`/api/groups/${groupId}/plan`, { method: "DELETE" }),
 
   getGroupDayResponses: (planId: string, dayNumber: number) =>
     api<{ responses: GroupDayResponse[] }>(

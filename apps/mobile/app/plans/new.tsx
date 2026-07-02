@@ -33,7 +33,8 @@ import { Button } from "@/components/Button";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
-import { useGroups, usePlansByCategory, useProfile } from "@/lib/queries";
+import { TokenCoins } from "@/components/TokenCoins";
+import { useGroups, usePlansByCategory, useProfile, useGenerateTokens } from "@/lib/queries";
 import { ApiClient, ApiError, type Group } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { GROUP_TYPE_KEYS, GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
@@ -100,6 +101,27 @@ export default function NewPlanFlow() {
   // Plan step
   const [browseCat, setBrowseCat] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
+
+  // AI generation tokens (gated by tier, same rule as the solo flow).
+  const tokens = useGenerateTokens();
+  const tokensRemaining = tokens.data?.tokensRemaining ?? 0;
+  const tierLimit = tokens.data?.tierLimit ?? 0;
+  const resetsAt = tokens.data?.resetsAt;
+
+  const openCreate = () => {
+    if (tierLimit === 0) {
+      Alert.alert("Upgrade required", "AI-generated plans are available on Connect and above.");
+      return;
+    }
+    if (tokensRemaining === 0) {
+      const date = resetsAt
+        ? new Date(resetsAt).toLocaleDateString("en-US", { month: "long", day: "numeric" })
+        : null;
+      Alert.alert("You're all out", date ? `Your next token is available on ${date}.` : "You have no tokens remaining.");
+      return;
+    }
+    router.push(`/plans/create${activeGroupId ? `?groupId=${activeGroupId}` : ""}`);
+  };
 
   // Focus the name field only after the open transition settles. Focusing during
   // the push makes the keyboard animate in mid-transition and stutters the screen.
@@ -261,7 +283,7 @@ export default function NewPlanFlow() {
               <View className="flex-row flex-wrap justify-between">
                 {/* Create your own (AI) */}
                 <Pressable
-                  onPress={() => router.push(`/plans/create${activeGroupId ? `?groupId=${activeGroupId}` : ""}`)}
+                  onPress={openCreate}
                   accessibilityRole="button"
                   accessibilityLabel="Create your own plan with AI"
                   className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
@@ -272,6 +294,7 @@ export default function NewPlanFlow() {
                     <Sparkles size={22} color="#fff" />
                     <Text className="mt-2 font-serif text-base font-bold uppercase text-white">Create Your Own</Text>
                     <Text className="text-xs text-white/70">Generate with AI</Text>
+                    <TokenCoins count={tokensRemaining} limit={tierLimit} />
                   </View>
                 </Pressable>
 
@@ -307,6 +330,7 @@ export default function NewPlanFlow() {
                 category={browseCat}
                 accent={accent}
                 assigning={assigning}
+                currentPlanId={activeGroup?.plan?.id ?? null}
                 onBack={() => setBrowseCat(null)}
                 onPick={assignPlan}
               />
@@ -373,12 +397,14 @@ function PlanPicker({
   category,
   accent,
   assigning,
+  currentPlanId,
   onBack,
   onPick,
 }: {
   category: string;
   accent: string;
   assigning: boolean;
+  currentPlanId: string | null;
   onBack: () => void;
   onPick: (planId: string) => void;
 }) {
@@ -409,7 +435,9 @@ function PlanPicker({
           New plans for this category are on the way.
         </Text>
       ) : (
-        (plans ?? []).map((plan) => (
+        (plans ?? []).map((plan) => {
+          const isCurrent = currentPlanId === plan.id;
+          return (
           <Pressable
             key={plan.id}
             onPress={() => !assigning && onPick(plan.id)}
@@ -427,7 +455,12 @@ function PlanPicker({
               <Text style={{ flex: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: fg }}>
                 {plan.title}
               </Text>
-              <ChevronRight size={16} color={accent} style={{ marginTop: 2 }} />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 2, paddingTop: 2 }}>
+                <Text style={{ fontFamily: "DMSans_500Medium", fontSize: 12, color: isCurrent ? muted : accent }}>
+                  {isCurrent ? "Current plan" : "Start Plan"}
+                </Text>
+                {!isCurrent ? <ChevronRight size={16} color={accent} /> : null}
+              </View>
             </View>
             {plan.description ? (
               <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 13, lineHeight: 19, marginTop: 2 }}>
@@ -439,7 +472,8 @@ function PlanPicker({
               {plan.bookSummary ? ` · ${plan.bookSummary}` : ""}
             </Text>
           </Pressable>
-        ))
+          );
+        })
       )}
     </View>
   );

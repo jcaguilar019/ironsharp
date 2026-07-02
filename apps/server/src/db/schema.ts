@@ -168,10 +168,10 @@ export const profiles = pgTable("profiles", {
   membershipTier: text("membership_tier").notNull().default("free"), // free | connect | sharpen | family
   membershipStartedAt: timestamp("membership_started_at", { withTimezone: true }),
   membershipExpiresAt: timestamp("membership_expires_at", { withTimezone: true }),
-  membershipSource: text("membership_source").notNull().default("none"), // none | stripe | apple_iap | google_iap | promo
-  // Added out-of-band in prod (collaborator work in flight) — declared here so
-  // drizzle push never tries to drop it. Not read by this codebase yet.
+  // Stamped whenever membershipTier changes — anchors the discipleship grace
+  // window (a downgraded discipler keeps their tools until the current plan ends).
   membershipTierChangedAt: timestamp("membership_tier_changed_at", { withTimezone: true }),
+  membershipSource: text("membership_source").notNull().default("none"), // none | stripe | apple_iap | google_iap | promo
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -201,16 +201,18 @@ export const groups = pgTable("groups", {
   currentPlanId: uuid("current_plan_id").references(() => devotionalPlans.id, {
     onDelete: "set null",
   }),
-  currentDay: integer("current_day").notNull().default(1),
-  // Added out-of-band in prod (collaborator work in flight) — declared here so
-  // drizzle push never tries to drop them. Not read by this codebase yet.
+  // When the current plan was assigned — used to tell whether a plan was already
+  // underway when a discipler dropped below Sharpen (the grace window).
   currentPlanStartedAt: timestamp("current_plan_started_at", { withTimezone: true }),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  archivedBy: text("archived_by"),
+  currentDay: integer("current_day").notNull().default(1),
   streakCount: integer("streak_count").notNull().default(0),
   lastStreakDate: date("last_streak_date"),
   inviteCode: text("invite_code").notNull().unique(),
   createdBy: text("created_by").notNull(),
+  // Soft-delete: the creator "deletes" a group by archiving it, so members keep
+  // their past entries. Null = active. archivedBy records who archived it.
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  archivedBy: text("archived_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -229,8 +231,8 @@ export const groupMembers = pgTable(
     doneToday: boolean("done_today").notNull().default(false),
     streakCount: integer("streak_count").notNull().default(0),
     lastStreakDate: date("last_streak_date"),
-    // Added out-of-band in prod (collaborator work in flight) — declared here so
-    // drizzle push never tries to drop it. Not read by this codebase yet.
+    // Whether this member has seen the one-time "group deleted" notice for an
+    // archived group. Reset to false when the group is archived.
     archiveNoticeSeen: boolean("archive_notice_seen").notNull().default(false),
   },
   (t) => ({

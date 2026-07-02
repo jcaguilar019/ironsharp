@@ -89,6 +89,33 @@ export function useGroups() {
   });
 }
 
+export function useArchiveNotices() {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["groups", "archive-notices"],
+    queryFn: () => ApiClient.getArchiveNotices().then((r) => r.notices),
+    enabled: authed,
+  });
+}
+
+export function useArchivedGroups() {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["groups", "archived"],
+    queryFn: () => ApiClient.getArchivedGroups().then((r) => r.groups),
+    enabled: authed,
+  });
+}
+
+export function useGroupPlanResponses(groupId: string, planId: string) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["groups", groupId, "responses", planId],
+    queryFn: () => ApiClient.getGroupPlanResponses(groupId, planId),
+    enabled: authed && !!groupId && !!planId,
+  });
+}
+
 export function useGroupDayResponses(planId: string, dayNumber: number, enabled: boolean) {
   const { authed } = useAuthed();
   return useQuery({

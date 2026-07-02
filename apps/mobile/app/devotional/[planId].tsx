@@ -45,7 +45,7 @@ function parseFocusVerses(ref: string): string | null {
   const match = ref.match(/:(.+)$/);
   return match ? match[1].trim() : null;
 }
-import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion } from "@/lib/queries";
+import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion, useProfile } from "@/lib/queries";
 import type { GroupDayResponse } from "@/lib/api";
 
 /** The viewer's local calendar date as "YYYY-MM-DD" (en-CA renders ISO). */
@@ -714,10 +714,28 @@ export default function DevotionalReader() {
   const borderColor = useThemeColor("border");
   const fgColor = useThemeColor("foreground");
 
+  // A stopped plan must come back truly blank — clear the locally cached
+  // submission and every saved draft / day-lock for this plan (all days, solo
+  // + group), since those repopulate the inputs independently of the server.
+  const purgeLocalPlanState = async () => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    qc.removeQueries({ queryKey: ["submission", planId] });
+    try {
+      const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+      const keys = await AsyncStorage.getAllKeys();
+      const stale = keys.filter(
+        (k) =>
+          k.startsWith(`@ironsharp/draft_${planId}`) ||
+          k.startsWith(`@ironsharp/devotional_locked_until_${planId}`)
+      );
+      if (stale.length > 0) await AsyncStorage.multiRemove(stale);
+    } catch {}
+  };
+
   const handleStopPlan = () => {
     Alert.alert(
       "Stop this plan?",
-      "Your progress will be removed. This can't be undone.",
+      "This can't be undone. Your progress and all your reflections for this plan will be deleted.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -725,9 +743,35 @@ export default function DevotionalReader() {
           style: "destructive",
           onPress: async () => {
             await ApiClient.stopPlan(planId);
+            await purgeLocalPlanState();
             await qc.invalidateQueries({ queryKey: ["progress"] });
             await qc.invalidateQueries({ queryKey: ["progress", "active"] });
             router.replace("/(tabs)/groups");
+          },
+        },
+      ]
+    );
+  };
+
+  const handleStopGroupPlan = () => {
+    if (!groupId) return;
+    Alert.alert(
+      "End this plan for the group?",
+      "This can't be undone. Everyone's progress and reflections for this plan will be deleted.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "End plan",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await ApiClient.stopGroupPlan(groupId);
+              await purgeLocalPlanState();
+              await qc.invalidateQueries({ queryKey: ["groups"] });
+              router.replace("/(tabs)/groups");
+            } catch {
+              Alert.alert("Couldn't end the plan", "Please try again.");
+            }
           },
         },
       ]
@@ -759,6 +803,12 @@ export default function DevotionalReader() {
   const groups = useGroups();
   const activeGroup = groupId ? (groups.data ?? []).find((g) => g.id === groupId) : null;
   const currentDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
+
+  // Only the group's creator/leader can end a shared plan for everyone.
+  const profile = useProfile();
+  const isGroupLeader =
+    !!activeGroup &&
+    activeGroup.members.some((m) => m.userId === profile.data?.userId && m.memberRole === "leader");
 
   // Scope the day lock so personal and group runs don't interfere.
   const [lockedUntilTomorrow, setLockedUntilTomorrow] = useState(false);
@@ -1047,11 +1097,11 @@ export default function DevotionalReader() {
         subtitle={plan?.title ?? "Devotional"}
         rightAction={
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-            {!groupId && (
+            {(!groupId || isGroupLeader) && (
               <Pressable
-                onPress={handleStopPlan}
+                onPress={groupId ? handleStopGroupPlan : handleStopPlan}
                 accessibilityRole="button"
-                accessibilityLabel="Stop this plan"
+                accessibilityLabel={groupId ? "End this plan for the group" : "Stop this plan"}
                 hitSlop={8}
                 className="h-9 w-9 items-center justify-center rounded-full bg-muted active:opacity-70"
               >

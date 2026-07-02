@@ -18,22 +18,21 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { Input } from "@/components/Input";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient } from "@/lib/api";
+import { US_STATES } from "@/lib/usStates";
 import { useOnboarding } from "./_layout";
 
 const MIDDLE_SCHOOL = "Junior High or Middle School";
 
 const RELATIONSHIP_OPTIONS = ["Single", "Dating", "Engaged", "Married"];
 
-const GENDER_OPTIONS = ["Male", "Female", "Prefer not to say"];
-
-const AGE_OPTIONS = ["Under 18", "18 - 24", "25 - 34", "35 - 44", "45 - 54", "55 and older"];
+const GENDER_OPTIONS = ["Male", "Female"];
 
 const EDU_OPTIONS = [
   MIDDLE_SCHOOL,
   "Still in high school",
   "In college or trade school",
   "College graduate",
-  "Postgraduate degree",
+  "Graduate degree",
   "I took a different path",
 ];
 
@@ -52,18 +51,6 @@ const GOAL_OPTIONS = [
   "I want faith to be part of our home, not just Sundays",
   "I want to pour into someone else's life",
   "I want to get back on track with my relationship with God",
-];
-
-const US_STATES = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
-  "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
-  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
-  "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
-  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
-  "Washington", "West Virginia", "Wisconsin", "Wyoming",
 ];
 
 type ChurchOption = "yes" | "no" | "looking" | null;
@@ -131,6 +118,7 @@ export default function OnboardingSurvey() {
   const { displayName, survey, set, setSurvey } = useOnboarding();
   const primaryColor = useThemeColor("primary");
   const mutedColor = useThemeColor("muted-foreground");
+  const foregroundColor = useThemeColor("foreground");
 
   const [step, setStep] = useState(1);
   const scrollRef = useRef<ScrollView>(null);
@@ -138,7 +126,7 @@ export default function OnboardingSurvey() {
 
   // Local answers
   const [name, setName] = useState(displayName);
-  const [ageRange, setAgeRange] = useState(survey.ageRange ?? "");
+  const [age, setAge] = useState(survey.ageRange ?? "");
   const [gender, setGender] = useState(survey.gender ?? "");
   const [usState, setUsState] = useState(survey.state ?? "");
   const [city, setCity] = useState(survey.city ?? "");
@@ -166,7 +154,7 @@ export default function OnboardingSurvey() {
 
   const canContinue =
     step === 1 ? name.trim().length > 0 :
-    step === 2 ? !!ageRange :
+    step === 2 ? Number(age) > 0 :
     step === 3 ? !!gender :
     step === 4 ? !!usState :
     step === 5 ? !!education :
@@ -185,7 +173,7 @@ export default function OnboardingSurvey() {
     } else {
       set({ displayName: name.trim() });
       setSurvey({
-        ageRange: ageRange || null,
+        ageRange: age.trim() || null,
         gender: gender || null,
         state: usState,
         city,
@@ -249,7 +237,7 @@ export default function OnboardingSurvey() {
             className="absolute left-3 top-3 z-10 p-2"
             hitSlop={8}
           >
-            <ArrowLeft size={22} color={mutedColor} />
+            <ArrowLeft size={28} color={foregroundColor} strokeWidth={2.5} />
           </Pressable>
         )}
         {step > 1 ? <ProgressBar step={step} totalSteps={TOTAL} /> : <View className="pt-6" />}
@@ -289,16 +277,15 @@ export default function OnboardingSurvey() {
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
                 How old are you?
               </Text>
-              <View className="gap-2.5">
-                {AGE_OPTIONS.map((opt) => (
-                  <ListOption
-                    key={opt}
-                    label={opt}
-                    active={ageRange === opt}
-                    onPress={() => setAgeRange(opt)}
-                  />
-                ))}
-              </View>
+              <Input
+                placeholder="Your age"
+                value={age}
+                onChangeText={(t) => setAge(t.replace(/[^0-9]/g, "").slice(0, 3))}
+                keyboardType="number-pad"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => { if (canContinue) handleContinue(); }}
+              />
             </View>
           )}
 
@@ -306,7 +293,7 @@ export default function OnboardingSurvey() {
           {step === 3 && (
             <View>
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
-                How do you identify?
+                What's your gender?
               </Text>
               <View className="gap-2.5">
                 {GENDER_OPTIONS.map((opt) => (
