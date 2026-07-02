@@ -169,6 +169,9 @@ export const profiles = pgTable("profiles", {
   membershipStartedAt: timestamp("membership_started_at", { withTimezone: true }),
   membershipExpiresAt: timestamp("membership_expires_at", { withTimezone: true }),
   membershipSource: text("membership_source").notNull().default("none"), // none | stripe | apple_iap | google_iap | promo
+  // Added out-of-band in prod (collaborator work in flight) — declared here so
+  // drizzle push never tries to drop it. Not read by this codebase yet.
+  membershipTierChangedAt: timestamp("membership_tier_changed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -199,6 +202,11 @@ export const groups = pgTable("groups", {
     onDelete: "set null",
   }),
   currentDay: integer("current_day").notNull().default(1),
+  // Added out-of-band in prod (collaborator work in flight) — declared here so
+  // drizzle push never tries to drop them. Not read by this codebase yet.
+  currentPlanStartedAt: timestamp("current_plan_started_at", { withTimezone: true }),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  archivedBy: text("archived_by"),
   streakCount: integer("streak_count").notNull().default(0),
   lastStreakDate: date("last_streak_date"),
   inviteCode: text("invite_code").notNull().unique(),
@@ -221,6 +229,9 @@ export const groupMembers = pgTable(
     doneToday: boolean("done_today").notNull().default(false),
     streakCount: integer("streak_count").notNull().default(0),
     lastStreakDate: date("last_streak_date"),
+    // Added out-of-band in prod (collaborator work in flight) — declared here so
+    // drizzle push never tries to drop it. Not read by this codebase yet.
+    archiveNoticeSeen: boolean("archive_notice_seen").notNull().default(false),
   },
   (t) => ({
     groupUserUnique: unique("group_members_unique").on(t.groupId, t.userId),
