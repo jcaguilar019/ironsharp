@@ -207,7 +207,7 @@ export default function CreatePlan() {
             {form.inputType === "book"
               ? `Writing a ${form.days}-day journey through ${form.bookOrTopic}.`
               : `Writing a ${form.days}-day plan on ${form.bookOrTopic}.`}
-            {"\n"}This takes about 20 seconds.
+            {"\n"}This takes a minute or two — keep the app open.
           </Text>
         </View>
       </Screen>

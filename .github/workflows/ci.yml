@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Railway builds the server with `tsc` — a type error here is a failed
+      # deploy, so gate it before it reaches the deploy branch.
+      - name: Server typecheck + tests
+        run: npm --prefix apps/server test
+      - name: Mobile typecheck
+        run: npm --prefix apps/mobile run typecheck

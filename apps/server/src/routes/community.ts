@@ -135,15 +135,21 @@ community.get("/today", async (c) => {
   const [devotional] = await db
     .select()
     .from(communityDevotionals)
-    .where(
-      and(
-        eq(communityDevotionals.publishDate, today),
-        eq(communityDevotionals.status, "published")
-      )
-    )
+    .where(eq(communityDevotionals.publishDate, today))
     .limit(1);
 
   if (!devotional) return c.json({ devotional: null, feed: [], myResponse: null });
+
+  // Auto-publish: a draft dated today goes live the first time anyone opens the
+  // tab — the founder can write a backlog ahead of time without having to hit
+  // Publish at midnight every day.
+  if (devotional.status !== "published") {
+    await db
+      .update(communityDevotionals)
+      .set({ status: "published", updatedAt: new Date() })
+      .where(eq(communityDevotionals.id, devotional.id));
+    devotional.status = "published";
+  }
 
   const feed = await buildFeed(devotional.id, userId);
   const myResponse = feed.find((f) => f.isOwn) ?? null;

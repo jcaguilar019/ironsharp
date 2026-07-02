@@ -64,6 +64,54 @@ groupsRoute.get("/", async (c) => {
 
   const result = await Promise.all(
     memberships.map(async ({ group, membership, plan }) => {
+      // Ghost-member catch-up: a group's day only advances when EVERYONE has
+      // submitted, so one silent member would freeze the group forever. If the
+      // current day has a submission from a PREVIOUS local day and the group
+      // still hasn't moved, advance it now — the day simply counts as missed
+      // for whoever didn't submit, and the streak doesn't extend. Advances at
+      // most one day per load, so a long idle gap catches up gently.
+      if (group.currentPlanId && group.currentDay) {
+        const [stale] = await db
+          .select({ id: devotionalSubmissions.id })
+          .from(devotionalSubmissions)
+          .where(
+            and(
+              eq(devotionalSubmissions.planId, group.currentPlanId),
+              eq(devotionalSubmissions.groupId, group.id),
+              eq(devotionalSubmissions.dayNumber, group.currentDay),
+              lt(devotionalSubmissions.submittedAt, todayStart)
+            )
+          )
+          .limit(1);
+        if (stale) {
+          if (plan && group.currentDay >= plan.totalDays) {
+            // Last day went stale — close the plan out like /:id/day does.
+            await db.insert(groupPlanHistory).values({
+              groupId: group.id,
+              planId: plan.id,
+              planTitle: plan.title,
+            });
+            await db
+              .update(groups)
+              .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
+              .where(eq(groups.id, group.id));
+            group.currentPlanId = null;
+            group.currentDay = 1;
+            plan = null;
+          } else {
+            await db
+              .update(groups)
+              .set({ currentDay: group.currentDay + 1, updatedAt: new Date() })
+              .where(eq(groups.id, group.id));
+            group.currentDay = group.currentDay + 1;
+          }
+          await db
+            .update(groupMembers)
+            .set({ doneToday: false })
+            .where(eq(groupMembers.groupId, group.id));
+        }
+      }
+
       const [members, dayRow, doneRows] = await Promise.all([
         db
           .select({ m: groupMembers, p: profiles })

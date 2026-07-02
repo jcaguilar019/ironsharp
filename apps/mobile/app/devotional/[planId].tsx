@@ -333,12 +333,12 @@ function StudyNotesDrawer({ passageRef, notes }: { passageRef: string; notes: St
 
 // ─── Available translations ───────────────────────────────────────────────────
 
+// KJV + BBE are fully seeded in the local DB (1,189 chapters each). WEB/NLT/NKJV
+// rode the api.bible live fallback, which needs BIBLE_API_KEY configured in prod —
+// re-add them here once that key is set, or they render as empty chapters.
 const TRANSLATIONS = [
   { id: "KJV", label: "King James Version" },
   { id: "BBE", label: "Basic English" },
-  { id: "WEB", label: "World English Bible" },
-  { id: "NLT", label: "New Living Translation" },
-  { id: "NKJV", label: "New King James Version" },
 ];
 
 const TRANSLATION_STORAGE_KEY = "@ironsharp/bible_translation";
@@ -366,7 +366,9 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
   useEffect(() => {
     import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
       AsyncStorage.getItem(TRANSLATION_STORAGE_KEY).then((val) => {
-        if (val) setTranslation(val);
+        // A stored preference for a translation we no longer offer (trimmed
+        // while BIBLE_API_KEY is unconfigured) falls back to the default.
+        if (val && TRANSLATIONS.some((t) => t.id === val)) setTranslation(val);
       });
     });
   }, []);

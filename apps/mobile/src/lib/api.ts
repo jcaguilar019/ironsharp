@@ -14,16 +14,22 @@ export class ApiError extends Error {
  * Thin wrapper around fetch that targets the IronSharp API and attaches the
  * Neon Auth JWT as a Bearer token (the server verifies it against Neon's JWKS).
  */
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  init: RequestInit & { timeoutMs?: number } = {}
+): Promise<T> {
   const token = await getAuthToken();
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15_000);
+  // 15s suits normal CRUD; long-running work (AI generation, TTS synthesis)
+  // passes its own budget — the blanket 15s abort was killing generation.
+  const { timeoutMs = 15_000, ...fetchInit } = init;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
-      ...init,
+      ...fetchInit,
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
@@ -32,7 +38,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         // behind UTC: EDT=240, PDT=420.
         "x-timezone-offset": String(new Date().getTimezoneOffset()),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init.headers ?? {}),
+        ...(fetchInit.headers ?? {}),
       },
     });
   } catch (err) {
@@ -481,6 +487,8 @@ export const ApiClient = {
   prepareTts: (text: string, opts?: { voice?: string; instructions?: string }) =>
     api<{ id: string; cached: boolean }>("/api/tts", {
       method: "POST",
+      // Synthesizing a long reading can exceed the default 15s budget.
+      timeoutMs: 60_000,
       body: JSON.stringify({ text, voice: opts?.voice, instructions: opts?.instructions }),
     }),
   updateProfile: (patch: Partial<Profile> & { surveyCompleted?: boolean }) =>
@@ -528,6 +536,8 @@ export const ApiClient = {
   }) =>
     api<{ planId: string; reused: boolean }>("/api/plans/generate", {
       method: "POST",
+      // A full multi-day plan takes the model 1–3 minutes to write.
+      timeoutMs: 300_000,
       body: JSON.stringify(body),
     }),
 
