@@ -139,7 +139,7 @@ export default function PastResponses() {
   const loading = q.isLoading || days.isLoading;
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title={String(title ?? "Plan")} subtitle="Past responses" />
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>

@@ -185,7 +185,7 @@ export default function NewPlanFlow() {
         : "Share the code or add people. They'll read this plan with you.";
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       {/* Stepped header */}
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 12 }}>
         <Pressable onPress={goBack} hitSlop={8} style={{ padding: 8 }} accessibilityRole="button" accessibilityLabel="Back">

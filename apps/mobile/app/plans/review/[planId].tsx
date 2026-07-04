@@ -23,7 +23,7 @@ export default function CompletedPlanReview() {
     : null;
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header
         title={plan.data?.title ?? "Plan"}
         subtitle={completedAt ? `Completed ${completedAt}` : "Plan review"}

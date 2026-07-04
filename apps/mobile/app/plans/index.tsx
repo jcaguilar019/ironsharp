@@ -65,7 +65,7 @@ export default function NewPlanScreen() {
 
   if (isError) {
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <Header title="Choose a plan" subtitle="Browse or create" />
         <ErrorState
           message="We couldn't load plans. Check your connection and try again."
@@ -76,7 +76,7 @@ export default function NewPlanScreen() {
   }
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Choose a plan" subtitle="Browse or create" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg px-6 py-6"

@@ -1015,7 +1015,7 @@ export default function DevotionalReader() {
     const hasGroupResponses = groupResponses.length > 0;
 
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <Header subtitle={isLastDay ? "Plan complete" : "Today's reading"} />
         <ScrollView
           contentContainerClassName="px-6 py-8 pb-16"
@@ -1094,7 +1094,7 @@ export default function DevotionalReader() {
     "min-h-[100px] rounded-xl border border-input bg-card p-4 font-sans text-base text-foreground";
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header
         subtitle={plan?.title ?? "Devotional"}
         rightAction={

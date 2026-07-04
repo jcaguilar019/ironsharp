@@ -17,7 +17,7 @@ export default function CompletedPlans() {
   const completed = (progress.data ?? []).filter((p) => p.completedAt);
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Completed" subtitle="Finished plans" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg gap-3 px-4 py-4"

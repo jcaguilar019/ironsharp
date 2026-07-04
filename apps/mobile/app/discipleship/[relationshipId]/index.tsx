@@ -85,7 +85,7 @@ export default function DiscipleshipScreen() {
   };
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       {/* Identity header */}
       <View
         style={{
@@ -481,6 +481,9 @@ function MessagesPanel({
       await ApiClient.sendMailboxMessage(id, draft.trim());
       setDraft("");
       await qc.invalidateQueries({ queryKey: ["discipleship", id, "mailbox"] });
+      // Jump to the message that just landed. Don't rely on onContentSizeChange
+      // alone — it's unreliable on Fabric for appends after interaction.
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
       await qc.invalidateQueries({ queryKey: ["discipleship"] });
     } catch (err) {
       Alert.alert("Couldn't send", err instanceof ApiError ? err.message : "Please try again.");
@@ -500,7 +503,11 @@ function MessagesPanel({
       ) : (
         <ScrollView
           ref={scrollRef}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() =>
+            // rAF defers past the in-flight layout pass — calling scrollToEnd
+            // synchronously here is a no-op on Fabric's first frame.
+            requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }))
+          }
           contentContainerClassName="mx-auto w-full max-w-lg px-4 py-4"
           showsVerticalScrollIndicator={false}
         >

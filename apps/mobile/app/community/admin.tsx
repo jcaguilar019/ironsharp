@@ -181,7 +181,7 @@ export default function CommunityAdmin() {
 
   if (!profile.isLoading && !isAdmin) {
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <Header title="Author" subtitle="Community" />
         <View className="flex-1 items-center justify-center px-8">
           <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 14, textAlign: "center" }}>
@@ -195,7 +195,7 @@ export default function CommunityAdmin() {
   // ── Editor ─────────────────────────────────────────────────────────────────
   if (editing) {
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <Header
           title={editing.mode === "edit" ? "Edit Reading" : "New Reading"}
           subtitle="Community"
@@ -326,7 +326,7 @@ export default function CommunityAdmin() {
 
   // ── List ───────────────────────────────────────────────────────────────────
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header
         title="Author"
         subtitle="Community"

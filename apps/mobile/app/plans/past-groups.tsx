@@ -24,7 +24,7 @@ export default function PastGroups() {
   const groups = q.data ?? [];
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Past groups" subtitle="Archived" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg px-4 pb-12 pt-2"

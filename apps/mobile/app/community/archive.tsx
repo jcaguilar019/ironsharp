@@ -26,7 +26,7 @@ export default function CommunityArchive() {
   const border = useThemeColor("border");
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Past Readings" subtitle="Community" />
       {archive.isLoading ? (
         <View className="flex-1 items-center justify-center">

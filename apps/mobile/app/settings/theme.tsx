@@ -9,7 +9,7 @@ export default function ThemePicker() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Appearance" subtitle="Make it yours" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg gap-3 px-6 py-4"
