@@ -13,10 +13,10 @@ import {
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useAnimatedRef } from "react-native-reanimated";
+import Sortable, { type SortableGridDragEndParams } from "react-native-sortables";
 import {
   Archive,
-  ArrowDown,
-  ArrowUp,
   BookOpen,
   CheckCircle2,
   ChevronDown,
@@ -444,6 +444,9 @@ export default function GroupsScreen() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Animated ref to the outer scroll view — lets the sortable list auto-scroll
+  // when a dragged card nears the top or bottom edge.
+  const scrollRef = useAnimatedRef<ScrollView>();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -558,24 +561,24 @@ export default function GroupsScreen() {
     ]);
   };
 
-  const handleMove = async (groupId: string, direction: "up" | "down") => {
-    const list = groups.data ?? [];
-    const idx = list.findIndex((g) => g.id === groupId);
-    if (direction === "up" && idx === 0) return;
-    if (direction === "down" && idx === list.length - 1) return;
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    const newOrder = list.map((g, i) => {
-      if (i === idx) return { groupId: g.id, displayOrder: list[swapIdx]!.displayOrder };
-      if (i === swapIdx) return { groupId: g.id, displayOrder: list[idx]!.displayOrder };
-      return { groupId: g.id, displayOrder: g.displayOrder };
-    });
-    try {
-      await ApiClient.reorderGroups(newOrder);
-      await qc.invalidateQueries({ queryKey: ["groups"] });
-    } catch (err) {
-      Alert.alert("Couldn't reorder", err instanceof ApiError ? err.message : "Please try again.");
-      qc.invalidateQueries({ queryKey: ["groups"] });
-    }
+  // Collapse every card when a drag lifts — dragging a tall expanded card is
+  // clumsy, and uniform heights keep the reorder animation clean. (No
+  // LayoutAnimation here: the sortable grid animates positions itself.)
+  const handleDragStart = () => setExpandedIds(new Set());
+
+  // Fires once on drop with the full reordered list. Optimistically keep the
+  // dropped order on screen, persist it in one call, and only snap back (via
+  // refetch) if the save fails.
+  const handleDragEnd = ({ fromIndex, toIndex, data }: SortableGridDragEndParams<Group>) => {
+    if (fromIndex === toIndex) return;
+    qc.setQueryData(["groups"], data);
+    const order = data.map((g, i) => ({ groupId: g.id, displayOrder: i }));
+    ApiClient.reorderGroups(order)
+      .then(() => qc.invalidateQueries({ queryKey: ["groups"] }))
+      .catch((err) => {
+        Alert.alert("Couldn't reorder", err instanceof ApiError ? err.message : "Please try again.");
+        qc.invalidateQueries({ queryKey: ["groups"] });
+      });
   };
 
   const groupList = groups.data ?? [];
@@ -584,6 +587,7 @@ export default function GroupsScreen() {
   return (
     <Screen edges={["top"]}>
         <ScrollView
+          ref={scrollRef}
           contentContainerClassName="mx-auto w-full max-w-lg px-6 py-8"
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -649,18 +653,32 @@ export default function GroupsScreen() {
             </View>
           ) : (
             <>
-          {groupList.map((group, idx) => {
+          <Sortable.Grid
+            data={groupList}
+            keyExtractor={(g) => g.id}
+            rowGap={8}
+            scrollableRef={scrollRef}
+            dragActivationDelay={300}
+            activeItemScale={1.03}
+            inactiveItemOpacity={0.75}
+            dimensionsAnimationType="layout"
+            showDropIndicator
+            dropIndicatorStyle={{
+              borderColor: border,
+              borderWidth: 1.5,
+              borderRadius: 12,
+              backgroundColor: "transparent",
+            }}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            renderItem={({ item: group }) => {
             const config = GROUP_TYPE_CONFIG[group.groupType] ?? { label: group.groupType, color: primary };
             const doneCount = group.members.filter((m) => m.doneToday).length;
             const isOpen = expandedIds.has(group.id);
-            const isFirst = idx === 0;
-            const isLast = idx === groupList.length - 1;
 
             return (
               <View
-                key={group.id}
                 style={{
-                  marginBottom: 8,
                   borderRadius: 12,
                   overflow: "hidden",
                   borderWidth: 1,
@@ -670,29 +688,8 @@ export default function GroupsScreen() {
               >
                 {/* Collapsed row */}
                 <View className="flex-row items-center gap-3 px-3 py-5">
-                  {/* Up / Down order buttons */}
-                  <View style={{ gap: 4 }}>
-                    <Pressable
-                      onPress={(e) => { e.stopPropagation(); handleMove(group.id, "up"); }}
-                      hitSlop={6}
-                      disabled={isFirst}
-                      style={{ opacity: isFirst ? 0.2 : 1 }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Move ${group.name} up`}
-                    >
-                      <ArrowUp size={16} color={muted} />
-                    </Pressable>
-                    <Pressable
-                      onPress={(e) => { e.stopPropagation(); handleMove(group.id, "down"); }}
-                      hitSlop={6}
-                      disabled={isLast}
-                      style={{ opacity: isLast ? 0.2 : 1 }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Move ${group.name} down`}
-                    >
-                      <ArrowDown size={16} color={muted} />
-                    </Pressable>
-                  </View>
+                  {/* Drag affordance — press and hold anywhere on the card to lift and reorder */}
+                  <GripVertical size={18} color={muted} />
 
                   <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: config.color }} />
 
@@ -816,7 +813,8 @@ export default function GroupsScreen() {
                 )}
               </View>
             );
-          })}
+            }}
+          />
 
           {/* Footer actions */}
           <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 20 }}>
