@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,8 +13,8 @@ import {
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useAnimatedRef } from "react-native-reanimated";
-import Sortable, { type SortableGridDragEndParams } from "react-native-sortables";
+import type { AnimatedRef } from "react-native-reanimated";
+import type { SortableGridDragEndParams } from "react-native-sortables";
 import {
   Archive,
   BookOpen,
@@ -50,12 +50,62 @@ import { Avatar } from "@/components/Avatar";
 import { useGroups, useDiscipleships, useProfile } from "@/lib/queries";
 import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
 import { effectiveTier, isDisciplerTier } from "@/lib/tiers";
+import { logError } from "@/lib/logger";
 import {
   ApiClient,
   ApiError,
   type Group,
   type DiscipleshipRelationship,
 } from "@/lib/api";
+
+// ─── Sortable grid, crash-guarded ─────────────────────────────────────────────
+
+// Same crash-guard as useSpeechRecognition: react-native-worklets (which
+// reanimated — and therefore react-native-sortables — initializes at import)
+// fails to install its TurboModule inside Expo Go, and expo-router evaluates
+// every route at startup, so an unguarded import kills the app behind the
+// splash screen. Dev/EAS builds load the real library; Expo Go falls back to a
+// static grid lookalike with drag-to-reorder disabled.
+type SortablesModule = typeof import("react-native-sortables");
+
+let SortableImpl: SortablesModule["default"] | null = null;
+let useAnimatedScrollRef: (() => AnimatedRef<ScrollView>) | null = null;
+try {
+  const reanimated = require("react-native-reanimated") as typeof import("react-native-reanimated");
+  const sortables = require("react-native-sortables") as SortablesModule;
+  SortableImpl = sortables.default;
+  useAnimatedScrollRef = () => reanimated.useAnimatedRef<ScrollView>();
+} catch (err) {
+  logError("sortables:init", err);
+}
+
+// Accepts (and ignores) the drag props so the screen JSX is identical in both
+// worlds.
+function ShimGrid({
+  data,
+  keyExtractor,
+  renderItem,
+  rowGap,
+}: {
+  data: Group[];
+  keyExtractor: (g: Group) => string;
+  renderItem: (info: { item: Group }) => ReactNode;
+  rowGap?: number;
+} & Record<string, unknown>) {
+  return (
+    <View style={{ gap: rowGap }}>
+      {data.map((item) => (
+        <View key={keyExtractor(item)}>{renderItem({ item })}</View>
+      ))}
+    </View>
+  );
+}
+
+const Sortable =
+  SortableImpl ?? ({ Grid: ShimGrid } as unknown as SortablesModule["default"]);
+const useScrollViewRef =
+  useAnimatedScrollRef ??
+  (() => useRef<ScrollView>(null) as unknown as AnimatedRef<ScrollView>);
 
 // ─── Section helpers (ported from the former Devotionals tab) ─────────────────
 
@@ -445,8 +495,9 @@ export default function GroupsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Animated ref to the outer scroll view — lets the sortable list auto-scroll
-  // when a dragged card nears the top or bottom edge.
-  const scrollRef = useAnimatedRef<ScrollView>();
+  // when a dragged card nears the top or bottom edge. (Plain ref in Expo Go,
+  // where the worklets runtime — and with it drag-to-reorder — is unavailable.)
+  const scrollRef = useScrollViewRef();
 
   const onRefresh = async () => {
     setRefreshing(true);
