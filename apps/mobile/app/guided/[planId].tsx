@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Mic, Volume2, CheckCircle2, RotateCcw, Pause, Play, ChevronRight } from "lucide-react-native";
+import { X, Mic, Volume2, CheckCircle2, RotateCcw, Pause, Play, ChevronRight, Lock } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { ErrorState } from "@/components/ErrorState";
@@ -239,7 +239,7 @@ export default function GuidedDevotional() {
         ) : null}
 
         {/* READING / PAUSE / LISTENING / CAPTURED — the active step */}
-        {session.phase === "reading" || session.phase === "pause" || session.phase === "listening" || session.phase === "captured" ? (
+        {session.phase === "reading" || session.phase === "pause" || session.phase === "listening" || session.phase === "captured" || session.phase === "awaitingReturn" ? (
           <View className="grow justify-center gap-6 py-6">
             <Text className="text-sm uppercase tracking-wider text-muted-foreground">
               {step?.label}
@@ -287,6 +287,12 @@ export default function GuidedDevotional() {
                 <>
                   <CheckCircle2 size={22} color={primary} />
                   <Text className="text-base text-muted-foreground">Got it</Text>
+                </>
+              ) : null}
+              {session.phase === "awaitingReturn" ? (
+                <>
+                  <Lock size={20} color={muted} />
+                  <Text className="text-base text-muted-foreground">Return to the app to answer aloud</Text>
                 </>
               ) : null}
             </View>

@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { useTts } from "./useTts";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 
@@ -11,6 +12,7 @@ export type GuidedPhase =
   | "reading"
   | "pause"
   | "listening"
+  | "awaitingReturn"
   | "captured"
   | "summary"
   | "saving"
@@ -41,6 +43,7 @@ export function useGuidedSession(
   const stepRef = useRef(0);
   const answersRef = useRef<GuidedAnswers>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingListenRef = useRef(false); // a listen turn deferred until the app is foregrounded
   const runStepRef = useRef<(i: number) => void>(() => {});
 
   const tts = useTts();
@@ -82,16 +85,25 @@ export function useGuidedSession(
       const step = steps[i];
       setPhase("reading");
       if (step.kind === "read") {
-        tts.speak(step.text, { ...voiceOpts, onDone: () => runStepRef.current(i + 1) });
+        tts.speak(step.text, { ...voiceOpts, title: step.label, onDone: () => runStepRef.current(i + 1) });
       } else {
         tts.speak(step.question, {
           ...voiceOpts,
+          title: step.label,
           onDone: () => {
             setPhase("pause");
             clearTimer();
             timerRef.current = setTimeout(() => {
-              setPhase("listening");
-              stt.start();
+              // The question plays fine on the lock screen, but capturing a spoken
+              // answer needs the app foregrounded. If we're backgrounded, defer the
+              // listen turn until the user returns (see the AppState effect below).
+              if (AppState.currentState === "active") {
+                setPhase("listening");
+                stt.start();
+              } else {
+                pendingListenRef.current = true;
+                setPhase("awaitingReturn");
+              }
             }, PAUSE_MS);
           },
         });
@@ -100,6 +112,23 @@ export function useGuidedSession(
     [steps, tts, stt, voiceOpts]
   );
   runStepRef.current = runStep;
+
+  // When a listen turn was deferred because the phone was locked, start it as soon
+  // as the app comes back to the foreground. Ref-wrapped so the listener subscribes
+  // once yet always calls the latest stt.
+  const resumeListenRef = useRef(() => {});
+  resumeListenRef.current = () => {
+    if (!pendingListenRef.current) return;
+    pendingListenRef.current = false;
+    setPhase("listening");
+    stt.start();
+  };
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") resumeListenRef.current();
+    });
+    return () => sub.remove();
+  }, []);
 
   const begin = useCallback(() => {
     answersRef.current = {};
@@ -121,6 +150,7 @@ export function useGuidedSession(
 
   const exit = useCallback(() => {
     clearTimer();
+    pendingListenRef.current = false;
     tts.stop();
     stt.stop();
   }, [tts, stt]);

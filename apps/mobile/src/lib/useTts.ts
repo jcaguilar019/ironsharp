@@ -8,6 +8,7 @@ import { getAuthToken } from "./auth-client";
 export type SpeakOptions = {
   voice?: string;
   instructions?: string;
+  title?: string; // shown on the lock screen while this reading plays
   onDone?: () => void;
 };
 
@@ -47,6 +48,11 @@ export function useTts() {
     subRef.current?.remove();
     subRef.current = null;
     if (playerRef.current) {
+      try {
+        playerRef.current.clearLockScreenControls();
+      } catch {
+        /* not active on the lock screen */
+      }
       try {
         playerRef.current.remove();
       } catch {
@@ -115,7 +121,7 @@ export function useTts() {
         if (stale()) return;
         const token = await getAuthToken();
         if (stale()) return;
-        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false, shouldPlayInBackground: true });
         if (stale()) return;
 
         const player = createAudioPlayer({
@@ -148,6 +154,20 @@ export function useTts() {
           if (s?.playing && !done) setStatus("playing");
           if (s?.didJustFinish) finish();
         });
+
+        // Lock-screen / Control Center now-playing + remote play/pause. Remote
+        // actions flow back through the status listener above, so the in-app bar
+        // stays in sync. No seek buttons — a devotional read isn't scrubbable.
+        try {
+          player.setActiveForLockScreen(
+            true,
+            { title: opts.title ?? "Commute Mode", artist: "IronSharp" },
+            { showSeekForward: false, showSeekBackward: false }
+          );
+        } catch {
+          /* lock-screen controls unavailable on this platform */
+        }
+
         player.play();
       } catch {
         // Cloud unavailable → on-device voice, so the experience still works.
