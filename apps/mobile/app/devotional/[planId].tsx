@@ -23,6 +23,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
+import { withAlpha } from "@/theme/themes";
 import { ApiClient, type StudyNoteEntry, type BibleChapter } from "@/lib/api";
 import { cancelDailyNudge } from "@/lib/notifications";
 
@@ -170,8 +171,8 @@ function PassageContextDrawer({ passageRef, inlineContext }: { passageRef: strin
         className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
       >
         <View className="flex-row items-center gap-2">
-          <Map size={14} color={mutedFg} />
-          <Text className="font-sans-medium text-sm" style={{ color: mutedFg }}>
+          <Map size={13} color={mutedFg} />
+          <Text style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: mutedFg, fontFamily: "DMSans_400Regular" }}>
             Passage Context
           </Text>
         </View>
@@ -260,12 +261,9 @@ function StudyNotesDrawer({ passageRef, notes }: { passageRef: string; notes: St
         className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
       >
         <View className="flex-row items-center gap-2">
-          <BookOpen size={14} color={mutedFg} />
-          <Text
-            className="font-sans-medium text-sm"
-            style={{ color: mutedFg }}
-          >
-            Open Study Notes
+          <BookOpen size={13} color={mutedFg} />
+          <Text style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: mutedFg, fontFamily: "DMSans_400Regular" }}>
+            Study Notes
           </Text>
         </View>
         <Animated.View style={{ transform: [{ rotate: rotation }] }}>
@@ -520,13 +518,13 @@ function BiblePassageCard({ passageRef, onPageChange, passageRead, onMarkRead }:
             onPress={() => { if (!passageRead) { setCollapsed(true); onMarkRead(); } }}
             style={{
               borderTopWidth: 1,
-              borderTopColor: passageRead ? `${accent}40` : borderColor,
+              borderTopColor: passageRead ? withAlpha(accent, 0.25) : borderColor,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
               gap: 8,
               paddingVertical: 14,
-              backgroundColor: passageRead ? `${accent}10` : "transparent",
+              backgroundColor: passageRead ? withAlpha(accent, 0.1) : "transparent",
             }}
           >
             <CheckCircle size={15} color={passageRead ? accent : mutedFg} fill={passageRead ? accent : "transparent"} />
