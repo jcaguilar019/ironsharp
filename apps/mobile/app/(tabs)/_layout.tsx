@@ -88,7 +88,7 @@ export default function TabsLayout() {
     return () => cleanup?.();
   }, [authed]);
 
-  // One-time in-app notice on app open: a group the user was in got deleted.
+  // One-time in-app notice on app open: a group the user was in got ended.
   useEffect(() => {
     if (!authed || noticeShownRef.current) return;
     const notices = archiveNotices.data ?? [];
@@ -96,10 +96,10 @@ export default function TabsLayout() {
     noticeShownRef.current = true;
 
     const message = notices
-      .map((n) => `${n.archivedByName} deleted the group “${n.groupName}.”`)
+      .map((n) => `${n.archivedByName} ended the group “${n.groupName}.”`)
       .join("\n\n");
 
-    Alert.alert(notices.length > 1 ? "Groups deleted" : "Group deleted", message, [
+    Alert.alert(notices.length > 1 ? "Groups ended" : "Group ended", message, [
       {
         text: "OK",
         onPress: async () => {

@@ -588,7 +588,7 @@ export default function GroupsScreen() {
       });
       setDeleteTarget(null);
     } catch (err) {
-      Alert.alert("Couldn't delete group", err instanceof ApiError ? err.message : "Please try again.");
+      Alert.alert("Couldn't end group", err instanceof ApiError ? err.message : "Please try again.");
     } finally {
       setDeletingGroup(false);
     }
@@ -856,7 +856,7 @@ export default function GroupsScreen() {
                       >
                         <Trash2 size={13} color={destructive} />
                         <Text style={{ color: destructive, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
-                          Delete
+                          End
                         </Text>
                       </Pressable>
                     </View>
@@ -1024,10 +1024,10 @@ export default function GroupsScreen() {
         </Pressable>
       </BottomSheet>
 
-      {/* ── Delete group confirmation ──────────────────────────────────────── */}
+      {/* ── End group confirmation ─────────────────────────────────────────── */}
       <ConfirmModal
         visible={!!deleteTarget}
-        title="Delete group"
+        title="End group"
         message={
           deleteTarget
             ? `This ends "${deleteTarget.name}" for all ${deleteTarget.members.length} member${
@@ -1035,7 +1035,7 @@ export default function GroupsScreen() {
               }. It moves to Past groups and everyone keeps their past entries.`
             : ""
         }
-        confirmLabel="Delete group"
+        confirmLabel="End group"
         destructive
         busy={deletingGroup}
         onConfirm={confirmDeleteGroup}

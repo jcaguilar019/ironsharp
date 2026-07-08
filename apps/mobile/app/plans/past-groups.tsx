@@ -39,7 +39,7 @@ export default function PastGroups() {
               No past groups
             </Text>
             <Text className="mt-1 text-center text-sm text-muted-foreground">
-              When a group you were in is deleted, it and its history will show up here.
+              When a group you were in is ended, it and its history will show up here.
             </Text>
           </View>
         ) : (
@@ -47,7 +47,7 @@ export default function PastGroups() {
             <View key={g.id} className="mb-6">
               <Text className="font-serif text-lg font-bold text-foreground">{g.name}</Text>
               <Text className="mb-2 text-xs text-muted-foreground">
-                Deleted by {g.archivedByName}
+                Ended by {g.archivedByName}
                 {g.archivedAt ? ` · ${formatDate(g.archivedAt)}` : ""}
               </Text>
 
@@ -81,7 +81,7 @@ export default function PastGroups() {
                       <Text className="text-xs text-muted-foreground">
                         {p.status === "completed"
                           ? `Completed${p.completedAt ? ` ${formatDate(p.completedAt)}` : ""}`
-                          : "In progress when deleted"}
+                          : "In progress when ended"}
                       </Text>
                     </View>
                     {p.planId ? <ChevronRight size={18} color={muted} /> : null}
