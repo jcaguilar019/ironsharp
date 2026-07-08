@@ -11,6 +11,7 @@ import { useProgress, useGroups, useDiscipleships, useCustomQuestion } from "@/l
 import { ApiClient } from "@/lib/api";
 import { useGuidedSession, type GuidedStep, type GuidedAnswers } from "@/lib/useGuidedSession";
 import { useVoicePreference, voiceLabel } from "@/lib/voice";
+import { segmentText } from "@/lib/useTts";
 import { VoicePicker } from "@/components/VoicePicker";
 import { withAlpha } from "@/theme/themes";
 
@@ -137,7 +138,10 @@ export default function GuidedDevotional() {
     if (session.phase !== "ready") return;
     const first = steps[0];
     if (first?.kind !== "read") return;
-    ApiClient.prepareTts(first.text, { voice, instructions: VOICE_INSTRUCTIONS }).catch(() => {});
+    // Warm the first *segment* — that's what plays first, and it matches useTts's
+    // segmentation so Begin hits a warm cache. The rest generates while it plays.
+    const firstSegment = segmentText(first.text)[0];
+    if (firstSegment) ApiClient.prepareTts(firstSegment, { voice, instructions: VOICE_INSTRUCTIONS }).catch(() => {});
   }, [session.phase, steps, voice]);
 
   // A single pulse used by the "speaking" / "pause" / "listening" indicators.
@@ -256,7 +260,7 @@ export default function GuidedDevotional() {
                 session.ttsStatus === "preparing" ? (
                   <>
                     <ActivityIndicator size="small" color={primary} />
-                    <Text className="text-base text-muted-foreground">Preparing the reading…</Text>
+                    <Text className="text-base text-muted-foreground">Loading…</Text>
                   </>
                 ) : (
                   <>
@@ -407,7 +411,7 @@ export default function GuidedDevotional() {
                 {step?.label ?? "Reading"}
               </Text>
               <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 12 }}>
-                {session.ttsStatus === "preparing" ? "Preparing…" : session.ttsStatus === "paused" ? "Paused" : "Playing"}
+                {session.ttsStatus === "preparing" ? "Loading…" : session.ttsStatus === "paused" ? "Paused" : "Playing"}
               </Text>
             </View>
             <Pressable
