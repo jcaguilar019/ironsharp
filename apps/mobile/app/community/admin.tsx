@@ -28,9 +28,32 @@ type Editing = { mode: "new" } | { mode: "edit"; devotional: CommunityDevotional
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Local "today" as YYYY-MM-DD — the wire/storage format the server expects. */
+function todayISO(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+/** YYYY-MM-DD → MM/DD/YYYY for display. */
+function isoToUS(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : "";
+}
+/** MM/DD/YYYY → YYYY-MM-DD, or "" while incomplete. */
+function usToISO(us: string): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(us);
+  return m ? `${m[3]}-${m[1]}-${m[2]}` : "";
+}
+/** Progressive MM/DD/YYYY masking as digits are typed. */
+function formatUS(input: string): string {
+  const d = input.replace(/\D/g, "").slice(0, 8);
+  let out = d.slice(0, 2);
+  if (d.length >= 3) out += "/" + d.slice(2, 4);
+  if (d.length >= 5) out += "/" + d.slice(4, 8);
+  return out;
+}
+
 function emptyForm(): CommunityDevotionalInput {
   return {
-    publishDate: "",
+    publishDate: todayISO(),
     title: "",
     subtitle: "",
     passageReference: "",
@@ -59,6 +82,8 @@ export default function CommunityAdmin() {
 
   const [editing, setEditing] = useState<Editing>(null);
   const [form, setForm] = useState<CommunityDevotionalInput>(emptyForm());
+  // The date field edits in MM/DD/YYYY; form.publishDate stays YYYY-MM-DD.
+  const [dateText, setDateText] = useState(isoToUS(todayISO()));
   const [saving, setSaving] = useState(false);
 
   // ── Report moderation ────────────────────────────────────────────────────────
@@ -104,6 +129,7 @@ export default function CommunityAdmin() {
 
   const startNew = () => {
     setForm(emptyForm());
+    setDateText(isoToUS(todayISO()));
     setEditing({ mode: "new" });
   };
   const startEdit = (d: CommunityDevotional) => {
@@ -119,6 +145,7 @@ export default function CommunityAdmin() {
       prayerPrompt: d.prayerPrompt ?? "",
       status: d.status,
     });
+    setDateText(isoToUS(d.publishDate));
     setEditing({ mode: "edit", devotional: d });
   };
 
@@ -129,7 +156,7 @@ export default function CommunityAdmin() {
     set({ studyNotes: form.studyNotes.filter((_, idx) => idx !== i) });
 
   const validate = (): string | null => {
-    if (!DATE_RE.test(form.publishDate)) return "Publish date must be YYYY-MM-DD.";
+    if (!DATE_RE.test(form.publishDate)) return "Enter the publish date as MM/DD/YYYY.";
     if (!form.title.trim()) return "Title is required.";
     if (!form.passageReference.trim()) return "Passage reference is required.";
     if (!form.reflectionQ1.trim()) return "Reflection question 1 is required.";
@@ -211,14 +238,14 @@ export default function CommunityAdmin() {
           keyboardShouldPersistTaps="handled"
         >
           <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Publish date (YYYY-MM-DD)
+            Publish date (MM/DD/YYYY)
           </Text>
           <TextInput
-            value={form.publishDate}
-            onChangeText={(t) => set({ publishDate: t })}
-            placeholder="2026-06-24"
+            value={dateText}
+            onChangeText={(t) => { const f = formatUS(t); setDateText(f); set({ publishDate: usToISO(f) }); }}
+            placeholder={isoToUS(todayISO())}
             placeholderTextColor={muted}
-            autoCapitalize="none"
+            keyboardType="number-pad"
             style={inputStyle}
           />
 
@@ -410,7 +437,7 @@ export default function CommunityAdmin() {
             >
               <View className="flex-row items-center justify-between">
                 <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
-                  {d.publishDate} · {d.passageReference}
+                  {isoToUS(d.publishDate)} · {d.passageReference}
                 </Text>
                 <View
                   style={{
