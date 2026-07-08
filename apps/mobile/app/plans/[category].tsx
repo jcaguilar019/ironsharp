@@ -73,7 +73,7 @@ export default function PlanList() {
   };
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title={categoryLabel(cat)} subtitle="Plans" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg gap-3 px-4 py-4"

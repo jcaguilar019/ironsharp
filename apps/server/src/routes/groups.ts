@@ -868,3 +868,41 @@ groupsRoute.delete("/:id", async (c) => {
 
   return c.json({ ok: true });
 });
+
+// DELETE /api/groups/:id/archived — permanently remove a *past* (ended) group
+// from the caller's history. Per-user by design: it deletes only this user's
+// reflections for the group and their membership, so it drops out of their Past
+// groups while other members keep their own copy. If this was the last member,
+// the now-orphaned group row is hard-deleted (its remaining children — plan
+// history, any leftover submissions — cascade via FK). Only ended groups qualify;
+// active ones must be ended first.
+groupsRoute.delete("/:id/archived", async (c) => {
+  const userId = c.var.user.id;
+  const groupId = c.req.param("id");
+
+  const [group] = await db
+    .select({ id: groups.id, archivedAt: groups.archivedAt })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+  if (!group) return c.json({ error: "Not found" }, 404);
+  if (!group.archivedAt) return c.json({ error: "Only ended groups can be deleted here." }, 409);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(devotionalSubmissions)
+      .where(and(eq(devotionalSubmissions.groupId, groupId), eq(devotionalSubmissions.userId, userId)));
+    await tx
+      .delete(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    const [memberCount] = await tx
+      .select({ remaining: count() })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+    if (memberCount && memberCount.remaining === 0) {
+      await tx.delete(groups).where(eq(groups.id, groupId));
+    }
+  });
+
+  return c.json({ ok: true });
+});

@@ -17,7 +17,7 @@ export default function CommunityEntry() {
   const refetch = () => qc.invalidateQueries({ queryKey: ["community", "entry", id] });
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Reading" subtitle="Community" />
       {entry.isLoading ? (
         <View className="flex-1 items-center justify-center">

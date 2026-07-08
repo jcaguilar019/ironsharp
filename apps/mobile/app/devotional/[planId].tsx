@@ -741,12 +741,12 @@ export default function DevotionalReader() {
 
   const handleStopPlan = () => {
     Alert.alert(
-      "Stop this plan?",
+      "End this plan?",
       "This can't be undone. Your progress and all your reflections for this plan will be deleted.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Stop plan",
+          text: "End plan",
           style: "destructive",
           onPress: async () => {
             await ApiClient.stopPlan(planId);
@@ -1020,7 +1020,7 @@ export default function DevotionalReader() {
     const hasGroupResponses = groupResponses.length > 0;
 
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <Header subtitle={isLastDay ? "Plan complete" : "Today's reading"} />
         <ScrollView
           contentContainerClassName="px-6 py-8 pb-16"
@@ -1099,7 +1099,7 @@ export default function DevotionalReader() {
     "min-h-[100px] rounded-xl border border-input bg-card p-4 font-sans text-base text-foreground";
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header
         subtitle={plan?.title ?? "Devotional"}
         rightAction={
@@ -1108,7 +1108,7 @@ export default function DevotionalReader() {
               <Pressable
                 onPress={groupId ? handleStopGroupPlan : handleStopPlan}
                 accessibilityRole="button"
-                accessibilityLabel={groupId ? "End this plan for the group" : "Stop this plan"}
+                accessibilityLabel={groupId ? "End this plan for the group" : "End this plan"}
                 hitSlop={8}
                 className="h-9 w-9 items-center justify-center rounded-full bg-muted active:opacity-70"
               >

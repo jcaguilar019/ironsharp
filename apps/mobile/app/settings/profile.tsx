@@ -83,7 +83,7 @@ export default function EditProfile() {
   });
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Edit Profile" subtitle="Your info" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}

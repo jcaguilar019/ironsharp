@@ -228,7 +228,7 @@ export default function OnboardingSurvey() {
   };
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       {/* Top bar: progress + back arrow */}
       <View>
         {step > 1 && (

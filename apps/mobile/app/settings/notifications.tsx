@@ -105,7 +105,7 @@ export default function NotificationSettings() {
   };
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Notifications" subtitle="What we ping you about" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg px-6 py-4"

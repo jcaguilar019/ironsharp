@@ -61,7 +61,7 @@ export default function MembershipScreen() {
   };
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Membership" subtitle="Your plan" />
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg gap-4 px-4 py-4 pb-12"

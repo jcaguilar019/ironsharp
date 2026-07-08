@@ -30,7 +30,7 @@ export default function HelpCenter() {
   const matchCount = filtered.reduce((n, s) => n + s.articles.length, 0);
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header title="Help Center" subtitle="Answers & support" />
 
       <ScrollView

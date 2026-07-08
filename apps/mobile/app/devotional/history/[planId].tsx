@@ -176,7 +176,7 @@ export default function DevotionalHistory() {
     .sort((a, b) => a.dayNumber - b.dayNumber);
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       <Header subtitle={plan.data?.title ?? "Devotional"} title="My Responses" />
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>

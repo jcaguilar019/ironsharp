@@ -1,8 +1,24 @@
 import { useCallback, useRef, useState } from "react";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
+import { logError } from "./logger";
+
+// Same crash-guard as notifications.ts: expo-speech-recognition's native module
+// doesn't exist in Expo Go, and expo-router evaluates every route at startup —
+// an unguarded import here takes down the whole app behind the splash screen.
+// In a dev/EAS build the require succeeds and behavior is unchanged.
+type SpeechModule = typeof import("expo-speech-recognition");
+
+let speech: SpeechModule | null = null;
+try {
+  speech = require("expo-speech-recognition");
+} catch (err) {
+  logError("speech:init", err);
+}
+
+// `speech` is fixed for the app's lifetime, so hook count stays consistent
+// across renders even though the call is conditional.
+const useSpeechEvent: SpeechModule["useSpeechRecognitionEvent"] = speech
+  ? speech.useSpeechRecognitionEvent
+  : () => {};
 
 type Options = {
   /** Fires once with the captured transcript when a turn ends (silence or stop). */
@@ -24,18 +40,18 @@ export function useSpeechRecognition({ onFinal }: Options = {}) {
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
-  useSpeechRecognitionEvent("result", (e) => {
+  useSpeechEvent("result", (e) => {
     const t = e.results?.[0]?.transcript ?? "";
     latest.current = t;
     setTranscript(t);
   });
 
-  useSpeechRecognitionEvent("end", () => {
+  useSpeechEvent("end", () => {
     setIsListening(false);
     onFinalRef.current?.(latest.current.trim());
   });
 
-  useSpeechRecognitionEvent("error", (e) => {
+  useSpeechEvent("error", (e) => {
     setError(String(e.error));
     setIsListening(false);
   });
@@ -44,13 +60,17 @@ export function useSpeechRecognition({ onFinal }: Options = {}) {
     setError(null);
     setTranscript("");
     latest.current = "";
-    const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!speech) {
+      setError("unavailable");
+      return false;
+    }
+    const perm = await speech.ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!perm.granted) {
       setError("permission_denied");
       return false;
     }
     setIsListening(true);
-    ExpoSpeechRecognitionModule.start({
+    speech.ExpoSpeechRecognitionModule.start({
       lang: "en-US",
       interimResults: true,
       continuous: false,
@@ -60,7 +80,7 @@ export function useSpeechRecognition({ onFinal }: Options = {}) {
 
   const stop = useCallback(() => {
     // Triggers the "end" event, which delivers the final transcript.
-    ExpoSpeechRecognitionModule.stop();
+    speech?.ExpoSpeechRecognitionModule.stop();
   }, []);
 
   return { transcript, isListening, error, start, stop };

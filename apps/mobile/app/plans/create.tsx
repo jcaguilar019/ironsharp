@@ -197,7 +197,7 @@ export default function CreatePlan() {
   // ── Generating state ───────────────────────────────────────────────────────
   if (generating) {
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <ActivityIndicator color={primary} size="large" />
           <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: fg, textAlign: "center", marginTop: 24 }}>
@@ -218,7 +218,7 @@ export default function CreatePlan() {
   if (step === TOTAL_STEPS) {
     const whoLabel = WHO_OPTIONS.find((w) => w.id === form.who)?.label ?? form.who;
     return (
-      <Screen edges={["top"]}>
+      <Screen edges={["top", "bottom"]}>
         <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
           <Pressable onPress={back} hitSlop={8} style={{ padding: 8 }}>
             <ChevronLeft size={22} color={fg} />
@@ -278,7 +278,7 @@ export default function CreatePlan() {
 
   // ── Intake steps ──────────────────────────────────────────────────────────
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top", "bottom"]}>
       {/* Header row */}
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
         <Pressable onPress={back} hitSlop={8} style={{ padding: 8 }}>
