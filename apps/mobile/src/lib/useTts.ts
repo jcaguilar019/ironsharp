@@ -29,6 +29,7 @@ const LOAD_TIMEOUT_MS = 8000;
  */
 export function useTts() {
   const [status, setStatus] = useState<TtsStatus>("idle");
+  const [progress, setProgress] = useState(0); // 0..1 through the current reading
   const playerRef = useRef<AudioPlayer | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
   const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,6 +37,7 @@ export function useTts() {
   // Monotonic; bumped by every speak()/stop(). Async continuations compare against
   // it and bail if a newer call has since started (or we've stopped/unmounted).
   const callIdRef = useRef(0);
+  const lastProgressRef = useRef(0); // throttles how often progress re-renders
 
   const teardown = useCallback(() => {
     if (watchdogRef.current) {
@@ -71,6 +73,8 @@ export function useTts() {
   const stop = useCallback(() => {
     callIdRef.current += 1;
     teardown();
+    lastProgressRef.current = 0;
+    setProgress(0);
     setStatus("idle");
   }, [teardown]);
 
@@ -100,6 +104,8 @@ export function useTts() {
         Speech.speak(trimmed, { rate: 0.96, onDone: finish, onStopped: () => {}, onError: finish });
       };
 
+      lastProgressRef.current = 0;
+      setProgress(0);
       setStatus("preparing");
       try {
         const { id } = await ApiClient.prepareTts(trimmed, {
@@ -130,6 +136,14 @@ export function useTts() {
           if (s?.isLoaded && watchdogRef.current) {
             clearTimeout(watchdogRef.current);
             watchdogRef.current = null;
+          }
+          if (s && s.duration > 0) {
+            const p = Math.min(1, s.currentTime / s.duration);
+            // Only re-render on ~1% moves (or completion) to avoid churn.
+            if (p >= 1 || Math.abs(p - lastProgressRef.current) >= 0.01) {
+              lastProgressRef.current = p;
+              setProgress(p);
+            }
           }
           if (s?.playing && !done) setStatus("playing");
           if (s?.didJustFinish) finish();
@@ -180,5 +194,5 @@ export function useTts() {
     }
   }, []);
 
-  return { speak, pause, resume, stop, status, isUsingCloud: () => usingCloudRef.current };
+  return { speak, pause, resume, stop, status, progress, isUsingCloud: () => usingCloudRef.current };
 }

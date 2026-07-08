@@ -12,6 +12,7 @@ import { ApiClient } from "@/lib/api";
 import { useGuidedSession, type GuidedStep, type GuidedAnswers } from "@/lib/useGuidedSession";
 import { useVoicePreference, voiceLabel } from "@/lib/voice";
 import { VoicePicker } from "@/components/VoicePicker";
+import { withAlpha } from "@/theme/themes";
 
 function localDateString(): string {
   return new Date().toLocaleDateString("en-CA");
@@ -30,6 +31,9 @@ export default function GuidedDevotional() {
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
   const fg = useThemeColor("foreground");
+  const border = useThemeColor("border");
+  const card = useThemeColor("card");
+  const primaryFg = useThemeColor("primary-foreground");
 
   const progress = useProgress();
   const progressRow = (progress.data ?? []).find((p) => p.planId === planId);
@@ -203,7 +207,7 @@ export default function GuidedDevotional() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerClassName="mx-auto w-full max-w-lg grow px-6 pb-10" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" contentContainerClassName="mx-auto w-full max-w-lg grow px-6 pb-10" showsVerticalScrollIndicator={false}>
         {/* READY — intro */}
         {session.phase === "ready" ? (
           <View className="grow items-center justify-center gap-5">
@@ -287,21 +291,6 @@ export default function GuidedDevotional() {
               ) : null}
             </View>
 
-            {/* pause / resume the read-aloud */}
-            {session.phase === "reading" && session.ttsStatus !== "preparing" ? (
-              <Pressable
-                onPress={session.ttsStatus === "paused" ? session.resumeReading : session.pauseReading}
-                accessibilityRole="button"
-                accessibilityLabel={session.ttsStatus === "paused" ? "Resume reading" : "Pause reading"}
-                className="mt-1 flex-row items-center gap-2 self-start rounded-xl border border-border px-4 py-2"
-              >
-                {session.ttsStatus === "paused" ? <Play size={16} color={fg} /> : <Pause size={16} color={fg} />}
-                <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>
-                  {session.ttsStatus === "paused" ? "Resume" : "Pause"}
-                </Text>
-              </Pressable>
-            ) : null}
-
             {/* live transcript */}
             {(session.phase === "listening" || session.phase === "captured") && session.liveTranscript ? (
               <Text className="font-serif-italic text-lg leading-relaxed text-foreground">“{session.liveTranscript}”</Text>
@@ -374,6 +363,71 @@ export default function GuidedDevotional() {
           </View>
         ) : null}
       </ScrollView>
+
+      {/* Reading control bar — persistent progress + pause/resume while reading */}
+      {session.phase === "reading" ? (
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: border,
+            backgroundColor: card,
+            paddingHorizontal: 16,
+            paddingTop: 10,
+            paddingBottom: 10,
+          }}
+        >
+          <View
+            style={{
+              height: 3,
+              borderRadius: 2,
+              backgroundColor: withAlpha(primary, 0.2),
+              overflow: "hidden",
+              marginBottom: 10,
+            }}
+          >
+            <View
+              style={{
+                height: 3,
+                borderRadius: 2,
+                backgroundColor: primary,
+                width: `${Math.round((session.ttsProgress || 0) * 100)}%`,
+              }}
+            />
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Volume2 size={18} color={muted} />
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={1} style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>
+                {step?.label ?? "Reading"}
+              </Text>
+              <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 12 }}>
+                {session.ttsStatus === "preparing" ? "Preparing…" : session.ttsStatus === "paused" ? "Paused" : "Playing"}
+              </Text>
+            </View>
+            <Pressable
+              onPress={session.ttsStatus === "paused" ? session.resumeReading : session.pauseReading}
+              disabled={session.ttsStatus === "preparing"}
+              accessibilityRole="button"
+              accessibilityLabel={session.ttsStatus === "paused" ? "Resume reading" : "Pause reading"}
+              style={{
+                height: 46,
+                width: 46,
+                borderRadius: 23,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: primary,
+                opacity: session.ttsStatus === "preparing" ? 0.5 : 1,
+              }}
+            >
+              {session.ttsStatus === "paused" ? (
+                <Play size={20} color={primaryFg} fill={primaryFg} />
+              ) : (
+                <Pause size={20} color={primaryFg} fill={primaryFg} />
+              )}
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       <VoicePicker
         visible={voiceSheet}

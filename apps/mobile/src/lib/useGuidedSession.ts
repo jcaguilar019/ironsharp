@@ -148,6 +148,7 @@ export function useGuidedSession(
     sttError: stt.error,
     isUsingCloud: tts.isUsingCloud,
     ttsStatus: tts.status,
+    ttsProgress: tts.progress,
     pauseReading: tts.pause,
     resumeReading: tts.resume,
     begin,
