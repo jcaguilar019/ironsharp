@@ -36,29 +36,32 @@ export default function CommunityScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />}
       >
-        <View className="flex-row items-start justify-between">
-          <ScreenHeader eyebrow="Shared Reading" title="Community" />
-          {isAdmin ? (
-            <Pressable
-              onPress={() => router.push("/community/admin")}
-              accessibilityRole="button"
-              accessibilityLabel="Author community devotionals"
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                borderWidth: 1,
-                borderColor: primary,
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-              }}
-            >
-              <PenLine size={14} color={primary} />
-              <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 12 }}>Author</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        <ScreenHeader
+          eyebrow="Shared Reading"
+          title="Community"
+          right={
+            isAdmin ? (
+              <Pressable
+                onPress={() => router.push("/community/admin")}
+                accessibilityRole="button"
+                accessibilityLabel="Author community devotionals"
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  borderWidth: 1,
+                  borderColor: primary,
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                }}
+              >
+                <PenLine size={14} color={primary} />
+                <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 12 }}>Author</Text>
+              </Pressable>
+            ) : undefined
+          }
+        />
 
         {today.isLoading ? (
           <ActivityIndicator color={primary} style={{ marginTop: 24 }} />
