@@ -124,6 +124,18 @@ export default function GuidedDevotional() {
   exitRef.current = session.exit;
   useEffect(() => () => exitRef.current(), []);
 
+  // Warm the (long) opening reading for the chosen voice while the user is still
+  // on the intro. TTS generation is the slow part, so this moves the wait behind
+  // the "Find a quiet space" screen and makes Begin play almost immediately. The
+  // server caches by (text, voice, instructions); fire-and-forget, and it simply
+  // regenerates on Begin if it hasn't finished yet.
+  useEffect(() => {
+    if (session.phase !== "ready") return;
+    const first = steps[0];
+    if (first?.kind !== "read") return;
+    ApiClient.prepareTts(first.text, { voice, instructions: VOICE_INSTRUCTIONS }).catch(() => {});
+  }, [session.phase, steps, voice]);
+
   // A single pulse used by the "speaking" / "pause" / "listening" indicators.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -237,18 +249,21 @@ export default function GuidedDevotional() {
             {/* status */}
             <View className="mt-2 flex-row items-center gap-3">
               {session.phase === "reading" ? (
-                <>
-                  <Animated.View style={pulseStyle}>
-                    <Volume2 size={22} color={primary} />
-                  </Animated.View>
-                  <Text className="text-base text-muted-foreground">
-                    {session.ttsStatus === "preparing"
-                      ? "Preparing audio…"
-                      : session.ttsStatus === "paused"
-                        ? "Paused"
-                        : "Reading…"}
-                  </Text>
-                </>
+                session.ttsStatus === "preparing" ? (
+                  <>
+                    <ActivityIndicator size="small" color={primary} />
+                    <Text className="text-base text-muted-foreground">Preparing the reading…</Text>
+                  </>
+                ) : (
+                  <>
+                    <Animated.View style={pulseStyle}>
+                      <Volume2 size={22} color={primary} />
+                    </Animated.View>
+                    <Text className="text-base text-muted-foreground">
+                      {session.ttsStatus === "paused" ? "Paused" : "Reading…"}
+                    </Text>
+                  </>
+                )
               ) : null}
               {session.phase === "pause" ? (
                 <>
