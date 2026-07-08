@@ -616,6 +616,10 @@ export const ApiClient = {
     }),
   deleteGroup: (groupId: string) =>
     api<{ ok: boolean }>(`/api/groups/${groupId}`, { method: "DELETE" }),
+  // Permanently remove an ended group from the current user's Past groups
+  // (deletes their reflections + membership; other members keep their copy).
+  deleteArchivedGroup: (groupId: string) =>
+    api<{ ok: boolean }>(`/api/groups/${groupId}/archived`, { method: "DELETE" }),
   updateGroup: (groupId: string, name: string) =>
     api<{ group: Group }>(`/api/groups/${groupId}`, {
       method: "PATCH",
