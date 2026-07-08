@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, CornerUpLeft, Flag, Lock, Plus, Send, Star, Trash2, X } from "lucide-react-native";
@@ -38,6 +39,25 @@ function localDate(offsetDays = 0): string {
 type TabKey = "responses" | "messages" | "notes";
 
 /**
+ * The keyboard's height while open (iOS), for padding a pinned composer exactly
+ * above it — more reliable than KeyboardAvoidingView's offset math on a nested
+ * layout. Android resizes the window natively, so this stays 0 there.
+ */
+function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    const show = Keyboard.addListener("keyboardWillShow", (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener("keyboardWillHide", () => setHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return height;
+}
+
+/**
  * One person-centered screen for a discipleship relationship. Discipler sees a
  * Responses ⇄ Messages segmented view; disciple sees Messages. Replaces the old
  * separate responses / flagged / mailbox screens.
@@ -46,6 +66,8 @@ export default function DiscipleshipScreen() {
   const { relationshipId } = useLocalSearchParams<{ relationshipId: string }>();
   const id = String(relationshipId);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const kbHeight = useKeyboardHeight();
   const relationships = useDiscipleships();
   const profile = useProfile();
   const myId = profile.data?.userId;
@@ -152,11 +174,7 @@ export default function DiscipleshipScreen() {
         })}
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
-      >
+      <View style={{ flex: 1, paddingBottom: Math.max(kbHeight, insets.bottom) }}>
         {effectiveTab === "responses" ? (
           <ResponsesPanel
             id={id}
@@ -171,7 +189,7 @@ export default function DiscipleshipScreen() {
         ) : (
           <MessagesPanel id={id} myId={myId} accent={primary} draft={draft} setDraft={setDraft} />
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       <ConfirmModal
         visible={showEnd}
