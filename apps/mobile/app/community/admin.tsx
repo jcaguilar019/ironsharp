@@ -233,9 +233,11 @@ export default function CommunityAdmin() {
           }
         />
         <ScrollView
-          contentContainerClassName="mx-auto w-full max-w-lg px-6 py-4"
+          contentContainerClassName="mx-auto w-full max-w-lg px-6 pt-4 pb-16"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
         >
           <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
             Publish date (MM/DD/YYYY)
