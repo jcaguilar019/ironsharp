@@ -174,7 +174,15 @@ export default function DiscipleshipScreen() {
         })}
       </View>
 
-      <View style={{ flex: 1, paddingBottom: Math.max(kbHeight, insets.bottom) }}>
+      {/*
+        Screen is a SafeAreaView whose edges include "bottom", so it ALREADY pads
+        the bottom inset. iOS reports the keyboard height measured to the physical
+        screen bottom, which spans that same inset — so pad by only the keyboard
+        height ABOVE the inset, or we count it twice (that was the ~34px gap).
+        Keyboard closed → kbHeight 0 → 0 here, and Screen's inset alone clears the
+        home indicator.
+      */}
+      <View style={{ flex: 1, paddingBottom: Math.max(kbHeight - insets.bottom, 0) }}>
         {effectiveTab === "responses" ? (
           <ResponsesPanel
             id={id}
