@@ -336,8 +336,13 @@ function StudyNotesDrawer({ passageRef, notes }: { passageRef: string; notes: St
 // KJV + BBE are fully seeded in the local DB (1,189 chapters each). WEB/NLT/NKJV
 // rode the api.bible live fallback, which needs BIBLE_API_KEY configured in prod —
 // re-add them here once that key is set, or they render as empty chapters.
+// KJV + BBE are seeded in the local DB (1,189 chapters each); WEB/NLT/NKJV are
+// served live via api.bible (BIBLE_API_KEY is configured in prod).
 const TRANSLATIONS = [
   { id: "KJV", label: "King James Version" },
+  { id: "NKJV", label: "New King James Version" },
+  { id: "NLT", label: "New Living Translation" },
+  { id: "WEB", label: "World English Bible" },
   { id: "BBE", label: "Basic English" },
 ];
 

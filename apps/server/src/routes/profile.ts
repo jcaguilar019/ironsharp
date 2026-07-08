@@ -75,14 +75,14 @@ function withLiveStreak<T extends { streakCount: number; lastStreakDate: string 
 /**
  * Attach the derived `isAdmin` flag (founder authoring rights) so the app can
  * conditionally surface the Community Devotional admin tools. Derived from the
- * ADMIN_USER_IDS env allowlist — never stored on the row.
+ * user's Neon Auth `role` — never stored on our profile row.
  */
-function withAdmin<T extends object>(
+async function withAdmin<T extends object>(
   row: T | undefined,
   userId: string
-): (T & { isAdmin: boolean }) | undefined {
+): Promise<(T & { isAdmin: boolean }) | undefined> {
   if (!row) return row;
-  return { ...row, isAdmin: isAdmin(userId) };
+  return { ...row, isAdmin: await isAdmin(userId) };
 }
 
 const FAMILY_CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -130,9 +130,9 @@ profile.get("/", async (c) => {
         .set({ familyCode: generateFamilyCode(), updatedAt: new Date() })
         .where(eq(profiles.userId, userId))
         .returning();
-      return c.json({ profile: withAdmin(withLiveStreak(updated ?? existing, today), userId) });
+      return c.json({ profile: await withAdmin(withLiveStreak(updated ?? existing, today), userId) });
     }
-    return c.json({ profile: withAdmin(withLiveStreak(existing, today), userId) });
+    return c.json({ profile: await withAdmin(withLiveStreak(existing, today), userId) });
   }
 
   const displayName = name?.trim() || email?.split("@")[0] || "Friend";
@@ -142,7 +142,7 @@ profile.get("/", async (c) => {
     .onConflictDoNothing()
     .returning();
 
-  if (created) return c.json({ profile: withAdmin(withLiveStreak(created, today), userId) });
+  if (created) return c.json({ profile: await withAdmin(withLiveStreak(created, today), userId) });
 
   // Lost a race — fetch the row the other request created.
   const [row] = await db
@@ -150,7 +150,7 @@ profile.get("/", async (c) => {
     .from(profiles)
     .where(eq(profiles.userId, userId))
     .limit(1);
-  return c.json({ profile: withAdmin(withLiveStreak(row, today), userId) });
+  return c.json({ profile: await withAdmin(withLiveStreak(row, today), userId) });
 });
 
 // POST /api/profile/redeem-promo → validate a promo code and upgrade membership.
@@ -227,7 +227,7 @@ profile.post("/redeem-promo", async (c) => {
     .onConflictDoNothing();
 
   return c.json({
-    profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId),
+    profile: await withAdmin(withLiveStreak(row, clientDateString(c)), userId),
     tier: reward.tier,
     discountPercent: reward.discountPercent,
     label: reward.label,
@@ -293,7 +293,7 @@ profile.patch("/", async (c) => {
       .returning();
   }
 
-  return c.json({ profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId) });
+  return c.json({ profile: await withAdmin(withLiveStreak(row, clientDateString(c)), userId) });
 });
 
 // POST /api/profile/push-token  → register or update the device push token
@@ -363,7 +363,7 @@ profile.post("/family/join", async (c) => {
     .where(eq(profiles.userId, userId))
     .returning();
 
-  return c.json({ profile: withAdmin(withLiveStreak(row, clientDateString(c)), userId) });
+  return c.json({ profile: await withAdmin(withLiveStreak(row, clientDateString(c)), userId) });
 });
 
 // DELETE /api/profile  → permanently delete the account and all associated data.
