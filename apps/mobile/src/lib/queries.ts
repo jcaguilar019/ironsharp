@@ -225,6 +225,11 @@ export function useMailbox(relationshipId: string | undefined) {
     queryKey: ["discipleship", relationshipId, "mailbox"],
     queryFn: () => ApiClient.getMailbox(relationshipId!).then((r) => r.messages),
     enabled: authed && !!relationshipId,
+    // A chat thread should always be treated as stale so it refetches whenever the
+    // screen regains focus (incl. app returning to foreground), not gated by the
+    // 30s global staleTime. Only mounted while the thread is open, so this never
+    // spuriously fetches (and marks-as-read) from a list screen.
+    staleTime: 0,
   });
 }
 

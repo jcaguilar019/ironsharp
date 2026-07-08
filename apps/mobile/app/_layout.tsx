@@ -5,7 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppState, type AppStateStatus, Platform } from "react-native";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import {
   PlayfairDisplay_700Bold,
@@ -70,6 +71,16 @@ function RootNavigator() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError, ready]);
+
+  // React Query's refetchOnWindowFocus is a web-only concept. On native we drive
+  // "focus" from AppState so observed queries refetch when the app returns to the
+  // foreground — e.g. new discipleship DMs appear on re-open without a manual pull.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (status: AppStateStatus) => {
+      if (Platform.OS !== "web") focusManager.setFocused(status === "active");
+    });
+    return () => sub.remove();
+  }, []);
 
   if ((!fontsLoaded && !fontError) || !ready) return null;
 
