@@ -1,4 +1,5 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import * as Speech from "expo-speech";
 import { ApiClient, ttsStreamUrl } from "./api";
@@ -10,19 +11,37 @@ export type SpeakOptions = {
   onDone?: () => void;
 };
 
+export type TtsStatus = "idle" | "preparing" | "playing" | "paused";
+
+// If the cloud stream never loads (dead URL, evicted cache, network), fall back
+// to the on-device voice rather than hang forever on "Preparing…".
+const LOAD_TIMEOUT_MS = 8000;
+
 /**
- * Speaks text aloud, preferring the cloud (ChatGPT-grade) voice and falling
- * back to the on-device voice if the cloud is unavailable (no API key yet,
- * offline, or an error). Either way the caller's onDone fires when the reading
- * finishes, so the guided flow advances regardless. Imperative + single-flight:
- * a new speak() interrupts the previous one.
+ * Speaks text aloud, preferring the cloud (ChatGPT-grade) voice and falling back
+ * to the on-device voice if the cloud is unavailable (no API key, offline, quota,
+ * or a load failure). Either way the caller's onDone fires when the reading
+ * finishes, so a guided flow always advances.
+ *
+ * Single-flight: every speak() bumps a call id and any older in-flight call aborts
+ * at its next checkpoint — this is what stops two readings from overlapping. Also
+ * exposes pause/resume/stop plus a reactive `status` for driving playback UI.
  */
 export function useTts() {
+  const [status, setStatus] = useState<TtsStatus>("idle");
   const playerRef = useRef<AudioPlayer | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usingCloudRef = useRef(false);
+  // Monotonic; bumped by every speak()/stop(). Async continuations compare against
+  // it and bail if a newer call has since started (or we've stopped/unmounted).
+  const callIdRef = useRef(0);
 
-  const cleanup = useCallback(() => {
+  const teardown = useCallback(() => {
+    if (watchdogRef.current) {
+      clearTimeout(watchdogRef.current);
+      watchdogRef.current = null;
+    }
     subRef.current?.remove();
     subRef.current = null;
     if (playerRef.current) {
@@ -33,57 +52,133 @@ export function useTts() {
       }
       playerRef.current = null;
     }
-    Speech.stop();
+    try {
+      Speech.stop();
+    } catch {
+      /* nothing speaking */
+    }
+    usingCloudRef.current = false;
   }, []);
+
+  // Void any in-flight speak and release audio when the owner unmounts.
+  useEffect(() => {
+    return () => {
+      callIdRef.current += 1;
+      teardown();
+    };
+  }, [teardown]);
+
+  const stop = useCallback(() => {
+    callIdRef.current += 1;
+    teardown();
+    setStatus("idle");
+  }, [teardown]);
 
   const speak = useCallback(
     async (text: string, opts: SpeakOptions = {}) => {
-      cleanup();
+      const myId = (callIdRef.current += 1);
+      teardown();
       const trimmed = text.trim();
       if (!trimmed) {
         opts.onDone?.();
         return;
       }
 
+      const stale = () => callIdRef.current !== myId;
       let done = false;
       const finish = () => {
-        if (done) return;
+        if (done || stale()) return;
         done = true;
+        setStatus("idle");
         opts.onDone?.();
       };
 
+      const speakOnDevice = () => {
+        if (stale()) return;
+        usingCloudRef.current = false;
+        setStatus("playing");
+        Speech.speak(trimmed, { rate: 0.96, onDone: finish, onStopped: () => {}, onError: finish });
+      };
+
+      setStatus("preparing");
       try {
         const { id } = await ApiClient.prepareTts(trimmed, {
           voice: opts.voice,
           instructions: opts.instructions,
         });
+        if (stale()) return;
         const token = await getAuthToken();
+        if (stale()) return;
         await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+        if (stale()) return;
+
         const player = createAudioPlayer({
           uri: ttsStreamUrl(id),
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         playerRef.current = player;
         usingCloudRef.current = true;
-        subRef.current = player.addListener("playbackStatusUpdate", (status) => {
-          if (status?.didJustFinish) finish();
+
+        watchdogRef.current = setTimeout(() => {
+          if (stale() || done || player.isLoaded) return;
+          teardown(); // drop the dead cloud player…
+          speakOnDevice(); // …and read on-device so the flow never stalls
+        }, LOAD_TIMEOUT_MS);
+
+        subRef.current = player.addListener("playbackStatusUpdate", (s) => {
+          if (stale()) return;
+          if (s?.isLoaded && watchdogRef.current) {
+            clearTimeout(watchdogRef.current);
+            watchdogRef.current = null;
+          }
+          if (s?.playing && !done) setStatus("playing");
+          if (s?.didJustFinish) finish();
         });
         player.play();
       } catch {
         // Cloud unavailable → on-device voice, so the experience still works.
-        usingCloudRef.current = false;
-        Speech.speak(trimmed, {
-          rate: 0.96,
-          onDone: finish,
-          onStopped: () => {},
-          onError: finish,
-        });
+        speakOnDevice();
       }
     },
-    [cleanup]
+    [teardown]
   );
 
-  const stop = useCallback(() => cleanup(), [cleanup]);
+  const pause = useCallback(() => {
+    if (usingCloudRef.current && playerRef.current) {
+      try {
+        playerRef.current.pause();
+        setStatus("paused");
+      } catch {
+        /* nothing to pause */
+      }
+    } else if (Platform.OS === "ios") {
+      // expo-speech pause/resume is iOS-only; on Android the fallback can't pause.
+      try {
+        Speech.pause();
+        setStatus("paused");
+      } catch {
+        /* not pausable */
+      }
+    }
+  }, []);
 
-  return { speak, stop, isUsingCloud: () => usingCloudRef.current };
+  const resume = useCallback(() => {
+    if (usingCloudRef.current && playerRef.current) {
+      try {
+        playerRef.current.play();
+        setStatus("playing");
+      } catch {
+        /* nothing to resume */
+      }
+    } else if (Platform.OS === "ios") {
+      try {
+        Speech.resume();
+        setStatus("playing");
+      } catch {
+        /* not resumable */
+      }
+    }
+  }, []);
+
+  return { speak, pause, resume, stop, status, isUsingCloud: () => usingCloudRef.current };
 }

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { X, Mic, Volume2, CheckCircle2, RotateCcw } from "lucide-react-native";
+import { X, Mic, Volume2, CheckCircle2, RotateCcw, Pause, Play, ChevronRight } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { ErrorState } from "@/components/ErrorState";
@@ -10,16 +10,15 @@ import { useThemeColor } from "@/components/useThemeColor";
 import { useProgress, useGroups, useDiscipleships, useCustomQuestion } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
 import { useGuidedSession, type GuidedStep, type GuidedAnswers } from "@/lib/useGuidedSession";
+import { useVoicePreference, voiceLabel } from "@/lib/voice";
+import { VoicePicker } from "@/components/VoicePicker";
 
 function localDateString(): string {
   return new Date().toLocaleDateString("en-CA");
 }
 
-const VOICE_OPTS = {
-  voice: "sage",
-  instructions:
-    "Read slowly, calmly and warmly — like a pastor gently guiding a quiet, reflective devotional. Unhurried, with space to breathe.",
-};
+const VOICE_INSTRUCTIONS =
+  "Read slowly, calmly and warmly — like a pastor gently guiding a quiet, reflective devotional. Unhurried, with space to breathe.";
 
 export default function GuidedDevotional() {
   const { planId: rawPlanId, groupId: groupIdParam } = useLocalSearchParams<{ planId: string; groupId?: string }>();
@@ -115,7 +114,10 @@ export default function GuidedDevotional() {
     [planId, currentDay, isLastDay, qc, groupId, q3, progressRow]
   );
 
-  const session = useGuidedSession(steps, VOICE_OPTS, onComplete);
+  const { voice, setVoice } = useVoicePreference();
+  const [voiceSheet, setVoiceSheet] = useState(false);
+  const voiceOpts = useMemo(() => ({ voice, instructions: VOICE_INSTRUCTIONS }), [voice]);
+  const session = useGuidedSession(steps, voiceOpts, onComplete);
 
   // Clean up audio/recognition if the user leaves mid-session.
   const exitRef = useRef(session.exit);
@@ -125,7 +127,10 @@ export default function GuidedDevotional() {
   // A single pulse used by the "speaking" / "pause" / "listening" indicators.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const active = session.phase === "reading" || session.phase === "pause" || session.phase === "listening";
+    const active =
+      (session.phase === "reading" && session.ttsStatus !== "paused") ||
+      session.phase === "pause" ||
+      session.phase === "listening";
     if (!active) {
       pulse.stopAnimation();
       pulse.setValue(0);
@@ -139,7 +144,7 @@ export default function GuidedDevotional() {
     );
     loop.start();
     return () => loop.stop();
-  }, [session.phase, pulse]);
+  }, [session.phase, session.ttsStatus, pulse]);
 
   const close = () => {
     session.exit();
@@ -196,7 +201,22 @@ export default function GuidedDevotional() {
               {planQ.data?.title} · Day {currentDay}
               {"\n\n"}Find a quiet space. I'll read aloud, then pause so you can respond out loud — hands-free.
             </Text>
-            <View className="mt-2 w-full">
+            <Pressable
+              onPress={() => setVoiceSheet(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Choose the reading voice"
+              className="mt-2 w-full flex-row items-center justify-between rounded-xl border border-border px-4 py-3"
+            >
+              <View className="flex-row items-center gap-2">
+                <Volume2 size={16} color={muted} />
+                <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 14 }}>Voice</Text>
+              </View>
+              <View className="flex-row items-center gap-1">
+                <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>{voiceLabel(voice)}</Text>
+                <ChevronRight size={16} color={muted} />
+              </View>
+            </Pressable>
+            <View className="w-full">
               <Button title="Begin" onPress={session.begin} />
             </View>
           </View>
@@ -221,7 +241,13 @@ export default function GuidedDevotional() {
                   <Animated.View style={pulseStyle}>
                     <Volume2 size={22} color={primary} />
                   </Animated.View>
-                  <Text className="text-base text-muted-foreground">Reading…</Text>
+                  <Text className="text-base text-muted-foreground">
+                    {session.ttsStatus === "preparing"
+                      ? "Preparing audio…"
+                      : session.ttsStatus === "paused"
+                        ? "Paused"
+                        : "Reading…"}
+                  </Text>
                 </>
               ) : null}
               {session.phase === "pause" ? (
@@ -245,6 +271,21 @@ export default function GuidedDevotional() {
                 </>
               ) : null}
             </View>
+
+            {/* pause / resume the read-aloud */}
+            {session.phase === "reading" && session.ttsStatus !== "preparing" ? (
+              <Pressable
+                onPress={session.ttsStatus === "paused" ? session.resumeReading : session.pauseReading}
+                accessibilityRole="button"
+                accessibilityLabel={session.ttsStatus === "paused" ? "Resume reading" : "Pause reading"}
+                className="mt-1 flex-row items-center gap-2 self-start rounded-xl border border-border px-4 py-2"
+              >
+                {session.ttsStatus === "paused" ? <Play size={16} color={fg} /> : <Pause size={16} color={fg} />}
+                <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>
+                  {session.ttsStatus === "paused" ? "Resume" : "Pause"}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* live transcript */}
             {(session.phase === "listening" || session.phase === "captured") && session.liveTranscript ? (
@@ -318,6 +359,13 @@ export default function GuidedDevotional() {
           </View>
         ) : null}
       </ScrollView>
+
+      <VoicePicker
+        visible={voiceSheet}
+        selected={voice}
+        onSelect={setVoice}
+        onClose={() => setVoiceSheet(false)}
+      />
     </Screen>
   );
 }
