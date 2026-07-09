@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import { ChevronRight, Flag, Users, X } from "lucide-react-native";
-import { Button } from "@/components/Button";
-import { Input } from "@/components/Input";
-import { Screen } from "@/components/Screen";
+import { useMemo, useState } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ChevronRight, Flag } from "lucide-react-native";
 import { useToast } from "@/components/Toast";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
@@ -150,6 +148,7 @@ function ReadingHero({ devotional }: { devotional: CommunityDevotional }) {
 
 function Pulse({ feed }: { feed: CommunityFeedItem[] }) {
   const muted = useThemeColor("muted-foreground");
+  const background = useThemeColor("background");
   const shared = feed.filter(hasAnyAnswer);
   if (shared.length === 0) return null;
   const faces = shared.slice(0, 4);
@@ -157,7 +156,15 @@ function Pulse({ feed }: { feed: CommunityFeedItem[] }) {
     <View className="mt-4 flex-row items-center gap-3">
       <View className="flex-row">
         {faces.map((f, i) => (
-          <View key={f.id} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+          <View
+            key={f.id}
+            style={{
+              marginLeft: i === 0 ? 0 : -8,
+              borderWidth: 2,
+              borderColor: background,
+              borderRadius: 14,
+            }}
+          >
             <Avatar name={f.displayName} size={24} />
           </View>
         ))}
@@ -260,114 +267,6 @@ function FeedCard({
   );
 }
 
-function ComposerModal({
-  visible,
-  devotional,
-  mine,
-  onClose,
-  onSaved,
-}: {
-  visible: boolean;
-  devotional: CommunityDevotional;
-  mine: CommunityFeedItem | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const fg = useThemeColor("foreground");
-  const muted = useThemeColor("muted-foreground");
-  const primary = useThemeColor("primary");
-  const questions = useMemo(() => questionsOf(devotional), [devotional]);
-
-  const [answers, setAnswers] = useState<string[]>(questions.map((_, i) => answerAt(mine ?? ({} as CommunityFeedItem), i) ?? ""));
-  const [prayer, setPrayer] = useState(mine?.prayer ?? "");
-  const [saving, setSaving] = useState(false);
-
-  // Re-seed from the latest saved response each time the sheet opens.
-  useEffect(() => {
-    if (!visible) return;
-    setAnswers(questions.map((_, i) => answerAt(mine ?? ({} as CommunityFeedItem), i) ?? ""));
-    setPrayer(mine?.prayer ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
-
-  const setAnswer = (i: number, v: string) => setAnswers((prev) => prev.map((a, idx) => (idx === i ? v : a)));
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await ApiClient.saveCommunityResponse({
-        communityDevotionalId: devotional.id,
-        response1: answers[0]?.trim() || null,
-        response2: answers[1]?.trim() || null,
-        prayer: prayer.trim() || null,
-        q1Private: false,
-        q2Private: false,
-        prayerPrivate: false,
-      });
-      onSaved();
-      onClose();
-    } catch (err) {
-      Alert.alert("Couldn't save", err instanceof ApiError ? err.message : "Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} presentationStyle="fullScreen">
-      <Screen edges={["top", "bottom"]}>
-        <View className="flex-row items-center justify-between px-6 pb-2 pt-2">
-          <Text className="font-serif text-xl font-bold text-foreground">{mine ? "Edit your reflection" : "Your reflection"}</Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
-            <X size={22} color={muted} />
-          </Pressable>
-        </View>
-        <ScrollView
-          contentContainerClassName="mx-auto w-full max-w-lg px-6 pb-16 pt-2"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 7,
-              marginBottom: 18,
-              backgroundColor: withAlpha(primary, 0.08),
-              borderRadius: 8,
-              paddingHorizontal: 10,
-              paddingVertical: 9,
-            }}
-          >
-            <Users size={14} color={primary} />
-            <Text style={{ flex: 1, color: muted, fontFamily: "DMSans_400Regular", fontSize: 12, lineHeight: 17 }}>
-              Everyone in the community can see this.
-            </Text>
-          </View>
-
-          {questions.map((q, i) => (
-            <View key={i} style={{ marginBottom: 16 }}>
-              <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14, marginBottom: 8 }}>{q}</Text>
-              <Input value={answers[i] ?? ""} onChangeText={(t) => setAnswer(i, t)} multiline placeholder="Write your reflection…" />
-            </View>
-          ))}
-
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14, marginBottom: 8 }}>
-              Prayer <Text style={{ color: muted, fontFamily: "DMSans_400Regular" }}>· optional</Text>
-            </Text>
-            <Input value={prayer} onChangeText={setPrayer} multiline placeholder="Write a prayer…" />
-          </View>
-
-          <Button title={mine ? "Update reflection" : "Share with the community"} onPress={save} loading={saving} />
-        </ScrollView>
-      </Screen>
-    </Modal>
-  );
-}
-
 /**
  * The feed-first Community experience: today's reading as a compact hero, a live
  * participation pulse, your reflection (or a prompt to add one), then the room of
@@ -387,10 +286,11 @@ export function CommunityDevotionalView({
   const card = useThemeColor("card");
   const toast = useToast();
 
+  const router = useRouter();
   const devotional = data.devotional!;
   const mine = data.myResponse;
   const questions = useMemo(() => questionsOf(devotional), [devotional]);
-  const [composing, setComposing] = useState(false);
+  const openComposer = () => router.push(`/community/respond/${devotional.id}`);
 
   const react = async (item: CommunityFeedItem, type: CommunityReactionType) => {
     try {
@@ -446,7 +346,7 @@ export function CommunityDevotionalView({
         <View style={{ marginTop: 16, borderWidth: 1, borderColor: withAlpha(primary, 0.4), borderRadius: 12, backgroundColor: card, padding: 14 }}>
           <View className="mb-2 flex-row items-center">
             <Text style={{ flex: 1, fontFamily: "DMSans_700Bold", fontSize: 13, color: primary }}>Your reflection</Text>
-            <Pressable onPress={() => setComposing(true)} hitSlop={8} accessibilityLabel="Edit your reflection">
+            <Pressable onPress={openComposer} hitSlop={8} accessibilityLabel="Edit your reflection">
               <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 13 }}>Edit</Text>
             </Pressable>
           </View>
@@ -472,7 +372,7 @@ export function CommunityDevotionalView({
         </View>
       ) : (
         <Pressable
-          onPress={() => setComposing(true)}
+          onPress={openComposer}
           accessibilityRole="button"
           style={{
             marginTop: 16,
@@ -504,17 +404,6 @@ export function CommunityDevotionalView({
           <FeedCard key={item.id} item={item} questions={questions} onReact={react} onReport={report} />
         ))
       )}
-
-      <ComposerModal
-        visible={composing}
-        devotional={devotional}
-        mine={mine}
-        onClose={() => setComposing(false)}
-        onSaved={() => {
-          onRefetch();
-          toast.show("Shared with the community");
-        }}
-      />
     </View>
   );
 }
