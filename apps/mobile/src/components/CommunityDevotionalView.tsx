@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
-import { Check, Flag, Globe } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ChevronRight, Flag, Users, X } from "lucide-react-native";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { Screen } from "@/components/Screen";
 import { useToast } from "@/components/Toast";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import {
   ApiClient,
   ApiError,
+  type CommunityDevotional,
   type CommunityToday,
   type CommunityFeedItem,
   type CommunityReactionType,
@@ -16,9 +18,9 @@ import {
 } from "@/lib/api";
 
 const REACTIONS: { type: CommunityReactionType; label: string }[] = [
-  { type: "amen", label: "🙏 Amen" },
-  { type: "hit_me", label: "💥 Convicted" },
-  { type: "fire", label: "🔥 Inspired" },
+  { type: "amen", label: "Amen" },
+  { type: "hit_me", label: "Convicted" },
+  { type: "fire", label: "Inspired" },
 ];
 
 function timeAgo(iso: string): string {
@@ -35,22 +37,146 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function Label({ children }: { children: string }) {
+// The reading currently carries exactly two questions; render them (and each
+// response's answers) as index-aligned lists so this whole surface is already
+// shaped for the variable-length questions coming in the next pass.
+function questionsOf(d: CommunityDevotional): string[] {
+  return [d.reflectionQ1, d.reflectionQ2].filter((q): q is string => !!q && q.trim().length > 0);
+}
+function answerAt(item: CommunityFeedItem, i: number): string | null {
+  return [item.response1, item.response2][i] ?? null;
+}
+function hasAnyAnswer(item: CommunityFeedItem): boolean {
+  return !!(item.response1 || item.response2 || item.prayer);
+}
+function initial(name: string): string {
+  return name.trim()[0]?.toUpperCase() ?? "?";
+}
+
+function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+  const primary = useThemeColor("primary");
   return (
-    <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">{children}</Text>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: withAlpha(primary, 0.13),
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: size * 0.42, color: primary }}>{initial(name)}</Text>
+    </View>
+  );
+}
+
+/** A small serif eyebrow used above the reading + section groupings. */
+function Eyebrow({ children }: { children: string }) {
+  return <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">{children}</Text>;
+}
+
+function ReadingHero({ devotional }: { devotional: CommunityDevotional }) {
+  const fg = useThemeColor("foreground");
+  const muted = useThemeColor("muted-foreground");
+  const border = useThemeColor("border");
+  const card = useThemeColor("card");
+  const primary = useThemeColor("primary");
+  const [expanded, setExpanded] = useState(false);
+
+  const hasMore =
+    !!devotional.passageContext || (devotional.studyNotes?.length ?? 0) > 0 || !!devotional.prayerPrompt;
+
+  return (
+    <View style={{ borderWidth: 1, borderColor: border, borderRadius: 14, backgroundColor: card, padding: 16 }}>
+      <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
+        {devotional.passageReference}
+      </Text>
+      <Text className="mt-1 font-serif text-2xl font-bold text-foreground">{devotional.title}</Text>
+      {devotional.subtitle ? (
+        <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 14, marginTop: 3 }}>
+          {devotional.subtitle}
+        </Text>
+      ) : null}
+
+      {devotional.passageContext ? (
+        <Text
+          numberOfLines={expanded ? undefined : 3}
+          style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 23, marginTop: 12 }}
+        >
+          {devotional.passageContext}
+        </Text>
+      ) : null}
+
+      {expanded && (devotional.studyNotes?.length ?? 0) > 0 ? (
+        <View className="mt-5">
+          <Eyebrow>Study Notes</Eyebrow>
+          {devotional.studyNotes.map((n, i) => (
+            <View key={i} style={{ borderLeftWidth: 2, borderLeftColor: primary, paddingLeft: 12, marginBottom: 12 }}>
+              <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 12, marginBottom: 2 }}>
+                {n.verse_ref}
+              </Text>
+              <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 21 }}>{n.note}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {expanded && devotional.prayerPrompt ? (
+        <View className="mt-5">
+          <Eyebrow>Prayer</Eyebrow>
+          <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 15, lineHeight: 23, fontStyle: "italic" }}>
+            {devotional.prayerPrompt}
+          </Text>
+        </View>
+      ) : null}
+
+      {hasMore ? (
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          accessibilityRole="button"
+          className="mt-3 flex-row items-center gap-1"
+          hitSlop={6}
+        >
+          <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 13 }}>
+            {expanded ? "Show less" : "Read the full passage"}
+          </Text>
+          {!expanded ? <ChevronRight size={15} color={primary} /> : null}
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function Pulse({ feed }: { feed: CommunityFeedItem[] }) {
+  const muted = useThemeColor("muted-foreground");
+  const shared = feed.filter(hasAnyAnswer);
+  if (shared.length === 0) return null;
+  const faces = shared.slice(0, 4);
+  return (
+    <View className="mt-4 flex-row items-center gap-3">
+      <View className="flex-row">
+        {faces.map((f, i) => (
+          <View key={f.id} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+            <Avatar name={f.displayName} size={24} />
+          </View>
+        ))}
+      </View>
+      <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 13 }}>
+        {shared.length} {shared.length === 1 ? "reflection" : "reflections"} shared
+      </Text>
+    </View>
   );
 }
 
 function FeedCard({
   item,
-  q1: q1Label,
-  q2: q2Label,
+  questions,
   onReact,
   onReport,
 }: {
   item: CommunityFeedItem;
-  q1: string;
-  q2: string;
+  questions: string[];
   onReact: (item: CommunityFeedItem, type: CommunityReactionType) => void;
   onReport: (item: CommunityFeedItem) => void;
 }) {
@@ -60,42 +186,17 @@ function FeedCard({
   const primary = useThemeColor("primary");
   const card = useThemeColor("card");
 
-  const hasAnswers = item.response1 || item.response2 || item.prayer;
-  if (!hasAnswers) return null;
+  if (!hasAnyAnswer(item)) return null;
 
   return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: border,
-        borderRadius: 12,
-        backgroundColor: card,
-        padding: 14,
-        marginBottom: 8,
-      }}
-    >
+    <View style={{ borderWidth: 1, borderColor: border, borderRadius: 12, backgroundColor: card, padding: 14, marginBottom: 10 }}>
       <View className="mb-2 flex-row items-center gap-2">
-        <View
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 13,
-            backgroundColor: withAlpha(primary, 0.13),
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 11, color: primary }}>
-            {item.displayName[0]?.toUpperCase()}
-          </Text>
-        </View>
+        <Avatar name={item.displayName} size={26} />
         <Text style={{ flex: 1, fontFamily: "DMSans_700Bold", fontSize: 14, color: fg }}>
           {item.displayName}
           {item.isOwn ? " (you)" : ""}
         </Text>
-        <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 11, color: muted }}>
-          {timeAgo(item.updatedAt)}
-        </Text>
+        <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 11, color: muted }}>{timeAgo(item.updatedAt)}</Text>
         {!item.isOwn ? (
           <Pressable
             onPress={() => onReport(item)}
@@ -109,38 +210,23 @@ function FeedCard({
         ) : null}
       </View>
 
-      {item.response1 ? (
-        <View className="mb-2">
-          <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>
-            {q1Label}
-          </Text>
-          <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>
-            {item.response1}
-          </Text>
-        </View>
-      ) : null}
-      {item.response2 ? (
-        <View className="mb-2">
-          <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>
-            {q2Label}
-          </Text>
-          <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>
-            {item.response2}
-          </Text>
-        </View>
-      ) : null}
+      {questions.map((q, i) => {
+        const a = answerAt(item, i);
+        if (!a) return null;
+        return (
+          <View key={i} className="mb-2">
+            <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>{q}</Text>
+            <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>{a}</Text>
+          </View>
+        );
+      })}
       {item.prayer ? (
         <View className="mb-2">
-          <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>
-            Prayer
-          </Text>
-          <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>
-            {item.prayer}
-          </Text>
+          <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>Prayer</Text>
+          <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>{item.prayer}</Text>
         </View>
       ) : null}
 
-      {/* Reactions */}
       <View className="mt-1 flex-row flex-wrap gap-2">
         {REACTIONS.map(({ type, label }) => {
           const count = item.reactions[type] ?? 0;
@@ -154,18 +240,17 @@ function FeedCard({
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 4,
                 borderWidth: 1,
                 borderColor: mine ? primary : border,
                 backgroundColor: mine ? withAlpha(primary, 0.1) : "transparent",
                 borderRadius: 16,
-                paddingHorizontal: 10,
+                paddingHorizontal: 11,
                 paddingVertical: 5,
               }}
             >
               <Text style={{ fontFamily: "DMSans_500Medium", fontSize: 12, color: mine ? primary : muted }}>
                 {label}
-                {count > 0 ? ` ${count}` : ""}
+                {count > 0 ? ` · ${count}` : ""}
               </Text>
             </Pressable>
           );
@@ -175,10 +260,118 @@ function FeedCard({
   );
 }
 
+function ComposerModal({
+  visible,
+  devotional,
+  mine,
+  onClose,
+  onSaved,
+}: {
+  visible: boolean;
+  devotional: CommunityDevotional;
+  mine: CommunityFeedItem | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const fg = useThemeColor("foreground");
+  const muted = useThemeColor("muted-foreground");
+  const primary = useThemeColor("primary");
+  const questions = useMemo(() => questionsOf(devotional), [devotional]);
+
+  const [answers, setAnswers] = useState<string[]>(questions.map((_, i) => answerAt(mine ?? ({} as CommunityFeedItem), i) ?? ""));
+  const [prayer, setPrayer] = useState(mine?.prayer ?? "");
+  const [saving, setSaving] = useState(false);
+
+  // Re-seed from the latest saved response each time the sheet opens.
+  useEffect(() => {
+    if (!visible) return;
+    setAnswers(questions.map((_, i) => answerAt(mine ?? ({} as CommunityFeedItem), i) ?? ""));
+    setPrayer(mine?.prayer ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  const setAnswer = (i: number, v: string) => setAnswers((prev) => prev.map((a, idx) => (idx === i ? v : a)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await ApiClient.saveCommunityResponse({
+        communityDevotionalId: devotional.id,
+        response1: answers[0]?.trim() || null,
+        response2: answers[1]?.trim() || null,
+        prayer: prayer.trim() || null,
+        q1Private: false,
+        q2Private: false,
+        prayerPrivate: false,
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      Alert.alert("Couldn't save", err instanceof ApiError ? err.message : "Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} presentationStyle="fullScreen">
+      <Screen edges={["top", "bottom"]}>
+        <View className="flex-row items-center justify-between px-6 pb-2 pt-2">
+          <Text className="font-serif text-xl font-bold text-foreground">{mine ? "Edit your reflection" : "Your reflection"}</Text>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+            <X size={22} color={muted} />
+          </Pressable>
+        </View>
+        <ScrollView
+          contentContainerClassName="mx-auto w-full max-w-lg px-6 pb-16 pt-2"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 7,
+              marginBottom: 18,
+              backgroundColor: withAlpha(primary, 0.08),
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 9,
+            }}
+          >
+            <Users size={14} color={primary} />
+            <Text style={{ flex: 1, color: muted, fontFamily: "DMSans_400Regular", fontSize: 12, lineHeight: 17 }}>
+              Everyone in the community can see this.
+            </Text>
+          </View>
+
+          {questions.map((q, i) => (
+            <View key={i} style={{ marginBottom: 16 }}>
+              <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14, marginBottom: 8 }}>{q}</Text>
+              <Input value={answers[i] ?? ""} onChangeText={(t) => setAnswer(i, t)} multiline placeholder="Write your reflection…" />
+            </View>
+          ))}
+
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14, marginBottom: 8 }}>
+              Prayer <Text style={{ color: muted, fontFamily: "DMSans_400Regular" }}>· optional</Text>
+            </Text>
+            <Input value={prayer} onChangeText={setPrayer} multiline placeholder="Write a prayer…" />
+          </View>
+
+          <Button title={mine ? "Update reflection" : "Share with the community"} onPress={save} loading={saving} />
+        </ScrollView>
+      </Screen>
+    </Modal>
+  );
+}
+
 /**
- * Renders one Community Devotional — the reading itself, the user's own response
- * form, and the community feed of other members' responses with reactions.
- * Used by both today's tab and the archive detail screen.
+ * The feed-first Community experience: today's reading as a compact hero, a live
+ * participation pulse, your reflection (or a prompt to add one), then the room of
+ * everyone else's reflections. Used by both today's tab and the archive detail.
  */
 export function CommunityDevotionalView({
   data,
@@ -191,44 +384,13 @@ export function CommunityDevotionalView({
   const muted = useThemeColor("muted-foreground");
   const border = useThemeColor("border");
   const primary = useThemeColor("primary");
+  const card = useThemeColor("card");
   const toast = useToast();
 
   const devotional = data.devotional!;
   const mine = data.myResponse;
-
-  const [response1, setResponse1] = useState(mine?.response1 ?? "");
-  const [response2, setResponse2] = useState(mine?.response2 ?? "");
-  const [prayer, setPrayer] = useState(mine?.prayer ?? "");
-  const [saving, setSaving] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
-
-  useEffect(() => {
-    if (!justSaved) return;
-    const t = setTimeout(() => setJustSaved(false), 2800);
-    return () => clearTimeout(t);
-  }, [justSaved]);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await ApiClient.saveCommunityResponse({
-        communityDevotionalId: devotional.id,
-        response1: response1.trim() || null,
-        response2: response2.trim() || null,
-        prayer: prayer.trim() || null,
-        // Community is a public forum — every post is visible to everyone.
-        q1Private: false,
-        q2Private: false,
-        prayerPrivate: false,
-      });
-      onRefetch();
-      setJustSaved(true);
-    } catch (err) {
-      Alert.alert("Couldn't save", err instanceof ApiError ? err.message : "Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const questions = useMemo(() => questionsOf(devotional), [devotional]);
+  const [composing, setComposing] = useState(false);
 
   const react = async (item: CommunityFeedItem, type: CommunityReactionType) => {
     try {
@@ -249,174 +411,110 @@ export function CommunityDevotionalView({
   };
 
   const report = (item: CommunityFeedItem) => {
-    Alert.alert(
-      "Report this response?",
-      `Flag ${item.displayName}'s response for review. It stays visible until it's been looked at.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Spam", onPress: () => sendReport(item, "spam") },
-        { text: "Inappropriate", style: "destructive", onPress: () => sendReport(item, "inappropriate") },
-      ]
-    );
+    Alert.alert("Report this response?", `Flag ${item.displayName}'s response for review. It stays visible until it's been looked at.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Spam", onPress: () => sendReport(item, "spam") },
+      { text: "Inappropriate", style: "destructive", onPress: () => sendReport(item, "inappropriate") },
+    ]);
   };
 
   const deleteMine = async () => {
     try {
       await ApiClient.deleteCommunityResponse(devotional.id);
-      setResponse1("");
-      setResponse2("");
-      setPrayer("");
       onRefetch();
-      toast.show("Response deleted");
+      toast.show("Reflection deleted");
     } catch (err) {
       Alert.alert("Couldn't delete", err instanceof ApiError ? err.message : "Please try again.");
     }
   };
-
   const confirmDeleteMine = () => {
-    Alert.alert("Delete your response?", "This removes it from the community feed.", [
+    Alert.alert("Delete your reflection?", "This removes it from the community feed.", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: deleteMine },
     ]);
   };
 
-  const others = data.feed.filter((f) => !f.isOwn);
+  const others = data.feed.filter((f) => !f.isOwn && hasAnyAnswer(f));
 
   return (
     <View>
-      {/* ── The reading ─────────────────────────────────────────────────── */}
-      <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 13 }}>
-        {devotional.passageReference}
-      </Text>
-      <Text className="mt-1 font-serif text-2xl font-bold text-foreground">{devotional.title}</Text>
-      {devotional.subtitle ? (
-        <Text className="mt-1 text-base text-muted-foreground">{devotional.subtitle}</Text>
-      ) : null}
+      <ReadingHero devotional={devotional} />
+      <Pulse feed={data.feed} />
 
-      {devotional.passageContext ? (
-        <Text
+      {/* Your reflection — a prompt if you haven't shared, your card if you have. */}
+      {mine && hasAnyAnswer(mine) ? (
+        <View style={{ marginTop: 16, borderWidth: 1, borderColor: withAlpha(primary, 0.4), borderRadius: 12, backgroundColor: card, padding: 14 }}>
+          <View className="mb-2 flex-row items-center">
+            <Text style={{ flex: 1, fontFamily: "DMSans_700Bold", fontSize: 13, color: primary }}>Your reflection</Text>
+            <Pressable onPress={() => setComposing(true)} hitSlop={8} accessibilityLabel="Edit your reflection">
+              <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 13 }}>Edit</Text>
+            </Pressable>
+          </View>
+          {questions.map((q, i) => {
+            const a = answerAt(mine, i);
+            if (!a) return null;
+            return (
+              <View key={i} className="mb-2">
+                <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>{q}</Text>
+                <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>{a}</Text>
+              </View>
+            );
+          })}
+          {mine.prayer ? (
+            <View className="mb-1">
+              <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginBottom: 2 }}>Prayer</Text>
+              <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 20 }}>{mine.prayer}</Text>
+            </View>
+          ) : null}
+          <Pressable onPress={confirmDeleteMine} accessibilityRole="button" className="mt-1 self-start" hitSlop={6}>
+            <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12 }}>Delete</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => setComposing(true)}
+          accessibilityRole="button"
           style={{
-            color: fg,
-            fontFamily: "DMSans_400Regular",
-            fontSize: 14,
-            lineHeight: 23,
             marginTop: 16,
+            borderWidth: 1,
+            borderColor: withAlpha(primary, 0.5),
+            borderStyle: "dashed",
+            borderRadius: 12,
+            paddingVertical: 16,
+            alignItems: "center",
           }}
         >
-          {devotional.passageContext}
-        </Text>
-      ) : null}
-
-      {(devotional.studyNotes?.length ?? 0) > 0 ? (
-        <View className="mt-5">
-          <Label>Study Notes</Label>
-          {devotional.studyNotes.map((n, i) => (
-            <View
-              key={i}
-              style={{ borderLeftWidth: 2, borderLeftColor: primary, paddingLeft: 12, marginBottom: 12 }}
-            >
-              <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 12, marginBottom: 2 }}>
-                {n.verse_ref}
-              </Text>
-              <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 14, lineHeight: 21 }}>
-                {n.note}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      {devotional.prayerPrompt ? (
-        <View className="mt-5">
-          <Label>Prayer</Label>
-          <Text style={{ color: fg, fontFamily: "DMSans_400Regular", fontSize: 15, lineHeight: 23, fontStyle: "italic" }}>
-            {devotional.prayerPrompt}
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={{ height: 1, backgroundColor: border, marginVertical: 24 }} />
-
-      {/* ── Your response ───────────────────────────────────────────────── */}
-      <Text className="mb-2 font-serif text-lg font-bold text-foreground">Your Response</Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 7,
-          marginBottom: 16,
-          backgroundColor: withAlpha(primary, 0.08),
-          borderRadius: 8,
-          paddingHorizontal: 10,
-          paddingVertical: 9,
-        }}
-      >
-        <Globe size={14} color={primary} />
-        <Text style={{ flex: 1, color: muted, fontFamily: "DMSans_400Regular", fontSize: 12, lineHeight: 17 }}>
-          This is a public forum — anything you post is visible to everyone in IronSharp.
-        </Text>
-      </View>
-
-      <Label>{devotional.reflectionQ1}</Label>
-      <Input value={response1} onChangeText={setResponse1} multiline placeholder="Write your reflection…" />
-
-      <View style={{ height: 14 }} />
-      <Label>{devotional.reflectionQ2}</Label>
-      <Input value={response2} onChangeText={setResponse2} multiline placeholder="Write your reflection…" />
-
-      <View style={{ height: 14 }} />
-      <Label>Prayer (optional)</Label>
-      <Input value={prayer} onChangeText={setPrayer} multiline placeholder="Write a prayer…" />
-
-      <Button
-        title={mine ? "Update Response" : "Share Response"}
-        onPress={save}
-        loading={saving}
-        style={{ marginTop: 18 }}
-      />
-
-      {justSaved ? (
-        <View className="mt-3 flex-row items-center justify-center gap-2">
-          <Check size={15} color={primary} />
-          <Text style={{ color: primary, fontFamily: "DMSans_500Medium", fontSize: 13 }}>
-            Shared with the community
-          </Text>
-        </View>
-      ) : null}
-
-      {mine ? (
-        <Pressable
-          onPress={confirmDeleteMine}
-          accessibilityRole="button"
-          accessibilityLabel="Delete my response"
-          className="mt-3 items-center"
-        >
-          <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 13 }}>
-            Delete my response
+          <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 15 }}>Share your reflection</Text>
+          <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 12, marginTop: 2 }}>
+            See how the community answered
           </Text>
         </Pressable>
-      ) : null}
+      )}
 
       <View style={{ height: 1, backgroundColor: border, marginVertical: 24 }} />
 
-      {/* ── Community feed ──────────────────────────────────────────────── */}
-      <Text className="mb-4 font-serif text-lg font-bold text-foreground">From the Community</Text>
+      {/* The room */}
+      <Text className="mb-4 font-serif text-lg font-bold text-foreground">The room</Text>
       {others.length === 0 ? (
         <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 14, fontStyle: "italic" }}>
-          No one else has shared yet. Be the first voice today.
+          No one else has shared yet. Be the first.
         </Text>
       ) : (
         others.map((item) => (
-          <FeedCard
-            key={item.id}
-            item={item}
-            q1={devotional.reflectionQ1}
-            q2={devotional.reflectionQ2}
-            onReact={react}
-            onReport={report}
-          />
+          <FeedCard key={item.id} item={item} questions={questions} onReact={react} onReport={report} />
         ))
       )}
+
+      <ComposerModal
+        visible={composing}
+        devotional={devotional}
+        mine={mine}
+        onClose={() => setComposing(false)}
+        onSaved={() => {
+          onRefetch();
+          toast.show("Shared with the community");
+        }}
+      />
     </View>
   );
 }
