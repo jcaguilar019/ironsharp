@@ -466,8 +466,11 @@ export const communityDevotionals = pgTable(
     passageReference: text("passage_reference").notNull(), // e.g. "Romans 14:1–12"
     passageContext: text("passage_context"),
     studyNotes: jsonb("study_notes").notNull().default([]), // StudyNoteEntry[]
-    reflectionQ1: text("reflection_q1").notNull(),
-    reflectionQ2: text("reflection_q2").notNull(),
+    // 0–5 reflection questions, all optional. Source of truth; reflectionQ1/Q2
+    // are legacy mirrors of questions[0]/[1] kept for pre-questions clients.
+    questions: jsonb("questions").notNull().default([]), // string[]
+    reflectionQ1: text("reflection_q1"),
+    reflectionQ2: text("reflection_q2"),
     prayerPrompt: text("prayer_prompt"),
     status: text("status").notNull().default("draft"), // draft | published
     createdByUserId: text("created_by_user_id").notNull(),
@@ -487,6 +490,9 @@ export const communityResponses = pgTable(
       .notNull()
       .references(() => communityDevotionals.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull(),
+    // Index-aligned with the devotional's questions[]. Source of truth;
+    // response1/response2 are legacy mirrors of answers[0]/[1].
+    answers: jsonb("answers").notNull().default([]), // (string | null)[]
     response1: text("response1"),
     response2: text("response2"),
     prayer: text("prayer"),

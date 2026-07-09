@@ -314,8 +314,11 @@ export type CommunityDevotional = {
   passageReference: string;
   passageContext: string | null;
   studyNotes: StudyNoteEntry[];
-  reflectionQ1: string;
-  reflectionQ2: string;
+  /** 0–5 reflection questions, all optional. Source of truth. */
+  questions: string[];
+  /** Legacy mirrors of questions[0]/[1] — read only as a fallback. */
+  reflectionQ1: string | null;
+  reflectionQ2: string | null;
   prayerPrompt: string | null;
   status: "draft" | "published";
   createdByUserId: string;
@@ -331,8 +334,7 @@ export type CommunityDevotionalInput = {
   passageReference: string;
   passageContext?: string | null;
   studyNotes: StudyNoteEntry[];
-  reflectionQ1: string;
-  reflectionQ2: string;
+  questions: string[];
   prayerPrompt?: string | null;
   status: "draft" | "published";
 };
@@ -346,6 +348,9 @@ export type CommunityFeedItem = {
   isOwn: boolean;
   displayName: string;
   avatarUrl: string | null;
+  /** Index-aligned with the devotional's questions[]. Source of truth. */
+  answers: (string | null)[];
+  /** Legacy mirrors of answers[0]/[1] — read only as a fallback. */
   response1: string | null;
   response2: string | null;
   prayer: string | null;
@@ -687,18 +692,18 @@ export const ApiClient = {
   getCommunityEntry: (id: string) => api<CommunityToday>(`/api/community/entry/${id}`),
   getCommunityArchive: () =>
     api<{ devotionals: CommunityArchiveItem[] }>("/api/community/archive"),
-  saveCommunityResponse: (body: {
-    communityDevotionalId: string;
-    response1?: string | null;
-    response2?: string | null;
-    prayer?: string | null;
-    q1Private?: boolean;
-    q2Private?: boolean;
-    prayerPrivate?: boolean;
-  }) =>
+  saveCommunityResponse: (body: { communityDevotionalId: string; answers: (string | null)[]; prayer?: string | null }) =>
     api<{ response: CommunityResponseRow }>("/api/community/responses", {
       method: "PUT",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        // Legacy mirrors so this also saves against a pre-questions server.
+        response1: body.answers[0] ?? null,
+        response2: body.answers[1] ?? null,
+        q1Private: false,
+        q2Private: false,
+        prayerPrivate: false,
+      }),
     }),
   toggleCommunityReaction: (responseId: string, reactionType: CommunityReactionType) =>
     api<{ reacted: boolean }>("/api/community/reactions", {

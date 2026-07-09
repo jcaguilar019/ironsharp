@@ -25,6 +25,8 @@ type ReactionType = (typeof REACTION_TYPES)[number];
 const studyNoteSchema = z.object({ verse_ref: z.string(), note: z.string() });
 
 // Shared shape for create/edit. Dates come in as YYYY-MM-DD strings.
+// `questions` (0–5, all optional) is the source of truth; reflectionQ1/Q2 are
+// still accepted from pre-questions clients and folded in.
 const devotionalInputSchema = z.object({
   publishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "publishDate must be YYYY-MM-DD"),
   title: z.string().trim().min(1).max(200),
@@ -32,14 +34,27 @@ const devotionalInputSchema = z.object({
   passageReference: z.string().trim().min(1).max(200),
   passageContext: z.string().trim().nullish(),
   studyNotes: z.array(studyNoteSchema).default([]),
-  reflectionQ1: z.string().trim().min(1),
-  reflectionQ2: z.string().trim().min(1),
+  questions: z.array(z.string().trim().max(500)).max(5).default([]),
+  reflectionQ1: z.string().trim().nullish(),
+  reflectionQ2: z.string().trim().nullish(),
   prayerPrompt: z.string().trim().nullish(),
   status: z.enum(["draft", "published"]).default("draft"),
 });
 
+function normalizedQuestions(body: z.infer<typeof devotionalInputSchema>): string[] {
+  const qs = body.questions.map((q) => q.trim()).filter(Boolean);
+  if (qs.length) return qs.slice(0, 5);
+  // Legacy two-field clients.
+  return [body.reflectionQ1, body.reflectionQ2]
+    .map((q) => q?.trim() ?? "")
+    .filter(Boolean);
+}
+
+// `answers` is index-aligned with the devotional's questions; response1/response2
+// are still accepted from pre-questions clients and treated as answers[0]/[1].
 const responseSchema = z.object({
   communityDevotionalId: z.string().uuid(),
+  answers: z.array(z.string().trim().max(5000).nullable()).max(10).optional(),
   response1: z.string().trim().max(5000).nullish(),
   response2: z.string().trim().max(5000).nullish(),
   prayer: z.string().trim().max(5000).nullish(),
@@ -47,6 +62,13 @@ const responseSchema = z.object({
   q2Private: z.boolean().optional(),
   prayerPrivate: z.boolean().optional(),
 });
+
+function normalizedAnswers(body: z.infer<typeof responseSchema>): (string | null)[] {
+  const raw = body.answers ?? [body.response1 ?? null, body.response2 ?? null];
+  const answers = raw.map((a) => (a && a.trim() ? a.trim() : null));
+  while (answers.length && answers[answers.length - 1] === null) answers.pop();
+  return answers;
+}
 
 const reactionSchema = z.object({
   responseId: z.string().uuid(),
@@ -63,6 +85,7 @@ async function buildFeed(communityDevotionalId: string, viewerId: string) {
     .select({
       id: communityResponses.id,
       userId: communityResponses.userId,
+      answers: communityResponses.answers,
       response1: communityResponses.response1,
       response2: communityResponses.response2,
       prayer: communityResponses.prayer,
@@ -107,13 +130,18 @@ async function buildFeed(communityDevotionalId: string, viewerId: string) {
   return rows.map((r) => {
     const isOwn = r.userId === viewerId;
     const agg = byResponse.get(r.id)!;
+    const rawAnswers = (Array.isArray(r.answers) ? r.answers : []) as (string | null)[];
     return {
       id: r.id,
       userId: r.userId,
       isOwn,
       displayName: r.displayName ?? "Someone",
       avatarUrl: r.avatarUrl,
-      // Private fields are visible only to their author.
+      // Private fields are visible only to their author. (The legacy per-field
+      // privacy flags map onto answers[0]/[1].)
+      answers: rawAnswers.map((a, i) =>
+        !isOwn && ((i === 0 && r.q1Private) || (i === 1 && r.q2Private)) ? null : a
+      ),
       response1: !isOwn && r.q1Private ? null : r.response1,
       response2: !isOwn && r.q2Private ? null : r.response2,
       prayer: !isOwn && r.prayerPrivate ? null : r.prayer,
@@ -212,31 +240,28 @@ community.put("/responses", async (c) => {
   if (!devotional) return c.json({ error: "Devotional not found" }, 404);
   if (devotional.status !== "published") return c.json({ error: "Not open for responses" }, 403);
 
+  const answers = normalizedAnswers(body);
   const now = new Date();
+  const fields = {
+    answers,
+    response1: answers[0] ?? null, // legacy mirrors of answers[0]/[1]
+    response2: answers[1] ?? null,
+    prayer: body.prayer ?? null,
+    q1Private: body.q1Private ?? false,
+    q2Private: body.q2Private ?? false,
+    prayerPrivate: body.prayerPrivate ?? true,
+    updatedAt: now,
+  };
   const [row] = await db
     .insert(communityResponses)
     .values({
       communityDevotionalId: body.communityDevotionalId,
       userId,
-      response1: body.response1 ?? null,
-      response2: body.response2 ?? null,
-      prayer: body.prayer ?? null,
-      q1Private: body.q1Private ?? false,
-      q2Private: body.q2Private ?? false,
-      prayerPrivate: body.prayerPrivate ?? true,
-      updatedAt: now,
+      ...fields,
     })
     .onConflictDoUpdate({
       target: [communityResponses.communityDevotionalId, communityResponses.userId],
-      set: {
-        response1: body.response1 ?? null,
-        response2: body.response2 ?? null,
-        prayer: body.prayer ?? null,
-        q1Private: body.q1Private ?? false,
-        q2Private: body.q2Private ?? false,
-        prayerPrivate: body.prayerPrivate ?? true,
-        updatedAt: now,
-      },
+      set: fields,
     })
     .returning();
 
@@ -420,6 +445,7 @@ community.post("/admin/create", async (c) => {
     .limit(1);
   if (clash) return c.json({ error: `A reading already exists for ${body.publishDate}` }, 409);
 
+  const questions = normalizedQuestions(body);
   const [row] = await db
     .insert(communityDevotionals)
     .values({
@@ -429,8 +455,9 @@ community.post("/admin/create", async (c) => {
       passageReference: body.passageReference,
       passageContext: body.passageContext ?? null,
       studyNotes: body.studyNotes,
-      reflectionQ1: body.reflectionQ1,
-      reflectionQ2: body.reflectionQ2,
+      questions,
+      reflectionQ1: questions[0] ?? null, // legacy mirrors of questions[0]/[1]
+      reflectionQ2: questions[1] ?? null,
       prayerPrompt: body.prayerPrompt ?? null,
       status: body.status,
       createdByUserId: userId,
@@ -459,6 +486,7 @@ community.put("/admin/:id", async (c) => {
     .limit(1);
   if (clash) return c.json({ error: `A reading already exists for ${body.publishDate}` }, 409);
 
+  const questions = normalizedQuestions(body);
   const [row] = await db
     .update(communityDevotionals)
     .set({
@@ -468,8 +496,9 @@ community.put("/admin/:id", async (c) => {
       passageReference: body.passageReference,
       passageContext: body.passageContext ?? null,
       studyNotes: body.studyNotes,
-      reflectionQ1: body.reflectionQ1,
-      reflectionQ2: body.reflectionQ2,
+      questions,
+      reflectionQ1: questions[0] ?? null, // legacy mirrors of questions[0]/[1]
+      reflectionQ2: questions[1] ?? null,
       prayerPrompt: body.prayerPrompt ?? null,
       status: body.status,
       updatedAt: new Date(),

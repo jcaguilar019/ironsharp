@@ -5,6 +5,7 @@ import { ChevronRight, Flag } from "lucide-react-native";
 import { useToast } from "@/components/Toast";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
+import { answerAt, hasAnyAnswer, questionsOf } from "@/lib/communityContent";
 import {
   ApiClient,
   ApiError,
@@ -35,18 +36,6 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// The reading currently carries exactly two questions; render them (and each
-// response's answers) as index-aligned lists so this whole surface is already
-// shaped for the variable-length questions coming in the next pass.
-function questionsOf(d: CommunityDevotional): string[] {
-  return [d.reflectionQ1, d.reflectionQ2].filter((q): q is string => !!q && q.trim().length > 0);
-}
-function answerAt(item: CommunityFeedItem, i: number): string | null {
-  return [item.response1, item.response2][i] ?? null;
-}
-function hasAnyAnswer(item: CommunityFeedItem): boolean {
-  return !!(item.response1 || item.response2 || item.prayer);
-}
 function initial(name: string): string {
   return name.trim()[0]?.toUpperCase() ?? "?";
 }

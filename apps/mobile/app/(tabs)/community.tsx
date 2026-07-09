@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, CalendarDays, PenLine } from "lucide-react-native";
+import { BookOpen, CalendarDays } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { ErrorState } from "@/components/ErrorState";
@@ -46,7 +46,7 @@ export default function CommunityScreen() {
               <Pressable
                 onPress={() => router.push("/community/admin")}
                 accessibilityRole="button"
-                accessibilityLabel="Author community devotionals"
+                accessibilityLabel="Open the posting schedule"
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -58,8 +58,8 @@ export default function CommunityScreen() {
                   paddingVertical: 6,
                 }}
               >
-                <PenLine size={14} color={primary} />
-                <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 12 }}>Author</Text>
+                <CalendarDays size={14} color={primary} />
+                <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 12 }}>Schedule</Text>
               </Pressable>
             ) : undefined
           }

@@ -12,6 +12,7 @@ import { useToast } from "@/components/Toast";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import { ApiClient, ApiError, type CommunityToday } from "@/lib/api";
+import { answerAt, questionsOf } from "@/lib/communityContent";
 import { useCommunityEntry } from "@/lib/queries";
 
 /**
@@ -50,11 +51,11 @@ function RespondForm({ data }: { data: CommunityToday }) {
 
   const devotional = data.devotional!;
   const mine = data.myResponse;
-  const questions = [devotional.reflectionQ1, devotional.reflectionQ2].filter(
-    (q): q is string => !!q && q.trim().length > 0
-  );
+  const questions = questionsOf(devotional);
 
-  const [answers, setAnswers] = useState<string[]>([mine?.response1 ?? "", mine?.response2 ?? ""]);
+  const [answers, setAnswers] = useState<string[]>(
+    questions.map((_, i) => (mine ? (answerAt(mine, i) ?? "") : ""))
+  );
   const [prayer, setPrayer] = useState(mine?.prayer ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -66,12 +67,8 @@ function RespondForm({ data }: { data: CommunityToday }) {
     try {
       await ApiClient.saveCommunityResponse({
         communityDevotionalId: devotional.id,
-        response1: answers[0]?.trim() || null,
-        response2: answers[1]?.trim() || null,
+        answers: questions.map((_, i) => answers[i]?.trim() || null),
         prayer: prayer.trim() || null,
-        q1Private: false,
-        q2Private: false,
-        prayerPrivate: false,
       });
       await qc.invalidateQueries({ queryKey: ["community"] });
       toast.show(mine ? "Reflection updated" : "Shared with the community");
