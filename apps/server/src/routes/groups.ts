@@ -41,14 +41,20 @@ const groupDaySchema = z.object({
 
 /**
  * A finished group plan counts toward each participating member's personal
- * completion stats — anyone who submitted at least one day of this run.
- * (Solo runs get this via PATCH /progress; group runs close out here.)
+ * completion stats — anyone who submitted at least one day of THIS run (not a
+ * previous run of the same plan). (Solo runs get this via PATCH /progress.)
  */
-async function creditGroupCompletion(groupId: string, planId: string): Promise<void> {
+async function creditGroupCompletion(groupId: string, planId: string, runId?: string | null): Promise<void> {
   const participants = await db
     .selectDistinct({ userId: devotionalSubmissions.userId })
     .from(devotionalSubmissions)
-    .where(and(eq(devotionalSubmissions.groupId, groupId), eq(devotionalSubmissions.planId, planId)));
+    .where(
+      and(
+        eq(devotionalSubmissions.groupId, groupId),
+        eq(devotionalSubmissions.planId, planId),
+        ...(runId ? [eq(devotionalSubmissions.runId, runId)] : [])
+      )
+    );
   const ids = participants.map((p) => p.userId);
   if (ids.length === 0) return;
   await db
@@ -127,8 +133,8 @@ groupsRoute.get("/", async (c) => {
                 planId: plan.id,
                 planTitle: plan.title,
               });
-              await creditGroupCompletion(group.id, plan.id).catch(() => {});
               const run = await activeGroupRun(group.id, plan.id);
+              await creditGroupCompletion(group.id, plan.id, run?.id).catch(() => {});
               if (run) await closeRun(run.id, "completed");
               await db
                 .update(groupMembers)
@@ -906,11 +912,16 @@ groupsRoute.patch("/:id/day", async (c) => {
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
   const allMembers = await db
-    .select({ doneToday: groupMembers.doneToday, userId: groupMembers.userId })
+    .select({ doneToday: groupMembers.doneToday, userId: groupMembers.userId, joinedAt: groupMembers.joinedAt })
     .from(groupMembers)
     .where(eq(groupMembers.groupId, groupId));
 
-  const allDone = allMembers.every((m) => m.doneToday || m.userId === userId);
+  // Members who joined mid-day aren't required for today — otherwise inviting
+  // someone freezes the group until tomorrow's ghost-advance.
+  const { start: todayStart } = clientDayWindow(c);
+  const allDone = allMembers.every(
+    (m) => m.doneToday || m.userId === userId || m.joinedAt >= todayStart
+  );
 
   if (allDone) {
     if (completed) {
@@ -928,8 +939,8 @@ groupsRoute.patch("/:id/day", async (c) => {
           planId: finishedPlan.id,
           planTitle: finishedPlan.title,
         });
-        await creditGroupCompletion(groupId, finishedPlan.id).catch(() => {});
         const run = await activeGroupRun(groupId, finishedPlan.id);
+        await creditGroupCompletion(groupId, finishedPlan.id, run?.id).catch(() => {});
         if (run) await closeRun(run.id, "completed");
       }
       await db

@@ -100,9 +100,13 @@ export async function notifyGroupCompleteIfDone(
   planId: string,
   dayNumber: number,
   groupId: string | null,
-  runId?: string | null
+  runId?: string | null,
+  todayStart?: Date
 ): Promise<void> {
   // Only a group submission can complete a group; scope to that instance.
+  // Deliberately NOT keyed on groups.currentPlanId: on the plan's last day the
+  // client's completion PATCH clears it concurrently with this background
+  // notify, which would race the final "Group complete" push away.
   if (!groupId) return;
   const memberRows = await db
     .select({ groupId: groupMembers.groupId })
@@ -112,7 +116,6 @@ export async function notifyGroupCompleteIfDone(
       and(
         eq(groupMembers.userId, submittingUserId),
         eq(groupMembers.groupId, groupId),
-        eq(groups.currentPlanId, planId),
         isNull(groups.archivedAt)
       )
     );
@@ -127,11 +130,13 @@ export async function notifyGroupCompleteIfDone(
     if (!group) continue;
 
     const allMembers = await db
-      .select({ userId: groupMembers.userId })
+      .select({ userId: groupMembers.userId, joinedAt: groupMembers.joinedAt })
       .from(groupMembers)
       .where(eq(groupMembers.groupId, groupId));
 
-    const allIds = allMembers.map((m) => m.userId);
+    // Mid-day joiners aren't required for today's completion.
+    const required = todayStart ? allMembers.filter((m) => m.joinedAt < todayStart) : allMembers;
+    const allIds = required.map((m) => m.userId);
     if (allIds.length === 0) continue;
 
     // Use the submissions table as source of truth — more reliable than doneToday

@@ -211,6 +211,22 @@ progress.post("/:planId/restart", async (c) => {
     .limit(1);
   if (!plan || !(await canReadPlan(userId, plan))) return c.json({ error: "Plan not found" }, 404);
 
+  // Restart is for plans you've already run — otherwise it would be a start
+  // that skips the unlock quota.
+  const [priorRun] = await db
+    .select({ id: planRuns.id })
+    .from(planRuns)
+    .where(and(eq(planRuns.ownerType, "user"), eq(planRuns.userId, userId), eq(planRuns.planId, planId)))
+    .limit(1);
+  const [priorProgress] = await db
+    .select({ id: userPlanProgress.id })
+    .from(userPlanProgress)
+    .where(and(eq(userPlanProgress.userId, userId), eq(userPlanProgress.planId, planId)))
+    .limit(1);
+  if (!priorRun && !priorProgress) {
+    return c.json({ error: "Start this plan first." }, 409);
+  }
+
   const active = await activePersonalRun(userId, planId);
   if (active) await closeRun(active.id, "ended");
   const [run] = await db

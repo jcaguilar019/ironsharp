@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   devotionalSubmissions,
@@ -10,7 +10,7 @@ import {
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { notifyPartnerDone, notifyGroupCompleteIfDone } from "../lib/push.js";
-import { clientDateString } from "../lib/localday.js";
+import { clientDateString, clientDayWindow } from "../lib/localday.js";
 import {
   activeGroupRun,
   activePersonalRun,
@@ -195,9 +195,13 @@ submissions.get("/:planId/:dayNumber", async (c) => {
   const dayNumber = Number(c.req.param("dayNumber"));
   const groupId = c.req.query("groupId") || null;
 
-  // Prefill comes from the ACTIVE run only — after a restart, day inputs must
-  // come back blank rather than resurrecting the previous run's answers.
-  const run = groupId ? await activeGroupRun(groupId, planId) : await activePersonalRun(userId, planId);
+  // Prefill comes from the ACTIVE run — after a restart, day inputs come back
+  // blank rather than resurrecting the previous run's answers. With no active
+  // run (just-completed/stopped state), read the newest run, never a mix.
+  const run =
+    (groupId ? await activeGroupRun(groupId, planId) : await activePersonalRun(userId, planId)) ??
+    (groupId ? (await groupRuns(groupId, planId))[0] : (await personalRuns(userId, planId))[0]) ??
+    null;
 
   const [row] = await db
     .select()
@@ -287,9 +291,10 @@ submissions.put("/", async (c) => {
   // `today` is the submitter's LOCAL calendar day (x-timezone-offset header).
   if (!existing) {
     const today = clientDateString(c);
-    updateStreaks(userId, planId, dayNumber, today, groupId).catch((err) => console.error("[submissions] updateStreaks failed:", err));
+    const { start: todayStart } = clientDayWindow(c);
+    updateStreaks(userId, planId, dayNumber, today, groupId, todayStart).catch((err) => console.error("[submissions] updateStreaks failed:", err));
     notifyPartnerDone(userId, planId, groupId).catch((err) => console.error("[submissions] notifyPartnerDone failed:", err));
-    notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId, run.id).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
+    notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId, run.id, todayStart).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
   }
 
   return c.json({ submission: row });
@@ -331,7 +336,7 @@ async function updatePersonalStreak(userId: string, today: string) {
     .where(eq(profiles.userId, userId));
 }
 
-async function updateGroupStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null) {
+async function updateGroupStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null, todayStart: Date) {
   // A personal submission (no group instance) never advances a group.
   if (!groupId) return;
   // Only the group this submission was actually made in counts toward its day.
@@ -397,14 +402,16 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
       .set({ doneToday: true, streakCount: newMemberStreak, lastStreakDate: today })
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
-    // Check if every member is done.
+    // Check if every member is done — mid-day joiners aren't required today,
+    // or inviting someone would freeze the group's streak/advance until the
+    // next ghost-advance.
     const [totals] = await db
       .select({
         total: count(),
         done: sql<number>`sum(case when done_today then 1 else 0 end)::int`,
       })
       .from(groupMembers)
-      .where(eq(groupMembers.groupId, groupId));
+      .where(and(eq(groupMembers.groupId, groupId), lt(groupMembers.joinedAt, todayStart)));
 
     const total = totals?.total ?? 0;
     const done = totals?.done ?? 0;
@@ -424,9 +431,9 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
   }
 }
 
-async function updateStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null) {
+async function updateStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null, todayStart: Date) {
   await Promise.all([
     updatePersonalStreak(userId, today),
-    updateGroupStreaks(userId, planId, dayNumber, today, groupId),
+    updateGroupStreaks(userId, planId, dayNumber, today, groupId, todayStart),
   ]);
 }

@@ -17,6 +17,7 @@ import {
   communityReactions,
   communityReports,
   promoRedemptions,
+  planRuns,
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import type { MembershipTier } from "../lib/tiers.js";
@@ -401,6 +402,8 @@ profile.delete("/", async (c) => {
     await tx.delete(groupMembers).where(eq(groupMembers.userId, userId));
     // submission_reactions cascade from devotional_submissions via FK
     await tx.delete(devotionalSubmissions).where(eq(devotionalSubmissions.userId, userId));
+    // The user's personal run ledger (group runs belong to the group, not them).
+    await tx.delete(planRuns).where(and(eq(planRuns.ownerType, "user"), eq(planRuns.userId, userId)));
     await tx.delete(userPlanProgress).where(eq(userPlanProgress.userId, userId));
     // Only delete plans this user generated — curated plans are shared
     await tx.delete(devotionalPlans).where(
