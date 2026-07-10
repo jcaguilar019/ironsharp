@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Image, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { ChevronRight, Flag } from "lucide-react-native";
 import { useToast } from "@/components/Toast";
@@ -40,7 +40,7 @@ function initial(name: string): string {
   return name.trim()[0]?.toUpperCase() ?? "?";
 }
 
-function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+function Avatar({ name, avatarUrl, size = 28 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const primary = useThemeColor("primary");
   return (
     <View
@@ -48,12 +48,17 @@ function Avatar({ name, size = 28 }: { name: string; size?: number }) {
         width: size,
         height: size,
         borderRadius: size / 2,
+        overflow: "hidden",
         backgroundColor: withAlpha(primary, 0.13),
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Text style={{ fontFamily: "DMSans_700Bold", fontSize: size * 0.42, color: primary }}>{initial(name)}</Text>
+      {avatarUrl ? (
+        <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} />
+      ) : (
+        <Text style={{ fontFamily: "DMSans_700Bold", fontSize: size * 0.42, color: primary }}>{initial(name)}</Text>
+      )}
     </View>
   );
 }
@@ -154,7 +159,7 @@ function Pulse({ feed }: { feed: CommunityFeedItem[] }) {
               borderRadius: 14,
             }}
           >
-            <Avatar name={f.displayName} size={24} />
+            <Avatar name={f.displayName} avatarUrl={f.avatarUrl} size={24} />
           </View>
         ))}
       </View>
@@ -187,7 +192,7 @@ function FeedCard({
   return (
     <View style={{ borderWidth: 1, borderColor: border, borderRadius: 12, backgroundColor: card, padding: 14, marginBottom: 10 }}>
       <View className="mb-2 flex-row items-center gap-2">
-        <Avatar name={item.displayName} size={26} />
+        <Avatar name={item.displayName} avatarUrl={item.avatarUrl} size={26} />
         <Text style={{ flex: 1, fontFamily: "DMSans_700Bold", fontSize: 14, color: fg }}>
           {item.displayName}
           {item.isOwn ? " (you)" : ""}

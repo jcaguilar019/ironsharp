@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, Share, Text, TextInput, View } from "react-native";
 import { Link, UserPlus } from "lucide-react-native";
 import { withAlpha } from "@/theme/themes";
 import { useToast } from "@/components/Toast";
@@ -196,14 +196,19 @@ export function MemberSearch({
               width: 32,
               height: 32,
               borderRadius: 16,
+              overflow: "hidden",
               backgroundColor: withAlpha(accent, 0.13),
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 13, color: accent }}>
-              {user.displayName[0]?.toUpperCase()}
-            </Text>
+            {user.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={{ width: 32, height: 32 }} />
+            ) : (
+              <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 13, color: accent }}>
+                {user.displayName[0]?.toUpperCase()}
+              </Text>
+            )}
           </View>
           <Text style={{ flex: 1, fontFamily: "DMSans_400Regular", fontSize: 14, color: fg }}>
             {user.displayName}
