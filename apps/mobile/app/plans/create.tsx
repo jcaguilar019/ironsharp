@@ -2,19 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
+  Share,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { BookOpen, MessageSquare, ChevronLeft, Sparkles } from "lucide-react-native";
+import { BookOpen, MessageSquare, ChevronLeft, Sparkles, Share2, Users } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient, ApiError } from "@/lib/api";
@@ -89,10 +88,27 @@ const TOTAL_STEPS = 6; // 0–5, step 6 is summary
 
 const WHO_OPTIONS: { id: WhoOption; label: string; sub: string }[] = [
   { id: "just-me",      label: "Just me",                  sub: "Personal devotional" },
-  { id: "friend",       label: "Me and a friend",           sub: "Read it together" },
-  { id: "small-group",  label: "Small group",               sub: "Going through it as a group" },
-  { id: "discipleship", label: "Discipleship relationship", sub: "Discipler and disciple" },
+  { id: "friend",       label: "Me and a friend",           sub: "We'll set up your group and invite them right after" },
+  { id: "small-group",  label: "Small group",               sub: "We'll set up the group and invites right after" },
+  { id: "discipleship", label: "Discipleship relationship", sub: "A one-on-one — invite them right after" },
 ];
+
+// The who-answer is real: these map it onto the group that gets created.
+const WHO_TO_GROUP_TYPE: Record<WhoOption, string | null> = {
+  "just-me": null,
+  friend: "one-on-one",
+  "small-group": "small-group",
+  discipleship: "one-on-one",
+};
+// Entering from an existing group, the who-question is already answered — this
+// derives the prompt flavor from the group's type instead of asking again.
+const GROUP_TYPE_TO_WHO: Record<string, WhoOption> = {
+  "one-on-one": "friend",
+  family: "small-group",
+  "small-group": "small-group",
+  "large-group": "small-group",
+  community: "small-group",
+};
 
 const DAY_OPTIONS = [7, 14, 21];
 
@@ -116,7 +132,18 @@ export default function CreatePlan() {
   const progress = useProgress();
   const groups = useGroups();
 
+  // Entering from an existing group: the who-step is skipped (already answered).
+  const targetGroup = groupId ? ((groups.data ?? []).find((g) => g.id === groupId) ?? null) : null;
+  const skipWho = !!groupId;
+
   const [step, setStep] = useState(0);
+  // Set after a group-bound generation succeeds — renders the invite screen.
+  const [invite, setInvite] = useState<{
+    groupId: string;
+    groupName: string;
+    inviteCode: string;
+    discipleship: boolean;
+  } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState<Form>({
     inputType: null,
@@ -144,14 +171,14 @@ export default function CreatePlan() {
 
   const advance = () => {
     if (step < TOTAL_STEPS) {
-      setStep((s) => s + 1);
+      setStep((s) => (skipWho && s === 3 ? 5 : s + 1));
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   };
 
   const back = () => {
     if (step > 0) {
-      setStep((s) => s - 1);
+      setStep((s) => (skipWho && s === 5 ? 3 : s - 1));
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     } else {
       router.back();
@@ -159,7 +186,9 @@ export default function CreatePlan() {
   };
 
   const generate = async () => {
-    if (!form.inputType || !form.days || !form.who) return;
+    // Entering from a group, the who-answer comes from the group's type.
+    const who = skipWho ? (GROUP_TYPE_TO_WHO[targetGroup?.groupType ?? ""] ?? "small-group") : form.who;
+    if (!form.inputType || !form.days || !who) return;
     setGenerating(true);
     try {
       const { planId } = await ApiClient.generateDevotional({
@@ -167,16 +196,39 @@ export default function CreatePlan() {
         inputType: form.inputType,
         days: form.days,
         themeFocus: form.themeFocus.trim(),
-        who: form.who,
+        who,
         context: form.context.trim() || undefined,
       });
 
       await qc.invalidateQueries({ queryKey: ["generate", "tokens"] });
 
+      const newGroupType = WHO_TO_GROUP_TYPE[who];
+
       if (groupId) {
         await ApiClient.assignPlanToGroup(groupId, planId);
         await qc.invalidateQueries({ queryKey: ["groups"] });
         router.replace("/(tabs)/groups");
+      } else if (newGroupType) {
+        // The who-answer is a commitment, not prompt flavoring: doing this with
+        // others creates the group now, puts the plan in it, and moves straight
+        // to inviting them. Day 1 waits — a group only advances together.
+        const name = `${form.bookOrTopic.trim()} Study`.slice(0, 100);
+        const { group } = await ApiClient.createGroup({ name, groupType: newGroupType });
+        try {
+          await ApiClient.assignPlanToGroup(group.id, planId);
+        } catch (e) {
+          // Group exists either way — surface why the plan didn't attach.
+          Alert.alert("Group created, plan not attached", e instanceof ApiError ? e.message : "Assign it from the group card.");
+        }
+        await qc.invalidateQueries({ queryKey: ["groups"] });
+        setGenerating(false);
+        setInvite({
+          groupId: group.id,
+          groupName: group.name,
+          inviteCode: group.inviteCode,
+          discipleship: who === "discipleship",
+        });
+        return;
       } else {
         // Same one-active rule as the Plans browser: if a personal devotional
         // is already underway, the new plan waits in the library instead of
@@ -233,6 +285,57 @@ export default function CreatePlan() {
     );
   }
 
+  // ── Invite step (after a group-bound generation) ──────────────────────────
+  if (invite) {
+    const shareInvite = () => {
+      Share.share({
+        message: `Join me on IronSharp — we're starting "${invite.groupName}" together. Open the app, tap Join a group, and enter code ${invite.inviteCode}.`,
+      }).catch(() => {});
+    };
+    return (
+      <Screen edges={["top", "bottom"]}>
+        <View style={{ flex: 1, paddingHorizontal: 24, maxWidth: 512, width: "100%", alignSelf: "center", justifyContent: "center" }}>
+          <View style={{ alignItems: "center", marginBottom: 24 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: card, borderWidth: 1, borderColor: border, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <Users size={26} color={primary} />
+            </View>
+            <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: fg, textAlign: "center" }}>
+              {invite.groupName} is ready.
+            </Text>
+            <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 14, color: muted, textAlign: "center", marginTop: 8, lineHeight: 22 }}>
+              {invite.discipleship
+                ? "Now invite the person you're walking with. Day 1 starts when you're both in — and you can assign the discipler role from the group card."
+                : "Now invite your people. Day 1 starts together — the group only moves forward when everyone's done."}
+            </Text>
+          </View>
+
+          <View style={{ backgroundColor: card, borderWidth: 1, borderColor: border, borderRadius: 14, paddingVertical: 18, alignItems: "center", marginBottom: 14 }}>
+            <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 11, color: muted, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>
+              Invite code
+            </Text>
+            <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 32, letterSpacing: 6, color: fg }}>
+              {invite.inviteCode}
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={shareInvite}
+            style={{ backgroundColor: primary, borderRadius: 14, height: 52, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 }}
+          >
+            <Share2 size={17} color="#fff" />
+            <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 16, color: "#fff" }}>Share the invite</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.replace("/(tabs)/groups")}
+            style={{ marginTop: 12, height: 48, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: border, borderRadius: 14 }}
+          >
+            <Text style={{ fontFamily: "DMSans_700Bold", fontSize: 15, color: fg }}>Invite later</Text>
+          </Pressable>
+        </View>
+      </Screen>
+    );
+  }
+
   // ── Summary step ──────────────────────────────────────────────────────────
   if (step === TOTAL_STEPS) {
     const whoLabel = WHO_OPTIONS.find((w) => w.id === form.who)?.label ?? form.who;
@@ -258,7 +361,7 @@ export default function CreatePlan() {
             { label: form.inputType === "book" ? "Book" : "Topic", value: form.bookOrTopic },
             { label: "Length",  value: `${form.days} days` },
             { label: "Focus",   value: form.themeFocus },
-            { label: "For",     value: whoLabel ?? "" },
+            { label: "For",     value: skipWho ? (targetGroup?.name ?? "Your group") : (whoLabel ?? "") },
             ...(form.context.trim() ? [{ label: "Context", value: form.context }] : []),
           ].map((row) => (
             <View key={row.label} style={{ borderTopWidth: 1, borderTopColor: border, paddingVertical: 14 }}>
@@ -303,11 +406,11 @@ export default function CreatePlan() {
         <Pressable onPress={back} hitSlop={8} style={{ padding: 8 }}>
           <ChevronLeft size={22} color={fg} />
         </Pressable>
-        {/* Progress bar */}
+        {/* Progress bar (the who-step is skipped when a group is preselected) */}
         <View style={{ flex: 1, height: 3, backgroundColor: border, borderRadius: 2, marginHorizontal: 12 }}>
           <View
             style={{
-              width: `${((step + 1) / (TOTAL_STEPS + 1)) * 100}%`,
+              width: `${(((skipWho && step > 4 ? step - 1 : step) + 1) / (skipWho ? TOTAL_STEPS : TOTAL_STEPS + 1)) * 100}%`,
               height: 3,
               backgroundColor: primary,
               borderRadius: 2,
@@ -315,17 +418,18 @@ export default function CreatePlan() {
           />
         </View>
         <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, minWidth: 32, textAlign: "right" }}>
-          {step + 1}/{TOTAL_STEPS + 1}
+          {(skipWho && step > 4 ? step - 1 : step) + 1}/{skipWho ? TOTAL_STEPS : TOTAL_STEPS + 1}
         </Text>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: 24, maxWidth: 512, width: "100%", alignSelf: "center" }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 80, paddingTop: 24, maxWidth: 512, width: "100%", alignSelf: "center" }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
           <StepContent
             step={step}
             form={form}
@@ -353,8 +457,7 @@ export default function CreatePlan() {
               {step === TOTAL_STEPS - 1 ? "Review" : "Next"}
             </Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </ScrollView>
     </Screen>
   );
 }

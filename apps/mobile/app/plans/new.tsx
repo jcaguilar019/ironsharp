@@ -200,9 +200,11 @@ export default function NewPlanFlow() {
       </View>
 
       <ScrollView
-        contentContainerClassName="mx-auto w-full max-w-lg px-6 py-4"
+        contentContainerClassName="mx-auto w-full max-w-lg px-6 pt-4 pb-16"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
       >
         <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: fg, marginBottom: 6 }}>
           {stepTitle}
