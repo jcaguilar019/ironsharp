@@ -178,11 +178,14 @@ function DayStrip({
   byDate,
   today,
   onPick,
+  selectedDay,
 }: {
   days: string[];
   byDate: Map<string, CommunityDevotional>;
   today: string;
   onPick: (day: string, reading: CommunityDevotional | undefined) => void;
+  /** When set (date-picking mode), the accent marks this day instead of today. */
+  selectedDay?: string;
 }) {
   const fg = useThemeColor("foreground");
   const muted = useThemeColor("muted-foreground");
@@ -203,6 +206,7 @@ function DayStrip({
       {days.map((day) => {
         const reading = byDate.get(day);
         const isToday = day === today;
+        const accented = selectedDay ? day === selectedDay : isToday;
         const dt = isoToLocalDate(day);
         const weekday = dt.toLocaleDateString("en-US", { weekday: "narrow" });
         return (
@@ -217,8 +221,8 @@ function DayStrip({
               paddingVertical: 9,
               borderRadius: 12,
               borderWidth: 1,
-              borderColor: isToday ? primary : border,
-              backgroundColor: isToday ? withAlpha(primary, 0.08) : card,
+              borderColor: accented ? primary : border,
+              backgroundColor: accented ? withAlpha(primary, 0.08) : card,
             }}
           >
             <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 10, textTransform: "uppercase" }}>
@@ -261,6 +265,7 @@ export default function CommunityAdmin() {
   const [form, setForm] = useState<CommunityDevotionalInput>(emptyForm(todayISO()));
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [saving, setSaving] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // Schedule material: readings mapped by date, next-7-day slots, and the past.
@@ -273,6 +278,8 @@ export default function CommunityAdmin() {
   // Two weeks of day cells for the strip (today first), plus everything written
   // ahead (any distance out) and recent history as title lists.
   const stripDays = useMemo(() => Array.from({ length: 14 }, (_, i) => addDaysISO(today, i)), [today]);
+  // A longer runway for moving a reading's date from inside the editor.
+  const pickDays = useMemo(() => Array.from({ length: 21 }, (_, i) => addDaysISO(today, i)), [today]);
   const upcoming = useMemo(
     () =>
       (list.data ?? [])
@@ -330,6 +337,7 @@ export default function CommunityAdmin() {
   const startNew = (date: string) => {
     setForm(emptyForm(date));
     setErrors({});
+    setDatePickerOpen(false);
     setEditing({ mode: "new", date });
   };
   const startEdit = (d: CommunityDevotional) => {
@@ -345,6 +353,7 @@ export default function CommunityAdmin() {
       status: d.status,
     });
     setErrors({});
+    setDatePickerOpen(false);
     setEditing({ mode: "edit", devotional: d });
   };
 
@@ -428,7 +437,10 @@ export default function CommunityAdmin() {
   // ── Editor ─────────────────────────────────────────────────────────────────
   if (editing) {
     const hasErrors = Object.keys(errors).length > 0;
-    const editorDate = editing.mode === "edit" ? editing.devotional.publishDate : editing.date;
+    // The date lives in the form so it can be changed; it starts as the tapped
+    // slot (new) or the reading's existing day (edit).
+    const editorDate = form.publishDate;
+    const editingId = editing.mode === "edit" ? editing.devotional.id : null;
     return (
       <Screen edges={["top", "bottom"]}>
         <Header
@@ -448,24 +460,55 @@ export default function CommunityAdmin() {
           keyboardDismissMode="interactive"
           automaticallyAdjustKeyboardInsets
         >
-          {/* The date comes from the schedule slot that was tapped — context, not a widget. */}
-          <View
+          {/* The date starts as the tapped schedule slot; tap Change to move it. */}
+          <Pressable
+            onPress={() => setDatePickerOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={datePickerOpen ? "Close the date picker" : "Change the publish date"}
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
               borderWidth: 1,
-              borderColor: border,
+              borderColor: datePickerOpen ? primary : border,
               borderRadius: 12,
               backgroundColor: card,
               paddingHorizontal: 14,
               paddingVertical: 11,
-              marginBottom: 8,
+              marginBottom: datePickerOpen ? 12 : 8,
             }}
           >
-            <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>{formatNice(editorDate)}</Text>
-            <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12 }}>{relativeLabel(editorDate)}</Text>
-          </View>
+            <View>
+              <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 14 }}>{formatNice(editorDate)}</Text>
+              <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 12, marginTop: 1 }}>
+                {relativeLabel(editorDate)}
+              </Text>
+            </View>
+            <Text style={{ color: primary, fontFamily: "DMSans_700Bold", fontSize: 13 }}>
+              {datePickerOpen ? "Done" : "Change"}
+            </Text>
+          </Pressable>
+
+          {datePickerOpen ? (
+            <DayStrip
+              days={pickDays}
+              byDate={byDate}
+              today={today}
+              selectedDay={editorDate}
+              onPick={(day, reading) => {
+                // One reading per day — block days taken by a different reading.
+                if (reading && reading.id !== editingId) {
+                  Alert.alert(
+                    "That day is taken",
+                    `${formatNice(day)} already has “${reading.title}”. Edit that reading instead, or pick another day.`
+                  );
+                  return;
+                }
+                set({ publishDate: day });
+                setDatePickerOpen(false);
+              }}
+            />
+          ) : null}
 
           {hasErrors ? (
             <View
