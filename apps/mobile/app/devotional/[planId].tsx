@@ -25,7 +25,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import { ApiClient, type StudyNoteEntry, type BibleChapter } from "@/lib/api";
-import { cancelDailyNudge } from "@/lib/notifications";
+import { deferDailyNudgeToTomorrow } from "@/lib/notifications";
 
 const BOOK_ALIASES: Record<string, string> = {
   Psalm: "Psalms",
@@ -720,18 +720,21 @@ export default function DevotionalReader() {
   const fgColor = useThemeColor("foreground");
 
   // A stopped plan must come back truly blank — clear the locally cached
-  // submission and every saved draft / day-lock for this plan (all days, solo
-  // + group), since those repopulate the inputs independently of the server.
-  const purgeLocalPlanState = async () => {
+  // submission and this RUN's saved drafts / day-locks. Scoped per instance:
+  // stopping your personal run must not wipe your group run's drafts for the
+  // same shared plan (personal keys have no group segment; group keys do).
+  const purgeLocalPlanState = async (scope: "personal" | "group") => {
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     qc.removeQueries({ queryKey: ["submission", planId] });
     try {
       const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
       const keys = await AsyncStorage.getAllKeys();
-      const stale = keys.filter(
-        (k) =>
-          k.startsWith(`@ironsharp/draft_${planId}`) ||
-          k.startsWith(`@ironsharp/devotional_locked_until_${planId}`)
+      const stale = keys.filter((k) =>
+        scope === "group" && groupId
+          ? k.startsWith(`@ironsharp/draft_${planId}_${groupId}`) ||
+            k === `@ironsharp/devotional_locked_until_${planId}_${groupId}`
+          : k.startsWith(`@ironsharp/draft_${planId}_day_`) ||
+            k === `@ironsharp/devotional_locked_until_${planId}`
       );
       if (stale.length > 0) await AsyncStorage.multiRemove(stale);
     } catch {}
@@ -748,7 +751,7 @@ export default function DevotionalReader() {
           style: "destructive",
           onPress: async () => {
             await ApiClient.stopPlan(planId);
-            await purgeLocalPlanState();
+            await purgeLocalPlanState("personal");
             await qc.invalidateQueries({ queryKey: ["progress"] });
             await qc.invalidateQueries({ queryKey: ["progress", "active"] });
             router.replace("/(tabs)/groups");
@@ -762,7 +765,7 @@ export default function DevotionalReader() {
     if (!groupId) return;
     Alert.alert(
       "End this plan for the group?",
-      "This can't be undone. Everyone's progress and reflections for this plan will be deleted.",
+      "The plan moves to your group's past plans. Everyone's reflections are kept.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -771,7 +774,7 @@ export default function DevotionalReader() {
           onPress: async () => {
             try {
               await ApiClient.stopGroupPlan(groupId);
-              await purgeLocalPlanState();
+              await purgeLocalPlanState("group");
               await qc.invalidateQueries({ queryKey: ["groups"] });
               router.replace("/(tabs)/groups");
             } catch {
@@ -872,8 +875,12 @@ export default function DevotionalReader() {
   const [done, setDone] = useState(false);
   const [reread, setReread] = useState(false);
   const isDoneState = done || lockedUntilTomorrow;
-  const completedDayForFeed = done ? currentDay : currentDay - 1;
-  const groupResponsesQ = useGroupDayResponses(planId, completedDayForFeed, isDoneState);
+  // Which day the "what your group shared" feed shows. Just-submitted → the
+  // current day. Reopening while locked: a group may not have advanced yet
+  // (others still pending), so if OUR submission for the current day exists,
+  // the feed day is the current day — not currentDay - 1.
+  const completedDayForFeed = done || submissionQ.data ? currentDay : currentDay - 1;
+  const groupResponsesQ = useGroupDayResponses(planId, completedDayForFeed, isDoneState, groupId);
 
   const draftKey = groupId
     ? `@ironsharp/draft_${planId}_${groupId}_day_${currentDay}`
@@ -973,7 +980,7 @@ export default function DevotionalReader() {
       }
     },
     onSuccess: async () => {
-      cancelDailyNudge().catch(() => {});
+      deferDailyNudgeToTomorrow().catch(() => {});
       const midnight = new Date();
       midnight.setDate(midnight.getDate() + 1);
       midnight.setHours(0, 0, 0, 0);
@@ -989,7 +996,9 @@ export default function DevotionalReader() {
     },
   });
 
-  const loading = planQ.isLoading || dayQ.isLoading || progress.isLoading;
+  // In a group context the day number comes from the groups query — rendering
+  // before it loads would silently show day 1.
+  const loading = planQ.isLoading || dayQ.isLoading || progress.isLoading || (!!groupId && groups.isLoading);
 
   if (loading) {
     return (
@@ -1085,7 +1094,7 @@ export default function DevotionalReader() {
             <Button
               title="View my responses"
               variant="outline"
-              onPress={() => router.push(`/devotional/history/${planId}`)}
+              onPress={() => router.push(`/devotional/history/${planId}${groupId ? `?groupId=${groupId}` : ""}`)}
             />
           </View>
         </ScrollView>
@@ -1114,7 +1123,7 @@ export default function DevotionalReader() {
               </Pressable>
             )}
             <Pressable
-              onPress={() => router.push(`/devotional/history/${planId}`)}
+              onPress={() => router.push(`/devotional/history/${planId}${groupId ? `?groupId=${groupId}` : ""}`)}
               accessibilityRole="button"
               accessibilityLabel="View past entries"
               hitSlop={8}

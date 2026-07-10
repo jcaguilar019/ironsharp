@@ -37,6 +37,24 @@ const groupDaySchema = z.object({
   completed: z.boolean().optional(),
 });
 
+/**
+ * A finished group plan counts toward each participating member's personal
+ * completion stats — anyone who submitted at least one day of this run.
+ * (Solo runs get this via PATCH /progress; group runs close out here.)
+ */
+async function creditGroupCompletion(groupId: string, planId: string): Promise<void> {
+  const participants = await db
+    .selectDistinct({ userId: devotionalSubmissions.userId })
+    .from(devotionalSubmissions)
+    .where(and(eq(devotionalSubmissions.groupId, groupId), eq(devotionalSubmissions.planId, planId)));
+  const ids = participants.map((p) => p.userId);
+  if (ids.length === 0) return;
+  await db
+    .update(profiles)
+    .set({ totalCompleted: sql`${profiles.totalCompleted} + 1`, updatedAt: new Date() })
+    .where(inArray(profiles.userId, ids));
+}
+
 // GET /api/groups — all groups the user belongs to, ordered by display_order
 groupsRoute.get("/", async (c) => {
   const userId = c.var.user.id;
@@ -84,31 +102,52 @@ groupsRoute.get("/", async (c) => {
           )
           .limit(1);
         if (stale) {
+          // Optimistic lock: several members can load simultaneously, so every
+          // mutation is guarded by the (planId, currentDay) we based it on — the
+          // first request wins, the rest see zero rows and change nothing
+          // (double-advancing would silently skip a day).
           if (plan && group.currentDay >= plan.totalDays) {
             // Last day went stale — close the plan out like /:id/day does.
-            await db.insert(groupPlanHistory).values({
-              groupId: group.id,
-              planId: plan.id,
-              planTitle: plan.title,
-            });
-            await db
+            const closed = await db
               .update(groups)
               .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
-              .where(eq(groups.id, group.id));
+              .where(
+                and(
+                  eq(groups.id, group.id),
+                  eq(groups.currentPlanId, plan.id),
+                  eq(groups.currentDay, group.currentDay)
+                )
+              )
+              .returning({ id: groups.id });
+            if (closed.length > 0) {
+              await db.insert(groupPlanHistory).values({
+                groupId: group.id,
+                planId: plan.id,
+                planTitle: plan.title,
+              });
+              await creditGroupCompletion(group.id, plan.id).catch(() => {});
+              await db
+                .update(groupMembers)
+                .set({ doneToday: false })
+                .where(eq(groupMembers.groupId, group.id));
+            }
             group.currentPlanId = null;
             group.currentDay = 1;
             plan = null;
           } else {
-            await db
+            const advanced = await db
               .update(groups)
               .set({ currentDay: group.currentDay + 1, updatedAt: new Date() })
-              .where(eq(groups.id, group.id));
+              .where(and(eq(groups.id, group.id), eq(groups.currentDay, group.currentDay)))
+              .returning({ id: groups.id });
+            if (advanced.length > 0) {
+              await db
+                .update(groupMembers)
+                .set({ doneToday: false })
+                .where(eq(groupMembers.groupId, group.id));
+            }
             group.currentDay = group.currentDay + 1;
           }
-          await db
-            .update(groupMembers)
-            .set({ doneToday: false })
-            .where(eq(groupMembers.groupId, group.id));
         }
       }
 
@@ -431,6 +470,7 @@ groupsRoute.post("/join", async (c) => {
     .where(eq(groups.inviteCode, inviteCode.toUpperCase().trim()))
     .limit(1);
   if (!group) return c.json({ error: "Invalid invite code" }, 404);
+  if (group.archivedAt) return c.json({ error: "This group has ended." }, 410);
 
   const [existing] = await db
     .select({ id: groupMembers.id })
@@ -651,11 +691,13 @@ groupsRoute.patch("/:id/plan", async (c) => {
   const { planId } = parsed.data;
 
   const [membership] = await db
-    .select({ id: groupMembers.id })
+    .select({ id: groupMembers.id, archivedAt: groups.archivedAt })
     .from(groupMembers)
+    .innerJoin(groups, eq(groups.id, groupMembers.groupId))
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
     .limit(1);
   if (!membership) return c.json({ error: "Not a member of this group" }, 403);
+  if (membership.archivedAt) return c.json({ error: "This group has ended." }, 410);
 
   // Verify the plan exists and is visible to this user.
   const [plan] = await db
@@ -697,9 +739,10 @@ groupsRoute.patch("/:id/plan", async (c) => {
   return c.json({ ok: true });
 });
 
-// DELETE /api/groups/:id/plan — the creator/leader ends the group's current
-// plan. Same as a solo "stop": clears the active plan (progress) but keeps
-// everyone's submissions. Can't be undone.
+// DELETE /api/groups/:id/plan — the creator ends the group's current plan.
+// Everyone's reflections are KEPT (one person must never destroy the whole
+// group's entries) — the run just moves to the group's plan history so those
+// entries stay reachable, and the active plan clears.
 groupsRoute.delete("/:id/plan", async (c) => {
   const userId = c.var.user.id;
   const groupId = c.req.param("id");
@@ -714,17 +757,15 @@ groupsRoute.delete("/:id/plan", async (c) => {
     return c.json({ error: "Only the group creator can end the plan." }, 403);
   }
 
-  // Stopping is a full reset — wipe every member's reflections for this group's
-  // copy of the plan, then clear the active plan and everyone's done flag.
   if (group.currentPlanId) {
-    await db
-      .delete(devotionalSubmissions)
-      .where(
-        and(
-          eq(devotionalSubmissions.groupId, groupId),
-          eq(devotionalSubmissions.planId, group.currentPlanId)
-        )
-      );
+    const [plan] = await db
+      .select({ id: devotionalPlans.id, title: devotionalPlans.title })
+      .from(devotionalPlans)
+      .where(eq(devotionalPlans.id, group.currentPlanId))
+      .limit(1);
+    if (plan) {
+      await db.insert(groupPlanHistory).values({ groupId, planId: plan.id, planTitle: plan.title });
+    }
   }
   await db
     .update(groups)
@@ -761,10 +802,36 @@ groupsRoute.patch("/:id/day", async (c) => {
   // the same guard in updateGroupStreaks (submissions.ts). Local day, not UTC.
   const today = clientDateString(c);
   const [grp] = await db
-    .select({ lastStreakDate: groups.lastStreakDate, streakCount: groups.streakCount })
+    .select({
+      lastStreakDate: groups.lastStreakDate,
+      streakCount: groups.streakCount,
+      currentDay: groups.currentDay,
+      currentPlanId: groups.currentPlanId,
+      archivedAt: groups.archivedAt,
+    })
     .from(groups)
     .where(eq(groups.id, groupId))
     .limit(1);
+  if (!grp) return c.json({ error: "Group not found" }, 404);
+  if (grp.archivedAt) return c.json({ error: "This group has ended." }, 410);
+
+  // Bound the advance: one day at a time, never past the plan's end. A stale
+  // client re-sending an already-applied advance is a no-op, not an error.
+  if (nextDay !== undefined) {
+    if (nextDay > grp.currentDay + 1) {
+      return c.json({ error: "Can only advance one day at a time." }, 400);
+    }
+    if (grp.currentPlanId) {
+      const [planRow] = await db
+        .select({ totalDays: devotionalPlans.totalDays })
+        .from(devotionalPlans)
+        .where(eq(devotionalPlans.id, grp.currentPlanId))
+        .limit(1);
+      if (planRow && nextDay > planRow.totalDays) {
+        return c.json({ error: "That's past the end of the plan." }, 400);
+      }
+    }
+  }
 
   if (grp && (!grp.lastStreakDate || grp.lastStreakDate < today)) {
     const prev = grp.lastStreakDate ? new Date(grp.lastStreakDate + "T00:00:00Z") : null;
@@ -799,7 +866,8 @@ groupsRoute.patch("/:id/day", async (c) => {
 
   if (allDone) {
     if (completed) {
-      // Record the completed plan in history before clearing it from the group.
+      // Record the completed plan in history before clearing it from the group,
+      // and credit every member who took part.
       const [finishedPlan] = await db
         .select({ title: devotionalPlans.title, id: devotionalPlans.id })
         .from(groups)
@@ -812,16 +880,18 @@ groupsRoute.patch("/:id/day", async (c) => {
           planId: finishedPlan.id,
           planTitle: finishedPlan.title,
         });
+        await creditGroupCompletion(groupId, finishedPlan.id).catch(() => {});
       }
       await db
         .update(groups)
         .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
         .where(eq(groups.id, groupId));
-    } else if (nextDay !== undefined) {
+    } else if (nextDay !== undefined && nextDay > grp.currentDay) {
+      // Guarded by the day we read, so two same-moment finishers can't double-advance.
       await db
         .update(groups)
         .set({ currentDay: nextDay, updatedAt: new Date() })
-        .where(eq(groups.id, groupId));
+        .where(and(eq(groups.id, groupId), eq(groups.currentDay, grp.currentDay)));
     }
     await db
       .update(groupMembers)

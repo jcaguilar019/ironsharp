@@ -4,6 +4,7 @@ import { db } from "../db/index.js";
 import { devotionalPlans, devotionalDays } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { summarizeBooks } from "../lib/book-summary.js";
+import { canReadPlan } from "../lib/plan-access.js";
 
 export const plans = new Hono<AppEnv>();
 
@@ -65,21 +66,17 @@ plans.get("/category/:category", async (c) => {
   return c.json({ plans: plansWithBooks });
 });
 
-// GET /api/plans/:planId  → a single plan (must be public or owned by caller)
+// GET /api/plans/:planId  → a single plan (public, owned, or held by a group
+// the caller belongs to — see canReadPlan)
 plans.get("/:planId", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
   const [plan] = await db
     .select()
     .from(devotionalPlans)
-    .where(
-      and(
-        eq(devotionalPlans.id, planId),
-        or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId))
-      )
-    )
+    .where(eq(devotionalPlans.id, planId))
     .limit(1);
-  if (!plan) return c.json({ error: "Plan not found" }, 404);
+  if (!plan || !(await canReadPlan(userId, plan))) return c.json({ error: "Plan not found" }, 404);
   return c.json({ plan });
 });
 
@@ -88,16 +85,11 @@ plans.get("/:planId/days", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
   const [plan] = await db
-    .select({ id: devotionalPlans.id })
+    .select({ id: devotionalPlans.id, isPublic: devotionalPlans.isPublic, createdByUserId: devotionalPlans.createdByUserId })
     .from(devotionalPlans)
-    .where(
-      and(
-        eq(devotionalPlans.id, planId),
-        or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId))
-      )
-    )
+    .where(eq(devotionalPlans.id, planId))
     .limit(1);
-  if (!plan) return c.json({ error: "Plan not found" }, 404);
+  if (!plan || !(await canReadPlan(userId, plan))) return c.json({ error: "Plan not found" }, 404);
   const days = await db
     .select()
     .from(devotionalDays)
@@ -115,16 +107,11 @@ plans.get("/:planId/days/:dayNumber", async (c) => {
     return c.json({ error: "Invalid dayNumber" }, 400);
   }
   const [plan] = await db
-    .select({ id: devotionalPlans.id })
+    .select({ id: devotionalPlans.id, isPublic: devotionalPlans.isPublic, createdByUserId: devotionalPlans.createdByUserId })
     .from(devotionalPlans)
-    .where(
-      and(
-        eq(devotionalPlans.id, planId),
-        or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId))
-      )
-    )
+    .where(eq(devotionalPlans.id, planId))
     .limit(1);
-  if (!plan) return c.json({ error: "Plan not found" }, 404);
+  if (!plan || !(await canReadPlan(userId, plan))) return c.json({ error: "Plan not found" }, 404);
   const [day] = await db
     .select()
     .from(devotionalDays)

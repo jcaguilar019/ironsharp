@@ -95,7 +95,6 @@ progress.get("/active", async (c) => {
 
 const startSchema = z.object({
   planId: z.string().uuid(),
-  forGroup: z.boolean().optional(),
 });
 
 const updateProgressSchema = z.object({
@@ -108,7 +107,7 @@ progress.post("/", async (c) => {
   const userId = c.var.user.id;
   const parsed = startSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
-  const { planId, forGroup } = parsed.data;
+  const { planId } = parsed.data;
 
   // Already started — return existing row without consuming an unlock
   const [existing] = await db
@@ -119,8 +118,18 @@ progress.post("/", async (c) => {
 
   if (existing) return c.json({ progress: existing });
 
-  // New plan — check monthly unlock limit (group plans don't count against personal quota)
-  if (!forGroup) {
+  // New plan — check the monthly unlock limit. Your OWN generated plan is
+  // exempt: generating it already cost an AI token, and charging an unlock on
+  // top double-bills the same plan.
+  const [planRow] = await db
+    .select({ createdByUserId: devotionalPlans.createdByUserId, source: devotionalPlans.source })
+    .from(devotionalPlans)
+    .where(eq(devotionalPlans.id, planId))
+    .limit(1);
+  if (!planRow) return c.json({ error: "Plan not found" }, 404);
+  const ownGenerated = planRow.source === "generated" && planRow.createdByUserId === userId;
+
+  if (!ownGenerated) {
     const [profile] = await db
       .select({
         membershipTier: profiles.membershipTier,
@@ -220,6 +229,18 @@ progress.patch("/:planId", async (c) => {
     .where(and(eq(userPlanProgress.userId, userId), eq(userPlanProgress.planId, planId)))
     .limit(1);
   if (!before) return c.json({ error: "Progress not found" }, 404);
+
+  // A day advance can't run past the plan's end.
+  if (typeof body.currentDay === "number") {
+    const [planRow] = await db
+      .select({ totalDays: devotionalPlans.totalDays })
+      .from(devotionalPlans)
+      .where(eq(devotionalPlans.id, planId))
+      .limit(1);
+    if (planRow && body.currentDay > planRow.totalDays) {
+      return c.json({ error: "That's past the end of the plan." }, 400);
+    }
+  }
 
   const set: Record<string, unknown> = {};
   if (typeof body.currentDay === "number") set.currentDay = body.currentDay;

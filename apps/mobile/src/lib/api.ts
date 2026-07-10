@@ -563,10 +563,10 @@ export const ApiClient = {
   getProgress: () => api<{ progress: PlanProgress[] }>("/api/progress"),
   getActiveDevotional: () =>
     api<{ active: ActiveDevotional | null }>("/api/progress/active"),
-  startPlan: (planId: string, forGroup = false) =>
+  startPlan: (planId: string) =>
     api<{ progress: PlanProgress }>("/api/progress", {
       method: "POST",
-      body: JSON.stringify({ planId, forGroup }),
+      body: JSON.stringify({ planId }),
     }),
   updateProgress: (
     planId: string,
@@ -654,17 +654,19 @@ export const ApiClient = {
   stopGroupPlan: (groupId: string) =>
     api<{ ok: boolean }>(`/api/groups/${groupId}/plan`, { method: "DELETE" }),
 
-  getGroupDayResponses: (planId: string, dayNumber: number) =>
+  getGroupDayResponses: (planId: string, dayNumber: number, groupId?: string | null) =>
     api<{ responses: GroupDayResponse[] }>(
-      `/api/submissions/group/day?planId=${planId}&dayNumber=${dayNumber}`
+      `/api/submissions/group/day?planId=${planId}&dayNumber=${dayNumber}${groupId ? `&groupId=${groupId}` : ""}`
     ),
 
   getSubmission: (planId: string, dayNumber: number, groupId?: string | null) =>
     api<{ submission: Submission | null }>(
       `/api/submissions/${planId}/${dayNumber}${groupId ? `?groupId=${groupId}` : ""}`
     ),
-  getPlanSubmissions: (planId: string) =>
-    api<{ submissions: Submission[] }>(`/api/submissions/plan/${planId}`),
+  getPlanSubmissions: (planId: string, groupId?: string | null) =>
+    api<{ submissions: Submission[] }>(
+      `/api/submissions/plan/${planId}${groupId ? `?groupId=${groupId}` : ""}`
+    ),
   saveSubmission: (body: {
     planId: string;
     dayNumber: number;

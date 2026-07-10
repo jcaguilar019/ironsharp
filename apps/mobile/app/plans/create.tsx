@@ -18,6 +18,7 @@ import { BookOpen, MessageSquare, ChevronLeft, Sparkles } from "lucide-react-nat
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient, ApiError } from "@/lib/api";
+import { useGroups, useProgress } from "@/lib/queries";
 
 // ─── Bible book validation ────────────────────────────────────────────────────
 
@@ -111,6 +112,10 @@ export default function CreatePlan() {
   const card = useThemeColor("card");
   const border = useThemeColor("border");
 
+  // For the same one-active-personal-plan rule the Plans browser enforces.
+  const progress = useProgress();
+  const groups = useGroups();
+
   const [step, setStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState<Form>({
@@ -173,6 +178,21 @@ export default function CreatePlan() {
         await qc.invalidateQueries({ queryKey: ["groups"] });
         router.replace("/(tabs)/groups");
       } else {
+        // Same one-active rule as the Plans browser: if a personal devotional
+        // is already underway, the new plan waits in the library instead of
+        // silently stacking a second active plan.
+        const groupPlanIds = new Set((groups.data ?? []).map((g) => g.plan?.id).filter(Boolean));
+        const activePersonal = (progress.data ?? []).filter(
+          (p) => !p.completedAt && !groupPlanIds.has(p.planId)
+        ).length;
+        if (activePersonal >= 1) {
+          Alert.alert(
+            "Plan created",
+            "It's saved in Plans → Generated. Finish your current devotional, then start it from there."
+          );
+          router.replace("/(tabs)/groups");
+          return;
+        }
         await ApiClient.startPlan(planId);
         await qc.invalidateQueries({ queryKey: ["progress"] });
         await qc.invalidateQueries({ queryKey: ["progress", "active"] });
@@ -183,10 +203,9 @@ export default function CreatePlan() {
       if (err instanceof ApiError && err.status === 429) {
         Alert.alert("Out of tokens", err.message);
       } else if (err instanceof ApiError && err.status === 403) {
-        Alert.alert(
-          "One at a time",
-          "Your plan was created. Finish your current devotional first, then you can start this one."
-        );
+        // The server's message says what actually happened (e.g. out of plan
+        // unlocks) — don't overwrite it with a guess.
+        Alert.alert("Plan created, not started", err.message);
         router.replace("/(tabs)/groups");
       } else {
         Alert.alert("Something went wrong", "Generation failed. Please try again.");

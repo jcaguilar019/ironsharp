@@ -149,8 +149,11 @@ function DayCard({
 }
 
 export default function DevotionalHistory() {
-  const { planId: planIdParam } = useLocalSearchParams<{ planId: string }>();
+  // One run per view: personal (no groupId) or a specific group's copy. A
+  // shared plan can have several runs — mixing them scrambles the history.
+  const { planId: planIdParam, groupId: groupIdParam } = useLocalSearchParams<{ planId: string; groupId?: string }>();
   const planId = String(planIdParam);
+  const groupId = groupIdParam ?? null;
   const { authed } = useAuthed();
 
   const primary = useThemeColor("primary");
@@ -160,8 +163,8 @@ export default function DevotionalHistory() {
   const days = useDays(planId);
 
   const submissionsQ = useQuery({
-    queryKey: ["submissions", "plan", planId],
-    queryFn: () => ApiClient.getPlanSubmissions(planId).then((r) => r.submissions),
+    queryKey: ["submissions", "plan", planId, groupId],
+    queryFn: () => ApiClient.getPlanSubmissions(planId, groupId).then((r) => r.submissions),
     enabled: authed && !!planId,
   });
 

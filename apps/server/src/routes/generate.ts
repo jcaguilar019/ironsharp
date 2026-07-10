@@ -214,8 +214,10 @@ function normalizeKey(value: string): string {
     .replace(/[^a-z0-9-]/g, "");
 }
 
-function buildMatchKey(inputType: string, bookOrTopic: string, days: number): string {
-  return `${inputType}:${normalizeKey(bookOrTopic)}-${days}`;
+function buildMatchKey(inputType: string, bookOrTopic: string, days: number, themeFocus: string): string {
+  // The theme is part of a plan's identity — "Romans, 7 days, on marriage" and
+  // "Romans, 7 days, on fear" are different plans, not a cache hit.
+  return `${inputType}:${normalizeKey(bookOrTopic)}-${days}-${normalizeKey(themeFocus)}`;
 }
 
 // ─── GET /generate/tokens ────────────────────────────────────────────────────
@@ -283,7 +285,7 @@ generate.post("/", async (c) => {
   }
 
   // ── Dedup check ────────────────────────────────────────────────────────────
-  const matchKey = buildMatchKey(inputType, bookOrTopic, days);
+  const matchKey = buildMatchKey(inputType, bookOrTopic, days, themeFocus);
 
   const [existing] = await db
     .select({ id: devotionalPlans.id })
@@ -364,6 +366,17 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
     } catch {
       console.error("Claude returned non-JSON:", raw.slice(0, 500));
       return c.json({ error: "Generation failed — please try again." }, 500);
+    }
+
+    // The plan must contain exactly the requested days, numbered 1..N — a short
+    // or misnumbered response would persist a plan whose totalDays points at
+    // days that don't exist (a dead "Day not found" at the end of the run).
+    const dayNumbers = (planData.days ?? []).map((d) => d.dayNumber).sort((a, b) => a - b);
+    const wellFormed =
+      dayNumbers.length === days && dayNumbers.every((n, i) => n === i + 1);
+    if (!wellFormed) {
+      console.error(`Generation returned ${dayNumbers.length}/${days} days (numbers: ${dayNumbers.join(",")})`);
+      return c.json({ error: "Generation incomplete — please try again." }, 500);
     }
 
     // Every day must ship with passage context AND study notes — no half-populated

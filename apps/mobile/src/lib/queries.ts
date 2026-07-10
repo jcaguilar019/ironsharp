@@ -116,12 +116,18 @@ export function useGroupPlanResponses(groupId: string, planId: string) {
   });
 }
 
-export function useGroupDayResponses(planId: string, dayNumber: number, enabled: boolean) {
+export function useGroupDayResponses(
+  planId: string,
+  dayNumber: number,
+  enabled: boolean,
+  groupId: string | null
+) {
   const { authed } = useAuthed();
   return useQuery({
-    queryKey: ["group-day-responses", planId, dayNumber],
-    queryFn: () => ApiClient.getGroupDayResponses(planId, dayNumber).then((r) => r.responses),
-    enabled: authed && enabled && !!planId && dayNumber > 0,
+    queryKey: ["group-day-responses", planId, dayNumber, groupId],
+    queryFn: () => ApiClient.getGroupDayResponses(planId, dayNumber, groupId).then((r) => r.responses),
+    // Group feed exists only in a group context — a personal run has no "room".
+    enabled: authed && enabled && !!planId && !!groupId && dayNumber > 0,
     staleTime: 60_000,
   });
 }

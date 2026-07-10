@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   profiles,
@@ -37,11 +37,17 @@ export async function sendPush(messages: PushMessage[]): Promise<void> {
   );
 }
 
-// Notify other group members that someone finished their devotional.
+// Notify the members of the ONE group a submission was made in. A submission
+// identifies its run by groupId — never fan out by planId, or every other
+// group (and archived groups) running the same shared plan gets pinged too.
 export async function notifyPartnerDone(
   submittingUserId: string,
-  planId: string
+  planId: string,
+  groupId: string | null
 ): Promise<void> {
+  // Personal submissions have no partners to notify.
+  if (!groupId) return;
+
   const [submitter] = await db
     .select({ displayName: profiles.displayName })
     .from(profiles)
@@ -49,14 +55,17 @@ export async function notifyPartnerDone(
     .limit(1);
   if (!submitter) return;
 
-  const memberRows = await db
-    .select({ groupId: groupMembers.groupId })
-    .from(groupMembers)
-    .innerJoin(groups, eq(groups.id, groupMembers.groupId))
-    .where(and(eq(groupMembers.userId, submittingUserId), eq(groups.currentPlanId, planId)));
-  if (memberRows.length === 0) return;
-
-  const groupIds = memberRows.map((r) => r.groupId);
+  // The submission's own group only — and only while it's live on this plan.
+  const [target] = await db
+    .select({ groupId: groups.id })
+    .from(groups)
+    .innerJoin(
+      groupMembers,
+      and(eq(groupMembers.groupId, groups.id), eq(groupMembers.userId, submittingUserId))
+    )
+    .where(and(eq(groups.id, groupId), eq(groups.currentPlanId, planId), isNull(groups.archivedAt)))
+    .limit(1);
+  if (!target) return;
 
   const others = await db
     .select({ pushToken: profiles.pushToken })
@@ -64,7 +73,7 @@ export async function notifyPartnerDone(
     .innerJoin(profiles, eq(profiles.userId, groupMembers.userId))
     .where(
       and(
-        inArray(groupMembers.groupId, groupIds),
+        eq(groupMembers.groupId, groupId),
         ne(groupMembers.userId, submittingUserId),
         eq(profiles.notifPartnerDone, true)
       )
@@ -102,7 +111,8 @@ export async function notifyGroupCompleteIfDone(
       and(
         eq(groupMembers.userId, submittingUserId),
         eq(groupMembers.groupId, groupId),
-        eq(groups.currentPlanId, planId)
+        eq(groups.currentPlanId, planId),
+        isNull(groups.archivedAt)
       )
     );
   if (memberRows.length === 0) return;

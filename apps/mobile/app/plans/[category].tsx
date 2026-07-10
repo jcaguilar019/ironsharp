@@ -39,6 +39,11 @@ export default function PlanList() {
   const handlePlanTap = async (planId: string) => {
     if (assigning) return;
     const prog = progressByPlan.get(planId);
+    // Completed — review your reflections rather than reopening the last day.
+    if (prog?.completedAt) {
+      router.push(`/devotional/history/${planId}`);
+      return;
+    }
     // Already started personally — just open it.
     if (prog) {
       router.push(`/devotional/${planId}`);
@@ -62,7 +67,7 @@ export default function PlanList() {
 
     setAssigning(true);
     try {
-      await ApiClient.startPlan(planId, false);
+      await ApiClient.startPlan(planId);
       await qc.invalidateQueries({ queryKey: ["progress"] });
       router.push(`/devotional/${planId}`);
     } catch {

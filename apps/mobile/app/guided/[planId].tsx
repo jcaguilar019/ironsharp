@@ -10,6 +10,7 @@ import { useThemeColor } from "@/components/useThemeColor";
 import { useProgress, useGroups, useDiscipleships, useCustomQuestion } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
 import { useGuidedSession, type GuidedStep, type GuidedAnswers } from "@/lib/useGuidedSession";
+import { deferDailyNudgeToTomorrow } from "@/lib/notifications";
 import { useVoicePreference, voiceLabel } from "@/lib/voice";
 import { segmentText } from "@/lib/useTts";
 import { VoicePicker } from "@/components/VoicePicker";
@@ -115,6 +116,8 @@ export default function GuidedDevotional() {
       await qc.invalidateQueries({ queryKey: ["progress", "active"] });
       if (groupId) await qc.invalidateQueries({ queryKey: ["groups"] });
       await qc.invalidateQueries({ queryKey: ["profile"] });
+      // Today's reading is done — skip tonight's nudge (same as the reader).
+      deferDailyNudgeToTomorrow().catch(() => {});
     },
     [planId, currentDay, isLastDay, qc, groupId, q3, progressRow]
   );

@@ -19,6 +19,9 @@ submissions.use("*", requireAuth);
 const groupDayQuery = z.object({
   planId: z.string().uuid(),
   dayNumber: z.coerce.number().int().positive(),
+  // The group instance to read. Optional only for older clients — without it,
+  // a user in two groups on the same plan gets an arbitrary one.
+  groupId: z.string().uuid().optional(),
 });
 
 const submissionSchema = z.object({
@@ -50,16 +53,26 @@ submissions.get("/group/day", async (c) => {
   const parsed = groupDayQuery.safeParse({
     planId: c.req.query("planId"),
     dayNumber: c.req.query("dayNumber"),
+    groupId: c.req.query("groupId") || undefined,
   });
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid query" }, 400);
-  const { planId, dayNumber } = parsed.data;
+  const { planId, dayNumber, groupId } = parsed.data;
 
-  // Find a group the user belongs to that has this plan active
+  // Resolve the group instance: explicitly from the client when given (the
+  // reader knows which group it's in), otherwise fall back to the user's oldest
+  // live group on this plan (deterministic, archived excluded) for old clients.
   const [membership] = await db
     .select({ groupId: groupMembers.groupId })
     .from(groupMembers)
     .innerJoin(groups, eq(groups.id, groupMembers.groupId))
-    .where(and(eq(groupMembers.userId, userId), eq(groups.currentPlanId, planId)))
+    .where(
+      and(
+        eq(groupMembers.userId, userId),
+        groupId ? eq(groups.id, groupId) : eq(groups.currentPlanId, planId),
+        isNull(groups.archivedAt)
+      )
+    )
+    .orderBy(asc(groups.createdAt))
     .limit(1);
 
   if (!membership) return c.json({ responses: [] });
@@ -123,10 +136,13 @@ submissions.get("/group/day", async (c) => {
   return c.json({ responses });
 });
 
-// GET /api/submissions/plan/:planId → all user's submissions for a plan (ordered by day)
+// GET /api/submissions/plan/:planId?groupId= → the user's submissions for ONE
+// run of a plan (a group instance, or their personal run when groupId is
+// absent). A shared plan can have several runs; mixing them scrambles history.
 submissions.get("/plan/:planId", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
+  const groupId = c.req.query("groupId") || null;
 
   const rows = await db
     .select()
@@ -134,7 +150,10 @@ submissions.get("/plan/:planId", async (c) => {
     .where(
       and(
         eq(devotionalSubmissions.userId, userId),
-        eq(devotionalSubmissions.planId, planId)
+        eq(devotionalSubmissions.planId, planId),
+        groupId
+          ? eq(devotionalSubmissions.groupId, groupId)
+          : isNull(devotionalSubmissions.groupId)
       )
     )
     .orderBy(asc(devotionalSubmissions.dayNumber));
@@ -223,12 +242,16 @@ submissions.put("/", async (c) => {
         .values({ userId, planId, dayNumber, groupId, ...fields })
         .returning();
 
-  // Background tasks — none of these block the response. `today` is the
-  // submitter's LOCAL calendar day (x-timezone-offset header), not UTC.
-  const today = clientDateString(c);
-  updateStreaks(userId, planId, dayNumber, today, groupId).catch((err) => console.error("[submissions] updateStreaks failed:", err));
-  notifyPartnerDone(userId, planId).catch((err) => console.error("[submissions] notifyPartnerDone failed:", err));
-  notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
+  // Background tasks — none of these block the response, and none run on an
+  // EDIT of an existing submission: re-saving your answers isn't a new
+  // completion, so it must not re-notify partners or re-advance streaks.
+  // `today` is the submitter's LOCAL calendar day (x-timezone-offset header).
+  if (!existing) {
+    const today = clientDateString(c);
+    updateStreaks(userId, planId, dayNumber, today, groupId).catch((err) => console.error("[submissions] updateStreaks failed:", err));
+    notifyPartnerDone(userId, planId, groupId).catch((err) => console.error("[submissions] notifyPartnerDone failed:", err));
+    notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
+  }
 
   return c.json({ submission: row });
 });

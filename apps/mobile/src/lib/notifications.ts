@@ -120,6 +120,35 @@ export async function cancelDailyNudge(): Promise<void> {
   await cancelScheduled(NUDGE_ID);
 }
 
+/**
+ * After finishing today's reading, skip TONIGHT's nudge without killing the
+ * schedule. Cancelling the repeating trigger outright silences the nudge until
+ * the next app open — so the one user a nudge exists for (someone who doesn't
+ * open the app tomorrow) never gets it. Instead, replace it with a one-shot at
+ * tomorrow 8pm; the app-open pass re-normalizes it to the daily schedule.
+ */
+export async function deferDailyNudgeToTomorrow(): Promise<void> {
+  try {
+    const mod = await notifications();
+    if (!mod || !(await ensurePermission(mod))) return;
+    await mod.cancelScheduledNotificationAsync(NUDGE_ID).catch(() => {});
+    const at = new Date();
+    at.setDate(at.getDate() + 1);
+    at.setHours(20, 0, 0, 0);
+    await mod.scheduleNotificationAsync({
+      identifier: NUDGE_ID,
+      content: {
+        title: "Still time today",
+        body: "Your reading is waiting — finish today's devotional before the day ends.",
+        sound: "default",
+      },
+      trigger: { type: mod.SchedulableTriggerInputTypes.DATE, date: at },
+    });
+  } catch (err) {
+    logError("notifications:defer", err);
+  }
+}
+
 // ── Tap → screen routing ──────────────────────────────────────────────────────
 
 /**
