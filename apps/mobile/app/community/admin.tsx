@@ -169,6 +169,77 @@ function StatusChip({ status }: { status: "draft" | "published" }) {
   );
 }
 
+/**
+ * Horizontal two-week day strip — the schedule at a glance. Filled dot = live,
+ * hollow dot = draft, no dot = empty. Tap a day to write or edit it.
+ */
+function DayStrip({
+  days,
+  byDate,
+  today,
+  onPick,
+}: {
+  days: string[];
+  byDate: Map<string, CommunityDevotional>;
+  today: string;
+  onPick: (day: string, reading: CommunityDevotional | undefined) => void;
+}) {
+  const fg = useThemeColor("foreground");
+  const muted = useThemeColor("muted-foreground");
+  const border = useThemeColor("border");
+  const card = useThemeColor("card");
+  const primary = useThemeColor("primary");
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginBottom: 22 }}
+      contentContainerStyle={{ gap: 6 }}
+    >
+      {days.map((day) => {
+        const reading = byDate.get(day);
+        const isToday = day === today;
+        const dt = isoToLocalDate(day);
+        const weekday = dt.toLocaleDateString("en-US", { weekday: "narrow" });
+        return (
+          <Pressable
+            key={day}
+            onPress={() => onPick(day, reading)}
+            accessibilityRole="button"
+            accessibilityLabel={`${formatShort(day)}: ${reading ? (reading.status === "published" ? "live" : "draft") : "empty"}`}
+            style={{
+              width: 46,
+              alignItems: "center",
+              paddingVertical: 9,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: isToday ? primary : border,
+              backgroundColor: isToday ? withAlpha(primary, 0.08) : card,
+            }}
+          >
+            <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 10, textTransform: "uppercase" }}>
+              {weekday}
+            </Text>
+            <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 15, marginTop: 1 }}>{dt.getDate()}</Text>
+            <View
+              style={{
+                marginTop: 4,
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: reading?.status === "published" ? primary : "transparent",
+                borderWidth: reading ? 1 : 0,
+                borderColor: reading?.status === "published" ? primary : muted,
+              }}
+            />
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 export default function CommunityAdmin() {
   const profile = useProfile();
   const qc = useQueryClient();
@@ -196,7 +267,16 @@ export default function CommunityAdmin() {
     for (const d of list.data ?? []) m.set(d.publishDate, d);
     return m;
   }, [list.data]);
-  const upcomingDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysISO(today, i + 1)), [today]);
+  // Two weeks of day cells for the strip (today first), plus everything written
+  // ahead (any distance out) and recent history as title lists.
+  const stripDays = useMemo(() => Array.from({ length: 14 }, (_, i) => addDaysISO(today, i)), [today]);
+  const upcoming = useMemo(
+    () =>
+      (list.data ?? [])
+        .filter((d) => d.publishDate > today)
+        .sort((a, b) => a.publishDate.localeCompare(b.publishDate)),
+    [list.data, today]
+  );
   const past = useMemo(
     () => (list.data ?? []).filter((d) => d.publishDate < today).slice(0, 10),
     [list.data, today]
@@ -644,6 +724,14 @@ export default function CommunityAdmin() {
             </View>
           ) : null}
 
+          {/* ── The next two weeks at a glance ─────────────────────────────── */}
+          <DayStrip
+            days={stripDays}
+            byDate={byDate}
+            today={today}
+            onPick={(day, reading) => (reading ? startEdit(reading) : startNew(day))}
+          />
+
           {/* ── Today ──────────────────────────────────────────────────────── */}
           <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Today</Text>
           <View
@@ -699,17 +787,22 @@ export default function CommunityAdmin() {
             )}
           </View>
 
-          {/* ── Upcoming week ─────────────────────────────────────────────── */}
-          <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Next 7 days</Text>
-          <View style={{ borderWidth: 1, borderColor: border, borderRadius: 14, backgroundColor: card, marginBottom: 22 }}>
-            {upcomingDays.map((day, i) => {
-              const reading = byDate.get(day);
-              return (
+          {/* ── Everything written ahead (any distance out) ───────────────── */}
+          <Text className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Scheduled</Text>
+          {upcoming.length === 0 ? (
+            <Text
+              style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 13, fontStyle: "italic", marginBottom: 22 }}
+            >
+              Nothing scheduled ahead yet — tap a day above to write.
+            </Text>
+          ) : (
+            <View style={{ borderWidth: 1, borderColor: border, borderRadius: 14, backgroundColor: card, marginBottom: 22 }}>
+              {upcoming.map((d, i) => (
                 <Pressable
-                  key={day}
-                  onPress={() => (reading ? startEdit(reading) : startNew(day))}
+                  key={d.id}
+                  onPress={() => startEdit(d)}
                   accessibilityRole="button"
-                  accessibilityLabel={reading ? `Edit ${formatShort(day)}` : `Write for ${formatShort(day)}`}
+                  accessibilityLabel={`Edit ${formatShort(d.publishDate)}`}
                   className="active:opacity-70"
                   style={{
                     flexDirection: "row",
@@ -722,28 +815,20 @@ export default function CommunityAdmin() {
                   }}
                 >
                   <View style={{ width: 86 }}>
-                    <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 13 }}>{formatShort(day)}</Text>
-                  </View>
-                  {reading ? (
-                    <>
-                      <Text
-                        numberOfLines={1}
-                        style={{ flex: 1, color: fg, fontFamily: "DMSans_400Regular", fontSize: 14 }}
-                      >
-                        {reading.title}
-                      </Text>
-                      <StatusChip status={reading.status} />
-                    </>
-                  ) : (
-                    <Text style={{ flex: 1, color: muted, fontFamily: "DMSans_400Regular", fontSize: 13, fontStyle: "italic" }}>
-                      Empty — tap to write
+                    <Text style={{ color: fg, fontFamily: "DMSans_700Bold", fontSize: 13 }}>{formatShort(d.publishDate)}</Text>
+                    <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 11 }}>
+                      {relativeLabel(d.publishDate)}
                     </Text>
-                  )}
+                  </View>
+                  <Text numberOfLines={1} style={{ flex: 1, color: fg, fontFamily: "DMSans_400Regular", fontSize: 14 }}>
+                    {d.title}
+                  </Text>
+                  <StatusChip status={d.status} />
                   <ChevronRight size={16} color={muted} />
                 </Pressable>
-              );
-            })}
-          </View>
+              ))}
+            </View>
+          )}
 
           {/* ── Past readings ─────────────────────────────────────────────── */}
           {past.length > 0 ? (
