@@ -731,12 +731,22 @@ groupsRoute.patch("/:id/plan", async (c) => {
     .limit(1);
   if (!plan) return c.json({ error: "Plan not found" }, 404);
 
-  // Group limit: 3 active group devotionals at a time.
+  // Group limit: 3 active group devotionals at a time. The TARGET group is
+  // excluded — swapping the plan in a group you're already active in doesn't
+  // add a devotional — and archived groups (whose currentPlanId freezes at
+  // archive time) don't count either.
   const [activeGroups] = await db
     .select({ count: count() })
     .from(groupMembers)
     .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-    .where(and(eq(groupMembers.userId, userId), isNotNull(groups.currentPlanId)));
+    .where(
+      and(
+        eq(groupMembers.userId, userId),
+        isNotNull(groups.currentPlanId),
+        isNull(groups.archivedAt),
+        ne(groups.id, groupId)
+      )
+    );
 
   if ((activeGroups?.count ?? 0) >= 3) {
     return c.json(
