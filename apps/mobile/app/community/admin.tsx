@@ -194,8 +194,11 @@ function DayStrip({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={{ marginBottom: 22 }}
-      contentContainerStyle={{ gap: 6 }}
+      // Bleed through the screen's px-6 (24) content padding so cells scroll to
+      // the true screen edge — clipping at the padding boundary reads as a bug,
+      // while a partial cell at the edge reads as "scrollable".
+      style={{ marginBottom: 22, marginHorizontal: -24 }}
+      contentContainerStyle={{ gap: 6, paddingHorizontal: 24 }}
     >
       {days.map((day) => {
         const reading = byDate.get(day);
