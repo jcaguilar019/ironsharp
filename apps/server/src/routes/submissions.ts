@@ -11,6 +11,15 @@ import {
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { notifyPartnerDone, notifyGroupCompleteIfDone } from "../lib/push.js";
 import { clientDateString } from "../lib/localday.js";
+import {
+  activeGroupRun,
+  activePersonalRun,
+  ensureGroupRun,
+  ensurePersonalRun,
+  groupRuns,
+  personalRuns,
+  type PlanRun,
+} from "../lib/plan-runs.js";
 
 export const submissions = new Hono<AppEnv>();
 
@@ -77,6 +86,13 @@ submissions.get("/group/day", async (c) => {
 
   if (!membership) return c.json({ responses: [] });
 
+  // Scope to the group's current run of this plan (falling back to the most
+  // recent one) so a re-run doesn't surface the previous run's answers.
+  const run =
+    (await activeGroupRun(membership.groupId, planId)) ??
+    (await groupRuns(membership.groupId, planId))[0] ??
+    null;
+
   // Get all members of that group
   const members = await db
     .select({
@@ -101,7 +117,8 @@ submissions.get("/group/day", async (c) => {
         eq(devotionalSubmissions.planId, planId),
         eq(devotionalSubmissions.dayNumber, dayNumber),
         // Only this group's answers — not members' personal copies of the same plan.
-        eq(devotionalSubmissions.groupId, membership.groupId)
+        eq(devotionalSubmissions.groupId, membership.groupId),
+        ...(run ? [eq(devotionalSubmissions.runId, run.id)] : [])
       )
     );
 
@@ -144,19 +161,29 @@ submissions.get("/plan/:planId", async (c) => {
   const planId = c.req.param("planId");
   const groupId = c.req.query("groupId") || null;
 
-  const rows = await db
-    .select()
-    .from(devotionalSubmissions)
-    .where(
-      and(
-        eq(devotionalSubmissions.userId, userId),
-        eq(devotionalSubmissions.planId, planId),
-        groupId
-          ? eq(devotionalSubmissions.groupId, groupId)
-          : isNull(devotionalSubmissions.groupId)
-      )
-    )
-    .orderBy(asc(devotionalSubmissions.dayNumber));
+  // Pick the run to show: the active run when it has entries, otherwise the
+  // most recent run that does — so "review my reflections" after a restart
+  // still shows the finished run instead of an empty new one.
+  const runs = groupId ? await groupRuns(groupId, planId) : await personalRuns(userId, planId);
+  let rows: (typeof devotionalSubmissions.$inferSelect)[] = [];
+  const scope = (run: PlanRun | null) =>
+    and(
+      eq(devotionalSubmissions.userId, userId),
+      eq(devotionalSubmissions.planId, planId),
+      groupId ? eq(devotionalSubmissions.groupId, groupId) : isNull(devotionalSubmissions.groupId),
+      ...(run ? [eq(devotionalSubmissions.runId, run.id)] : [])
+    );
+
+  if (runs.length === 0) {
+    rows = await db.select().from(devotionalSubmissions).where(scope(null)).orderBy(asc(devotionalSubmissions.dayNumber));
+  } else {
+    const active = runs.find((r) => !r.completedAt && !r.endedAt);
+    const ordered = active ? [active, ...runs.filter((r) => r.id !== active.id)] : runs;
+    for (const run of ordered) {
+      rows = await db.select().from(devotionalSubmissions).where(scope(run)).orderBy(asc(devotionalSubmissions.dayNumber));
+      if (rows.length > 0) break;
+    }
+  }
 
   return c.json({ submissions: rows });
 });
@@ -168,6 +195,10 @@ submissions.get("/:planId/:dayNumber", async (c) => {
   const dayNumber = Number(c.req.param("dayNumber"));
   const groupId = c.req.query("groupId") || null;
 
+  // Prefill comes from the ACTIVE run only — after a restart, day inputs must
+  // come back blank rather than resurrecting the previous run's answers.
+  const run = groupId ? await activeGroupRun(groupId, planId) : await activePersonalRun(userId, planId);
+
   const [row] = await db
     .select()
     .from(devotionalSubmissions)
@@ -178,7 +209,8 @@ submissions.get("/:planId/:dayNumber", async (c) => {
         eq(devotionalSubmissions.dayNumber, dayNumber),
         groupId
           ? eq(devotionalSubmissions.groupId, groupId)
-          : isNull(devotionalSubmissions.groupId)
+          : isNull(devotionalSubmissions.groupId),
+        ...(run ? [eq(devotionalSubmissions.runId, run.id)] : [])
       )
     )
     .limit(1);
@@ -213,7 +245,13 @@ submissions.put("/", async (c) => {
     updatedAt: new Date(),
   };
 
-  // One submission per scope (user, plan, day, instance). groupId NULL = personal.
+  // Which RUN this answer belongs to. ensure* creates one only as a safety net
+  // for legacy data — starts and assignments open runs up front.
+  const run = groupId
+    ? await ensureGroupRun(groupId, planId, dayNumber)
+    : await ensurePersonalRun(userId, planId);
+
+  // One submission per scope (user, plan, day, run). groupId NULL = personal.
   // Enforced in app code: a nullable groupId can't dedupe NULLs in a Postgres
   // unique index, so find-then-update/insert instead of onConflict.
   const scope = and(
@@ -222,7 +260,8 @@ submissions.put("/", async (c) => {
     eq(devotionalSubmissions.dayNumber, dayNumber),
     groupId
       ? eq(devotionalSubmissions.groupId, groupId)
-      : isNull(devotionalSubmissions.groupId)
+      : isNull(devotionalSubmissions.groupId),
+    eq(devotionalSubmissions.runId, run.id)
   );
 
   const [existing] = await db
@@ -239,7 +278,7 @@ submissions.put("/", async (c) => {
         .returning()
     : await db
         .insert(devotionalSubmissions)
-        .values({ userId, planId, dayNumber, groupId, ...fields })
+        .values({ userId, planId, dayNumber, groupId, runId: run.id, ...fields })
         .returning();
 
   // Background tasks — none of these block the response, and none run on an
@@ -250,7 +289,7 @@ submissions.put("/", async (c) => {
     const today = clientDateString(c);
     updateStreaks(userId, planId, dayNumber, today, groupId).catch((err) => console.error("[submissions] updateStreaks failed:", err));
     notifyPartnerDone(userId, planId, groupId).catch((err) => console.error("[submissions] notifyPartnerDone failed:", err));
-    notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
+    notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId, run.id).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
   }
 
   return c.json({ submission: row });

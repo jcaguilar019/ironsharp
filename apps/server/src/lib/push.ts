@@ -99,7 +99,8 @@ export async function notifyGroupCompleteIfDone(
   submittingUserId: string,
   planId: string,
   dayNumber: number,
-  groupId: string | null
+  groupId: string | null,
+  runId?: string | null
 ): Promise<void> {
   // Only a group submission can complete a group; scope to that instance.
   if (!groupId) return;
@@ -133,7 +134,9 @@ export async function notifyGroupCompleteIfDone(
     const allIds = allMembers.map((m) => m.userId);
     if (allIds.length === 0) continue;
 
-    // Use the submissions table as source of truth — more reliable than doneToday flags.
+    // Use the submissions table as source of truth — more reliable than doneToday
+    // flags. Scoped to the current run so a re-run's day N isn't "completed" by
+    // last time's answers.
     const submitted = await db
       .select({ userId: devotionalSubmissions.userId })
       .from(devotionalSubmissions)
@@ -142,7 +145,8 @@ export async function notifyGroupCompleteIfDone(
           inArray(devotionalSubmissions.userId, allIds),
           eq(devotionalSubmissions.planId, planId),
           eq(devotionalSubmissions.dayNumber, dayNumber),
-          eq(devotionalSubmissions.groupId, groupId)
+          eq(devotionalSubmissions.groupId, groupId),
+          ...(runId ? [eq(devotionalSubmissions.runId, runId)] : [])
         )
       );
 

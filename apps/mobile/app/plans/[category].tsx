@@ -18,6 +18,7 @@ import { useThemeColor } from "@/components/useThemeColor";
 import { usePlansByCategory, useProgress, useGroups } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
 import { categoryLabel } from "@/lib/categories";
+import { purgePersonalPlanLocalState } from "@/lib/planLocal";
 
 export default function PlanList() {
   const { category } = useLocalSearchParams<{ category: string }>();
@@ -36,12 +37,44 @@ export default function PlanList() {
 
   // Plans selected here are personal — they live on your home page. Assigning a
   // plan to a group happens only in the group flow (app/plans/new.tsx).
+  // Take a finished plan again from day 1 — the completed run keeps its
+  // reflections; the new run starts blank. Same one-active rule as starting.
+  const restartPlan = async (planId: string) => {
+    const groupPlanIds = new Set((groups.data ?? []).map((g) => g.plan?.id).filter(Boolean));
+    const activePersonalCount = (progress.data ?? []).filter(
+      (p) => !p.completedAt && !groupPlanIds.has(p.planId)
+    ).length;
+    if (activePersonalCount >= 1) {
+      Alert.alert(
+        "One at a time.",
+        "You already have an active personal devotional. Finish what is in front of you first."
+      );
+      return;
+    }
+    setAssigning(true);
+    try {
+      await purgePersonalPlanLocalState(planId);
+      await ApiClient.restartPlan(planId);
+      await qc.invalidateQueries({ queryKey: ["progress"] });
+      await qc.invalidateQueries({ queryKey: ["progress", "active"] });
+      router.push(`/devotional/${planId}`);
+    } catch {
+      Alert.alert("Something went wrong", "Please try again.");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const handlePlanTap = async (planId: string) => {
     if (assigning) return;
     const prog = progressByPlan.get(planId);
-    // Completed — review your reflections rather than reopening the last day.
+    // Completed — review your reflections, or take it again.
     if (prog?.completedAt) {
-      router.push(`/devotional/history/${planId}`);
+      Alert.alert("You've finished this plan", "Your reflections are saved either way.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Review reflections", onPress: () => router.push(`/devotional/history/${planId}`) },
+        { text: "Do it again", onPress: () => restartPlan(planId) },
+      ]);
       return;
     }
     // Already started personally — just open it.

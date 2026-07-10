@@ -276,6 +276,9 @@ export const devotionalSubmissions = pgTable(
     // plan is a shared template (same planId across personal + every group that
     // picks it), so answers are scoped by instance, not just (user, plan, day).
     groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+    // Which RUN of the plan this answer belongs to (see planRuns) — what lets a
+    // restarted/re-run plan start blank without touching earlier answers.
+    runId: uuid("run_id").references(() => planRuns.id, { onDelete: "cascade" }),
     response1: text("response1"),
     response2: text("response2"),
     // Optional Q3 — a custom question the discipler sets for the disciple.
@@ -324,6 +327,34 @@ export const submissionReactions = pgTable(
       t.userId,
       t.reactionType
     ),
+  })
+);
+
+/**
+ * One RUN of a plan — the missing identity between a plan (content) and the
+ * person/group doing it. A user can run the same plan twice (restart), and a
+ * group can re-run a plan, without answers colliding: submissions carry the
+ * run they belong to. userPlanProgress and groups.currentPlanId/currentDay
+ * remain the "active pointer" for reads; this table is the ledger.
+ */
+export const planRuns = pgTable(
+  "plan_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => devotionalPlans.id, { onDelete: "cascade" }),
+    ownerType: text("owner_type").notNull(), // "user" | "group"
+    userId: text("user_id"), // set when ownerType = "user"
+    groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }), // set when ownerType = "group"
+    currentDay: integer("current_day").notNull().default(1),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }), // finished the last day
+    endedAt: timestamp("ended_at", { withTimezone: true }), // stopped/replaced before finishing
+  },
+  (t) => ({
+    userPlanIdx: index("idx_plan_runs_user_plan").on(t.userId, t.planId),
+    groupPlanIdx: index("idx_plan_runs_group_plan").on(t.groupId, t.planId),
   })
 );
 

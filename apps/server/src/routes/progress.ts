@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { userPlanProgress, devotionalPlans, devotionalDays, devotionalSubmissions, profiles } from "../db/schema.js";
+import { userPlanProgress, devotionalPlans, devotionalDays, devotionalSubmissions, profiles, planRuns } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { clientDayWindow } from "../lib/localday.js";
+import { activePersonalRun, closeRun, ensurePersonalRun, setRunDay } from "../lib/plan-runs.js";
+import { canReadPlan } from "../lib/plan-access.js";
 import {
   TIER_LIMITS,
   UPGRADE_PATH,
@@ -188,25 +190,73 @@ progress.post("/", async (c) => {
     .values({ userId, planId, currentDay: 1 })
     .returning();
 
+  // Every start opens a run — the identity submissions attach to.
+  await ensurePersonalRun(userId, planId);
+
   return c.json({ progress: row }, 201);
 });
 
-// DELETE /api/progress/:planId  → abandon a plan and wipe its reflections
+// POST /api/progress/:planId/restart  → do a completed (or in-progress) plan
+// again from day 1. The previous run closes and KEEPS its reflections; the new
+// run starts blank. Never charges an unlock (the plan was already unlocked)
+// and never decrements totalCompleted (a past completion still counts).
+progress.post("/:planId/restart", async (c) => {
+  const userId = c.var.user.id;
+  const planId = c.req.param("planId");
+
+  const [plan] = await db
+    .select()
+    .from(devotionalPlans)
+    .where(eq(devotionalPlans.id, planId))
+    .limit(1);
+  if (!plan || !(await canReadPlan(userId, plan))) return c.json({ error: "Plan not found" }, 404);
+
+  const active = await activePersonalRun(userId, planId);
+  if (active) await closeRun(active.id, "ended");
+  const [run] = await db
+    .insert(planRuns)
+    .values({ planId, ownerType: "user", userId })
+    .returning();
+
+  const [existing] = await db
+    .select({ id: userPlanProgress.id })
+    .from(userPlanProgress)
+    .where(and(eq(userPlanProgress.userId, userId), eq(userPlanProgress.planId, planId)))
+    .limit(1);
+
+  const [row] = existing
+    ? await db
+        .update(userPlanProgress)
+        .set({ currentDay: 1, startedAt: new Date(), completedAt: null })
+        .where(eq(userPlanProgress.id, existing.id))
+        .returning()
+    : await db
+        .insert(userPlanProgress)
+        .values({ userId, planId, currentDay: 1 })
+        .returning();
+
+  return c.json({ progress: row, runId: run?.id ?? null });
+});
+
+// DELETE /api/progress/:planId  → abandon the CURRENT run and wipe its
+// reflections. Scoped to the active run so a past completed run's journal
+// survives stopping a re-run of the same plan.
 progress.delete("/:planId", async (c) => {
   const userId = c.var.user.id;
   const planId = c.req.param("planId");
 
-  // Stopping is a full reset — remove progress AND the user's personal
-  // reflections for this plan (groupId IS NULL leaves any group copy untouched).
+  const active = await activePersonalRun(userId, planId);
   await db
     .delete(devotionalSubmissions)
     .where(
       and(
         eq(devotionalSubmissions.userId, userId),
         eq(devotionalSubmissions.planId, planId),
-        isNull(devotionalSubmissions.groupId)
+        isNull(devotionalSubmissions.groupId),
+        active ? eq(devotionalSubmissions.runId, active.id) : isNull(devotionalSubmissions.runId)
       )
     );
+  if (active) await closeRun(active.id, "ended");
   await db
     .delete(userPlanProgress)
     .where(and(eq(userPlanProgress.userId, userId), eq(userPlanProgress.planId, planId)));
@@ -259,6 +309,13 @@ progress.patch("/:planId", async (c) => {
     .returning();
 
   if (!row) return c.json({ error: "Progress not found" }, 404);
+
+  // Mirror the pointer change onto the active run (the ledger).
+  const run = await activePersonalRun(userId, planId);
+  if (run) {
+    if (typeof body.currentDay === "number") await setRunDay(run.id, body.currentDay);
+    if (body.completed === true) await closeRun(run.id, "completed");
+  }
 
   const wasCompleted = !!before.completedAt;
   const isNowCompleted = !!row.completedAt;

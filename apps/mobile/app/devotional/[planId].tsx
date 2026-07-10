@@ -743,7 +743,7 @@ export default function DevotionalReader() {
   const handleStopPlan = () => {
     Alert.alert(
       "End this plan?",
-      "This can't be undone. Your progress and all your reflections for this plan will be deleted.",
+      "This can't be undone. Your progress and the reflections from this attempt will be deleted. (Reflections from past completed runs are kept.)",
       [
         { text: "Cancel", style: "cancel" },
         {

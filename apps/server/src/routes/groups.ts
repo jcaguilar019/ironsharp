@@ -10,10 +10,12 @@ import {
   devotionalPlans,
   devotionalDays,
   devotionalSubmissions,
+  planRuns,
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
 import { clientDateString, clientDayWindow, effectiveStreak } from "../lib/localday.js";
+import { activeGroupRun, closeRun, ensureGroupRun, groupRuns, setRunDay } from "../lib/plan-runs.js";
 
 export const groupsRoute = new Hono<AppEnv>();
 groupsRoute.use("*", requireAuth);
@@ -126,6 +128,8 @@ groupsRoute.get("/", async (c) => {
                 planTitle: plan.title,
               });
               await creditGroupCompletion(group.id, plan.id).catch(() => {});
+              const run = await activeGroupRun(group.id, plan.id);
+              if (run) await closeRun(run.id, "completed");
               await db
                 .update(groupMembers)
                 .set({ doneToday: false })
@@ -145,6 +149,10 @@ groupsRoute.get("/", async (c) => {
                 .update(groupMembers)
                 .set({ doneToday: false })
                 .where(eq(groupMembers.groupId, group.id));
+              if (group.currentPlanId) {
+                const run = await activeGroupRun(group.id, group.currentPlanId);
+                if (run) await setRunDay(run.id, group.currentDay + 1);
+              }
             }
             group.currentDay = group.currentDay + 1;
           }
@@ -376,6 +384,11 @@ groupsRoute.get("/:id/responses", async (c) => {
     .limit(1);
   if (!membership) return c.json({ error: "Not a member" }, 403);
 
+  // The most recent run of this plan in this group — a re-run's view must not
+  // interleave the previous run's answers.
+  const runsForPlan = await groupRuns(groupId, planId);
+  const latestRun = runsForPlan[0] ?? null;
+
   const [subs, members] = await Promise.all([
     db
       .select({
@@ -390,7 +403,13 @@ groupsRoute.get("/:id/responses", async (c) => {
         submittedAt: devotionalSubmissions.submittedAt,
       })
       .from(devotionalSubmissions)
-      .where(and(eq(devotionalSubmissions.groupId, groupId), eq(devotionalSubmissions.planId, planId))),
+      .where(
+        and(
+          eq(devotionalSubmissions.groupId, groupId),
+          eq(devotionalSubmissions.planId, planId),
+          ...(latestRun ? [eq(devotionalSubmissions.runId, latestRun.id)] : [])
+        )
+      ),
     db
       .select({ userId: groupMembers.userId, displayName: profiles.displayName, avatarUrl: profiles.avatarUrl })
       .from(groupMembers)
@@ -726,10 +745,27 @@ groupsRoute.patch("/:id/plan", async (c) => {
     );
   }
 
+  // Close out whatever run was underway (switching plans mid-run, or
+  // re-assigning the same plan = an intentional fresh re-run), then open the
+  // new run submissions will attach to.
+  const [current] = await db
+    .select({ currentPlanId: groups.currentPlanId })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+  if (current?.currentPlanId) {
+    const oldRun = await activeGroupRun(groupId, current.currentPlanId);
+    if (oldRun) await closeRun(oldRun.id, "ended");
+  }
+
   await db
     .update(groups)
     .set({ currentPlanId: planId, currentPlanStartedAt: new Date(), currentDay: 1, updatedAt: new Date() })
     .where(eq(groups.id, groupId));
+
+  await db
+    .insert(planRuns)
+    .values({ planId, ownerType: "group", groupId });
 
   await db
     .update(groupMembers)
@@ -766,6 +802,8 @@ groupsRoute.delete("/:id/plan", async (c) => {
     if (plan) {
       await db.insert(groupPlanHistory).values({ groupId, planId: plan.id, planTitle: plan.title });
     }
+    const run = await activeGroupRun(groupId, group.currentPlanId);
+    if (run) await closeRun(run.id, "ended");
   }
   await db
     .update(groups)
@@ -881,6 +919,8 @@ groupsRoute.patch("/:id/day", async (c) => {
           planTitle: finishedPlan.title,
         });
         await creditGroupCompletion(groupId, finishedPlan.id).catch(() => {});
+        const run = await activeGroupRun(groupId, finishedPlan.id);
+        if (run) await closeRun(run.id, "completed");
       }
       await db
         .update(groups)
@@ -892,6 +932,10 @@ groupsRoute.patch("/:id/day", async (c) => {
         .update(groups)
         .set({ currentDay: nextDay, updatedAt: new Date() })
         .where(and(eq(groups.id, groupId), eq(groups.currentDay, grp.currentDay)));
+      if (grp.currentPlanId) {
+        const run = await activeGroupRun(groupId, grp.currentPlanId);
+        if (run) await setRunDay(run.id, nextDay);
+      }
     }
     await db
       .update(groupMembers)

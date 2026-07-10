@@ -568,6 +568,9 @@ export const ApiClient = {
       method: "POST",
       body: JSON.stringify({ planId }),
     }),
+  /** Do a plan again from day 1 — past runs keep their reflections. */
+  restartPlan: (planId: string) =>
+    api<{ progress: PlanProgress }>(`/api/progress/${planId}/restart`, { method: "POST" }),
   updateProgress: (
     planId: string,
     body: { currentDay?: number; completed?: boolean }
