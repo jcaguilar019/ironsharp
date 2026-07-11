@@ -51,5 +51,5 @@ export default function Index() {
   }
 
   const onboarded = !!profile.data?.surveyCompletedAt;
-  return <Redirect href={onboarded ? "/(tabs)/home" : "/onboarding/role"} />;
+  return <Redirect href={onboarded ? "/(tabs)/home" : "/onboarding/survey"} />;
 }

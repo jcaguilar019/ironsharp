@@ -123,7 +123,7 @@ export default function TabsLayout() {
     );
   }
   if (!authed) return <Redirect href="/(auth)/welcome" />;
-  if (!profile.data?.surveyCompletedAt) return <Redirect href="/onboarding/role" />;
+  if (!profile.data?.surveyCompletedAt) return <Redirect href="/onboarding/survey" />;
 
   return (
     <>

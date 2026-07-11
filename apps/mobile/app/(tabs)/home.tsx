@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { BookOpen, CheckCircle2, ChevronRight, Globe, Sun } from "lucide-react-native";
+import { BookOpen, CheckCircle2, ChevronRight, Globe, Sun, Users } from "lucide-react-native";
 import { PopIn } from "@/components/PopIn";
 import { Screen } from "@/components/Screen";
 import { StreakFlame } from "@/components/StreakFlame";
@@ -26,7 +26,11 @@ export default function HomeScreen() {
   const groups = useGroups();
   // When there's no personal plan, the Home card falls back to the first group
   // reading — a group-only user has "time with God" today too, not "Choose a Plan".
-  const groupReading = active ? null : ((groups.data ?? []).find((g) => g.plan) ?? null);
+  const groupReadings = (groups.data ?? []).filter((g) => g.plan);
+  const groupReading = active ? null : (groupReadings[0] ?? null);
+  // Group readings not already in the hero card get compact rows below it —
+  // the group is waiting on you, so it must stay visible on Home.
+  const secondaryGroups = groupReadings.filter((g) => g.id !== groupReading?.id);
   const myId = profile.data?.userId;
   const groupDone = !!groupReading?.members.find((m) => m.userId === myId)?.doneToday;
   const cardDone = active ? doneToday : groupDone;
@@ -151,6 +155,34 @@ export default function HomeScreen() {
             )}
           </View>
         </Pressable>
+
+        {/* Group readings not covered by the hero card */}
+        {secondaryGroups.map((g) => {
+          const done = !!g.members.find((m) => m.userId === myId)?.doneToday;
+          return (
+            <Pressable
+              key={g.id}
+              onPress={() => router.push(`/devotional/${g.plan!.id}?groupId=${g.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${g.name}'s reading`}
+              className="mb-3 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-4"
+            >
+              <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                <Users size={17} color={primary} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-sans-semibold text-base text-foreground" numberOfLines={1}>
+                  {g.name}
+                </Text>
+                <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+                  {g.plan!.title} · Day {g.currentDay} of {g.plan!.totalDays}
+                </Text>
+              </View>
+              {done ? <CheckCircle2 size={18} color={primary} /> : <ChevronRight size={18} color={muted} />}
+            </Pressable>
+          );
+        })}
+        {secondaryGroups.length > 0 ? <View className="mb-3" /> : null}
 
         {activeDisc ? (
           <Pressable

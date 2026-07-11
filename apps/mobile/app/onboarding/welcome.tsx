@@ -18,7 +18,7 @@ const CARD_GAP = 12;
 export default function OnboardingWelcome() {
   const router = useRouter();
   const qc = useQueryClient();
-  const { displayName, role, survey } = useOnboarding();
+  const { displayName, survey } = useOnboarding();
   const primaryFg = useThemeColor("primary-foreground");
   const muted = useThemeColor("muted-foreground");
 
@@ -62,7 +62,6 @@ export default function OnboardingWelcome() {
     mutationFn: async () => {
       const result = await ApiClient.updateProfile({
         displayName: displayName || undefined,
-        primaryRole: role ?? "disciple",
         surveyName: displayName || undefined,
         surveyAgeRange: survey.ageRange ?? undefined,
         surveyGender: survey.gender ?? undefined,

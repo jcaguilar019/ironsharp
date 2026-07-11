@@ -1,8 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Stack } from "expo-router";
 
-export type OnboardingRole = "discipler" | "disciple" | "partner";
-
 export type OnboardingSurvey = {
   ageRange: string | null;
   gender: string | null;
@@ -21,7 +19,6 @@ export type OnboardingSurvey = {
 
 type OnboardingState = {
   displayName: string;
-  role: OnboardingRole | null;
   survey: OnboardingSurvey;
 };
 
@@ -57,7 +54,6 @@ export function useOnboarding() {
 export default function OnboardingLayout() {
   const [state, setState] = useState<OnboardingState>({
     displayName: "",
-    role: null,
     survey: DEFAULT_SURVEY,
   });
 
