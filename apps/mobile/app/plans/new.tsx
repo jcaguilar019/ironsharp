@@ -38,6 +38,7 @@ import { useGroups, usePlansByCategory, useProfile, useGenerateTokens } from "@/
 import { ApiClient, ApiError, type Group } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { GROUP_TYPE_KEYS, GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
+import { generateGate } from "@/lib/generateGate";
 
 const TYPE_DESC: Record<string, string> = {
   "one-on-one": "Mentor one person, with discipleship tools",
@@ -109,15 +110,9 @@ export default function NewPlanFlow() {
   const resetsAt = tokens.data?.resetsAt;
 
   const openCreate = () => {
-    if (tierLimit === 0) {
-      Alert.alert("Upgrade required", "AI-generated plans are available on Connect and above.");
-      return;
-    }
-    if (tokensRemaining === 0) {
-      const date = resetsAt
-        ? new Date(resetsAt).toLocaleDateString("en-US", { month: "long", day: "numeric" })
-        : null;
-      Alert.alert("You're all out", date ? `Your next token is available on ${date}.` : "You have no tokens remaining.");
+    const gate = generateGate(tokens.data);
+    if (gate) {
+      Alert.alert(gate.title, gate.message);
       return;
     }
     router.push(`/plans/create${activeGroupId ? `?groupId=${activeGroupId}` : ""}`);

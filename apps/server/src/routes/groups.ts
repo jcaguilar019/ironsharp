@@ -217,6 +217,7 @@ groupsRoute.get("/", async (c) => {
         name: group.name,
         groupType: group.groupType,
         inviteCode: group.inviteCode,
+        createdBy: group.createdBy,
         currentDay: group.currentDay,
         streakCount: effectiveStreak(group.streakCount, group.lastStreakDate, today),
         displayOrder: membership.displayOrder,

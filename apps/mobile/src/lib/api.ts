@@ -212,6 +212,8 @@ export type Group = {
   name: string;
   groupType: "one-on-one" | "family" | "small-group";
   inviteCode: string;
+  /** The group's creator — the only member who can end it or remove others. */
+  createdBy: string;
   currentDay: number;
   streakCount: number;
   displayOrder: number;

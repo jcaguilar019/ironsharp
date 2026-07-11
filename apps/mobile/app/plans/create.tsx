@@ -207,7 +207,9 @@ export default function CreatePlan() {
       if (groupId) {
         await ApiClient.assignPlanToGroup(groupId, planId);
         await qc.invalidateQueries({ queryKey: ["groups"] });
-        router.replace("/(tabs)/groups");
+        // Land on the flow's invite step — same ending as picking a library
+        // plan, so a freshly created group doesn't get orphaned uninvited.
+        router.replace(`/plans/new?groupId=${groupId}&step=invite`);
       } else if (newGroupType) {
         // The who-answer is a commitment, not prompt flavoring: doing this with
         // others creates the group now, puts the plan in it, and moves straight

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { Input } from "@/components/Input";
@@ -35,13 +35,11 @@ export default function Login() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1"
-      >
         <ScrollView
           contentContainerClassName="flex-grow items-center justify-center px-8 py-12"
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
         >
           <Text className="mb-8 font-serif text-3xl font-bold text-foreground">
             Welcome Back
@@ -83,7 +81,6 @@ export default function Login() {
             </Text>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
     </Screen>
   );
 }

@@ -28,10 +28,12 @@ import {
   GripVertical,
   HeartHandshake,
   Link,
+  LogOut,
   MessageSquare,
   MoreVertical,
   Pencil,
   Plus,
+  Sun,
   Trash2,
   X,
 } from "lucide-react-native";
@@ -47,7 +49,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { useToast } from "@/components/Toast";
 import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
 import { Avatar } from "@/components/Avatar";
-import { useGroups, useDiscipleships, useProfile } from "@/lib/queries";
+import { useGroups, useDiscipleships, useProfile, useActiveDevotional } from "@/lib/queries";
 import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
 import { effectiveTier, isDisciplerTier } from "@/lib/tiers";
 import { logError } from "@/lib/logger";
@@ -478,6 +480,7 @@ export default function GroupsScreen() {
   const groups = useGroups();
   const discipleships = useDiscipleships();
   const profile = useProfile();
+  const { data: activeDevo } = useActiveDevotional();
   const qc = useQueryClient();
   const router = useRouter();
   const toast = useToast();
@@ -537,6 +540,28 @@ export default function GroupsScreen() {
   // Entry point for starting discipleship from the hub: opens the unified
   // create flow pre-set to a one-on-one group.
   const startOneOnOne = () => router.push("/plans/new?type=one-on-one");
+
+  // A member (not the creator) leaving — distinct from the creator's "End".
+  const handleLeaveGroup = (group: Group) => {
+    const myId = profile.data?.userId;
+    if (!myId) return;
+    Alert.alert("Leave group?", `You'll leave "${group.name}". Your past entries stay with the group.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await ApiClient.removeGroupMember(group.id, myId);
+            await qc.invalidateQueries({ queryKey: ["groups"] });
+            toast.show(`Left ${group.name}`);
+          } catch (err) {
+            Alert.alert("Couldn't leave", err instanceof ApiError ? err.message : "Please try again.");
+          }
+        },
+      },
+    ]);
+  };
 
   const handleSaveEdit = async () => {
     if (!editGroup || !editName.trim()) return;
@@ -661,6 +686,55 @@ export default function GroupsScreen() {
             }
           />
 
+          {/* ── My Plan (personal) — the tab is named Plans; personal plans live
+                 here too, and the library stays reachable while one is active. */}
+          <SectionLabel label="My Plan" />
+          {activeDevo ? (
+            <>
+              <Pressable
+                onPress={() => router.push(`/devotional/${activeDevo.planId}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Continue ${activeDevo.planTitle}`}
+                style={{ borderWidth: 1, borderColor: border, borderRadius: 12, backgroundColor: card }}
+                className="px-4 py-4"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Sun size={16} color={primary} />
+                  <Text className="flex-1 font-serif text-lg font-bold text-foreground" numberOfLines={1}>
+                    {activeDevo.planTitle}
+                  </Text>
+                </View>
+                <Text className="mt-1 text-sm text-muted-foreground">
+                  Day {activeDevo.currentDay} of {activeDevo.totalDays}
+                  {activeDevo.chapter ? ` · ${activeDevo.chapter}` : ""}
+                </Text>
+                <Text style={{ color: activeDevo.doneToday ? muted : primary }} className="mt-2 text-sm font-sans-medium">
+                  {activeDevo.doneToday ? "Done for today" : "Continue Reading →"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/plans")}
+                accessibilityRole="button"
+                className="mt-2 self-start py-1"
+              >
+                <Text style={{ color: primary }} className="text-sm font-semibold">Browse the plan library →</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={() => router.push("/plans")}
+              accessibilityRole="button"
+              accessibilityLabel="Browse the plan library"
+              style={{ borderWidth: 1, borderColor: withAlpha(primary, 0.5), borderStyle: "dashed", borderRadius: 12 }}
+              className="items-center px-4 py-5"
+            >
+              <Text style={{ color: primary }} className="font-sans-semibold text-base">Start a personal plan</Text>
+              <Text className="mt-0.5 text-xs text-muted-foreground">Browse the library or create your own</Text>
+            </Pressable>
+          )}
+
+          <Divider />
+
           {/* ── Discipleship ───────────────────────────────────────────────────── */}
           <DiscipleshipHub
             relationships={discipleships.data ?? []}
@@ -726,6 +800,9 @@ export default function GroupsScreen() {
             const config = GROUP_TYPE_CONFIG[group.groupType] ?? { label: group.groupType, color: primary };
             const doneCount = group.members.filter((m) => m.doneToday).length;
             const isOpen = expandedIds.has(group.id);
+            // Only the creator can end the group or remove others; everyone else
+            // gets Leave. Never show controls that will just error after the tap.
+            const isCreator = group.createdBy === profile.data?.userId;
 
             return (
               <View
@@ -789,14 +866,16 @@ export default function GroupsScreen() {
                                 ? <CheckCircle2 size={16} color={config.color} />
                                 : <Circle size={16} color={muted} />
                               }
-                              <Pressable
-                                hitSlop={8}
-                                onPress={() => handleRemoveMember(group.id, member.userId, member.displayName)}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Remove ${member.displayName} from group`}
-                              >
-                                <X size={13} color={muted} />
-                              </Pressable>
+                              {isCreator && member.userId !== profile.data?.userId ? (
+                                <Pressable
+                                  hitSlop={8}
+                                  onPress={() => handleRemoveMember(group.id, member.userId, member.displayName)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Remove ${member.displayName} from group`}
+                                >
+                                  <X size={13} color={muted} />
+                                </Pressable>
+                              ) : null}
                             </View>
                           </View>
                         ))
@@ -849,16 +928,29 @@ export default function GroupsScreen() {
                           Edit
                         </Text>
                       </Pressable>
-                      <Pressable
-                        onPress={() => setDeleteTarget(group)}
-                        style={{ borderWidth: 1, borderColor: destructiveBorder, borderRadius: 8, backgroundColor: destructiveBg }}
-                        className="flex-row items-center gap-1.5 px-3 py-2"
-                      >
-                        <Trash2 size={13} color={destructive} />
-                        <Text style={{ color: destructive, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
-                          End
-                        </Text>
-                      </Pressable>
+                      {isCreator ? (
+                        <Pressable
+                          onPress={() => setDeleteTarget(group)}
+                          style={{ borderWidth: 1, borderColor: destructiveBorder, borderRadius: 8, backgroundColor: destructiveBg }}
+                          className="flex-row items-center gap-1.5 px-3 py-2"
+                        >
+                          <Trash2 size={13} color={destructive} />
+                          <Text style={{ color: destructive, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
+                            End
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable
+                          onPress={() => handleLeaveGroup(group)}
+                          style={{ borderWidth: 1, borderColor: destructiveBorder, borderRadius: 8, backgroundColor: destructiveBg }}
+                          className="flex-row items-center gap-1.5 px-3 py-2"
+                        >
+                          <LogOut size={13} color={destructive} />
+                          <Text style={{ color: destructive, fontFamily: "DMSans_500Medium", fontSize: 12 }}>
+                            Leave
+                          </Text>
+                        </Pressable>
+                      )}
                     </View>
                   </View>
                 )}

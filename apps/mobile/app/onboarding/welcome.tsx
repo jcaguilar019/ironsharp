@@ -18,7 +18,7 @@ const CARD_GAP = 12;
 export default function OnboardingWelcome() {
   const router = useRouter();
   const qc = useQueryClient();
-  const { displayName, role, planId, survey } = useOnboarding();
+  const { displayName, role, survey } = useOnboarding();
   const primaryFg = useThemeColor("primary-foreground");
   const muted = useThemeColor("muted-foreground");
 
@@ -79,7 +79,6 @@ export default function OnboardingWelcome() {
         surveyCompleted: true,
       });
       if (survey.familyJoinCode) await ApiClient.joinFamily(survey.familyJoinCode);
-      if (planId) await ApiClient.startPlan(planId);
       return result;
     },
     onSuccess: (data) => {

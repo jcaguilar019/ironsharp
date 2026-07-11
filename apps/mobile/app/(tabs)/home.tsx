@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { BookOpen, CheckCircle2, ChevronRight, Globe, Sun, Headphones } from "lucide-react-native";
+import { BookOpen, CheckCircle2, ChevronRight, Globe, Sun } from "lucide-react-native";
 import { PopIn } from "@/components/PopIn";
 import { Screen } from "@/components/Screen";
 import { StreakFlame } from "@/components/StreakFlame";
@@ -52,11 +52,11 @@ export default function HomeScreen() {
           <StreakFlame streak={streak} size={32} />
         </View>
 
-        {/* Community & Podcast */}
-        <View className="mb-6 flex-row gap-3">
+        {/* Community */}
+        <View className="mb-6">
           <Pressable
             onPress={() => router.push("/(tabs)/community")}
-            className="flex-1 gap-3 rounded-2xl border border-border bg-card p-5"
+            className="gap-3 rounded-2xl border border-border bg-card p-5"
           >
             <View className="flex-row items-center justify-between">
               <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
@@ -93,21 +93,6 @@ export default function HomeScreen() {
               )}
             </View>
           </Pressable>
-
-          <View className="flex-1 gap-3 rounded-2xl border border-border bg-card p-5">
-            <View className="flex-row items-center justify-between">
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                <Headphones size={18} color={primary} />
-              </View>
-              <Text className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-sans-semibold uppercase tracking-wide text-muted-foreground">
-                Soon
-              </Text>
-            </View>
-            <View>
-              <Text className="font-sans-semibold text-base text-foreground">Podcast</Text>
-              <Text className="mt-0.5 text-xs text-muted-foreground">Ep. — · — min</Text>
-            </View>
-          </View>
         </View>
 
         {/* My Time with God — main highlight */}

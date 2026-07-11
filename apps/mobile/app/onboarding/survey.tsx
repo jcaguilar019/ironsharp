@@ -2,16 +2,14 @@ import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
+  Image,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Check, ChevronDown } from "lucide-react-native";
+import { ArrowLeft, Camera, Check, ChevronDown } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -19,6 +17,8 @@ import { Input } from "@/components/Input";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient } from "@/lib/api";
 import { US_STATES } from "@/lib/usStates";
+import { useProfile } from "@/lib/queries";
+import { useAvatarPicker } from "@/lib/useAvatarPicker";
 import { useOnboarding } from "./_layout";
 
 const MIDDLE_SCHOOL = "Junior High or Middle School";
@@ -54,6 +54,9 @@ const GOAL_OPTIONS = [
 ];
 
 type ChurchOption = "yes" | "no" | "looking" | null;
+
+// Grouped into themed pages (was one question per page, 10–11 taps deep).
+const TOTAL = 8;
 
 function ProgressBar({ step, totalSteps }: { step: number; totalSteps: number }) {
   return (
@@ -113,6 +116,12 @@ function ListOption({
   );
 }
 
+function FieldLabel({ children }: { children: string }) {
+  return (
+    <Text className="mb-3 mt-7 font-serif text-lg font-bold text-foreground">{children}</Text>
+  );
+}
+
 export default function OnboardingSurvey() {
   const router = useRouter();
   const { displayName, survey, set, setSurvey } = useOnboarding();
@@ -123,6 +132,10 @@ export default function OnboardingSurvey() {
   const [step, setStep] = useState(1);
   const scrollRef = useRef<ScrollView>(null);
   const [statePickerOpen, setStatePickerOpen] = useState(false);
+
+  // Profile photo (uploads immediately; shown from the profile cache).
+  const profile = useProfile();
+  const { uploading, pickPhoto } = useAvatarPicker();
 
   // Local answers
   const [name, setName] = useState(displayName);
@@ -146,24 +159,16 @@ export default function OnboardingSurvey() {
   const [hasKids, setHasKids] = useState<boolean | null>(survey.hasKids ?? null);
 
   const isMiddleSchool = education === MIDDLE_SCHOOL;
-  const TOTAL = isMiddleSchool ? 11 : 10;
-  // For steps > 5, shift everything up by 1 when middle school (step 6 = family code)
-  const offset = isMiddleSchool ? 1 : 0;
-
-  const isFamilyCodeStep = step === 6 && isMiddleSchool;
 
   const canContinue =
     step === 1 ? name.trim().length > 0 :
-    step === 2 ? Number(age) > 0 :
-    step === 3 ? !!gender :
-    step === 4 ? !!usState :
-    step === 5 ? !!education :
-    isFamilyCodeStep ? familyJoinCode.trim().length === 6 :
-    (step - offset === 6) ? churchOption !== null :
-    (step - offset === 7) ? devotionalRating !== null :
-    (step - offset === 8) ? !!faithJourney :
-    (step - offset === 9) ? goals.length > 0 :
-    (step - offset === 10) ? (!!relationshipStatus && (relationshipStatus !== "Married" || hasKids !== null)) :
+    step === 2 ? Number(age) > 0 && !!gender :
+    step === 3 ? !!usState :
+    step === 4 ? !!education && (!isMiddleSchool || familyJoinCode.trim().length === 6) :
+    step === 5 ? churchOption !== null :
+    step === 6 ? devotionalRating !== null && !!faithJourney :
+    step === 7 ? goals.length > 0 :
+    step === 8 ? (!!relationshipStatus && (relationshipStatus !== "Married" || hasKids !== null)) :
     false;
 
   const advance = () => {
@@ -192,7 +197,8 @@ export default function OnboardingSurvey() {
   };
 
   const handleContinue = async () => {
-    if (isFamilyCodeStep) {
+    // The family code (middle-schoolers) validates before leaving its step.
+    if (step === 4 && isMiddleSchool && validatedFamilyCode !== familyJoinCode.trim().toUpperCase()) {
       setValidatingCode(true);
       setFamilyCodeError("");
       try {
@@ -240,20 +246,18 @@ export default function OnboardingSurvey() {
             <ArrowLeft size={28} color={foregroundColor} strokeWidth={2.5} />
           </Pressable>
         )}
-        {step > 1 ? <ProgressBar step={step} totalSteps={TOTAL} /> : <View className="pt-6" />}
+        <ProgressBar step={step} totalSteps={TOTAL} />
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+      <ScrollView
+        ref={scrollRef}
+        contentContainerClassName="px-6 pb-36 pt-4"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
       >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerClassName="px-6 pb-36 pt-4"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* ── Q1: Name ── */}
+          {/* ── 1: Name + photo ── */}
           {step === 1 && (
             <View>
               <Text className="font-serif text-3xl font-bold leading-snug text-foreground mb-8">
@@ -268,33 +272,49 @@ export default function OnboardingSurvey() {
                 returnKeyType="done"
                 onSubmitEditing={() => { if (canContinue) handleContinue(); }}
               />
+
+              <FieldLabel>Add a photo so your group knows you</FieldLabel>
+              <View className="flex-row items-center gap-4">
+                <Pressable
+                  onPress={pickPhoto}
+                  disabled={uploading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add profile photo"
+                  className="h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-border bg-card"
+                >
+                  {uploading ? (
+                    <ActivityIndicator color={mutedColor} />
+                  ) : profile.data?.avatarUrl ? (
+                    <Image
+                      source={{ uri: profile.data.avatarUrl }}
+                      style={{ width: 80, height: 80, borderRadius: 40 }}
+                    />
+                  ) : (
+                    <Camera size={24} color={mutedColor} />
+                  )}
+                </Pressable>
+                <Text className="flex-1 text-sm text-muted-foreground">
+                  {profile.data?.avatarUrl ? "Looking good — tap to change it." : "Optional, but faces beat initials."}
+                </Text>
+              </View>
             </View>
           )}
 
-          {/* ── Q2: Age ── */}
+          {/* ── 2: About you (age + gender) ── */}
           {step === 2 && (
             <View>
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
-                How old are you?
+                A little about you
               </Text>
               <Input
+                label="How old are you?"
                 placeholder="Your age"
                 value={age}
                 onChangeText={(t) => setAge(t.replace(/[^0-9]/g, "").slice(0, 3))}
                 keyboardType="number-pad"
-                autoFocus
                 returnKeyType="done"
-                onSubmitEditing={() => { if (canContinue) handleContinue(); }}
               />
-            </View>
-          )}
-
-          {/* ── Q3: Gender ── */}
-          {step === 3 && (
-            <View>
-              <Text className="font-serif text-2xl font-bold text-foreground mb-6">
-                What's your gender?
-              </Text>
+              <FieldLabel>What's your gender?</FieldLabel>
               <View className="gap-2.5">
                 {GENDER_OPTIONS.map((opt) => (
                   <ListOption
@@ -308,8 +328,8 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q4: State + City ── */}
-          {step === 4 && (
+          {/* ── 3: Location ── */}
+          {step === 3 && (
             <View>
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
                 Where are you based?
@@ -372,8 +392,8 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q5: Education ── */}
-          {step === 5 && (
+          {/* ── 4: Education (+ family code for middle-schoolers) ── */}
+          {step === 4 && (
             <View>
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
                 Where are you in your education?
@@ -388,41 +408,40 @@ export default function OnboardingSurvey() {
                   />
                 ))}
               </View>
-            </View>
-          )}
 
-          {/* ── Q4b: Family Code (middle school only) ── */}
-          {isFamilyCodeStep && (
-            <View>
-              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-3">
-                Enter your family code
-              </Text>
-              <Text className="mb-8 text-sm text-muted-foreground leading-relaxed">
-                A parent or guardian with a Family membership will have a 6-character code to share with you. Enter it below to link your account.
-              </Text>
-              <Input
-                placeholder="e.g. IRON34"
-                value={familyJoinCode}
-                onChangeText={(t) => {
-                  setFamilyJoinCode(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6));
-                  setFamilyCodeError("");
-                }}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={() => { if (canContinue) handleContinue(); }}
-                style={{ letterSpacing: 4, fontSize: 22, textAlign: "center", fontFamily: "DMSans_700Bold" }}
-              />
-              {!!familyCodeError && (
-                <Text className="mt-3 text-center text-sm text-destructive">
-                  {familyCodeError}
-                </Text>
+              {isMiddleSchool && (
+                <View className="mt-7">
+                  <Text className="font-serif text-lg font-bold leading-snug text-foreground mb-2">
+                    Enter your family code
+                  </Text>
+                  <Text className="mb-4 text-sm text-muted-foreground leading-relaxed">
+                    A parent or guardian with a Family membership will have a 6-character code to share with you.
+                  </Text>
+                  <Input
+                    placeholder="e.g. IRON34"
+                    value={familyJoinCode}
+                    onChangeText={(t) => {
+                      setFamilyJoinCode(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6));
+                      setFamilyCodeError("");
+                    }}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={() => { if (canContinue) handleContinue(); }}
+                    style={{ letterSpacing: 4, fontSize: 22, textAlign: "center", fontFamily: "DMSans_700Bold" }}
+                  />
+                  {!!familyCodeError && (
+                    <Text className="mt-3 text-center text-sm text-destructive">
+                      {familyCodeError}
+                    </Text>
+                  )}
+                </View>
               )}
             </View>
           )}
 
-          {/* ── Q6/7: Church ── */}
-          {step - offset === 6 && !isFamilyCodeStep && (
+          {/* ── 5: Church ── */}
+          {step === 5 && (
             <View>
               <Text className="font-serif text-2xl font-bold text-foreground mb-6">
                 Do you belong to a church?
@@ -457,13 +476,13 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q7/8: Devotional rating ── */}
-          {step - offset === 7 && (
+          {/* ── 6: Your walk (rating + faith journey) ── */}
+          {step === 6 && (
             <View>
               <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
                 How would you rate your current devotional life and time with God?
               </Text>
-              <Text className="mb-8 text-sm text-muted-foreground">
+              <Text className="mb-6 text-sm text-muted-foreground">
                 Be honest — that's what this is for.
               </Text>
               <View className="flex-row gap-2">
@@ -491,18 +510,8 @@ export default function OnboardingSurvey() {
                 <Text className="text-xs text-muted-foreground">Rarely or never</Text>
                 <Text className="text-xs text-muted-foreground">Every day</Text>
               </View>
-            </View>
-          )}
 
-          {/* ── Q8/9: Faith journey ── */}
-          {step - offset === 8 && (
-            <View>
-              <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
-                How would you describe where you are in your faith right now?
-              </Text>
-              <Text className="mb-6 text-sm text-muted-foreground">
-                No right or wrong answer.
-              </Text>
+              <FieldLabel>And where are you in your faith right now?</FieldLabel>
               <View className="gap-2.5">
                 {FAITH_OPTIONS.map((opt) => (
                   <ListOption
@@ -516,8 +525,8 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q9/10: Goals ── */}
-          {step - offset === 9 && (
+          {/* ── 7: Goals ── */}
+          {step === 7 && (
             <View>
               <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-2">
                 What are you most hoping IronSharp helps you with?
@@ -546,8 +555,8 @@ export default function OnboardingSurvey() {
             </View>
           )}
 
-          {/* ── Q10/11: Relationship status ── */}
-          {step - offset === 10 && (
+          {/* ── 8: Relationship status ── */}
+          {step === 8 && (
             <View>
               <Text className="font-serif text-2xl font-bold leading-snug text-foreground mb-6">
                 What's your relationship status?
@@ -596,8 +605,7 @@ export default function OnboardingSurvey() {
               )}
             </View>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </ScrollView>
 
       {/* Fixed bottom CTA */}
       <View className="absolute bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4">

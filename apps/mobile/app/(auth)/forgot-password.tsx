@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { Screen } from "@/components/Screen";
 import { Input } from "@/components/Input";
@@ -79,10 +79,11 @@ export default function ForgotPassword() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
         <ScrollView
           contentContainerClassName="flex-grow items-center justify-center px-8 py-12"
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
       <Text className="mb-2 font-serif text-3xl font-bold text-foreground">Reset Password</Text>
@@ -146,7 +147,6 @@ export default function ForgotPassword() {
         Back to log in
       </Link>
         </ScrollView>
-      </KeyboardAvoidingView>
     </Screen>
   );
 }

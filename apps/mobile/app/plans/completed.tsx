@@ -81,7 +81,7 @@ export default function CompletedPlans() {
             return (
               <Pressable
                 key={row.id}
-                onPress={() => router.push(`/plans/review/${row.planId}`)}
+                onPress={() => router.push(`/devotional/history/${row.planId}`)}
                 className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-4 active:bg-muted/40"
               >
                 <CheckCircle2 size={22} color={primary} />

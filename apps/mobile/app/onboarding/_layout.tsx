@@ -22,7 +22,6 @@ export type OnboardingSurvey = {
 type OnboardingState = {
   displayName: string;
   role: OnboardingRole | null;
-  planId: string | null;
   survey: OnboardingSurvey;
 };
 
@@ -59,7 +58,6 @@ export default function OnboardingLayout() {
   const [state, setState] = useState<OnboardingState>({
     displayName: "",
     role: null,
-    planId: null,
     survey: DEFAULT_SURVEY,
   });
 
