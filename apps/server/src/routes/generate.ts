@@ -323,7 +323,10 @@ Who is doing this: ${whoLabel[who] ?? who}${context ? `\nAdditional context: ${c
 
 Generate exactly ${days} days. Each day should progress logically through ${inputType === "book" ? `the book of ${bookOrTopic}` : `the topic of "${bookOrTopic}"`}. The plan should feel like a complete journey — not isolated days, but a progression that builds.`;
 
-    const response = await anthropic.messages.create({
+    // Streamed, then assembled: with a day-scaled max_tokens the SDK refuses
+    // plain requests that could run past 10 minutes ("Streaming is required…"),
+    // which made every 21/30-day generation fail instantly.
+    const stream = anthropic.messages.stream({
       model: "claude-sonnet-4-6",
       // Each day now also carries passageContext + studyNotes, which roughly
       // doubles per-day output. Scale the budget with the day count so a 30-day
@@ -346,6 +349,7 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
         { role: "assistant", content: "{" },
       ],
     });
+    const response = await stream.finalMessage();
 
     const completion = response.content[0]?.type === "text" ? response.content[0].text : "";
     // Re-attach the prefilled "{" and defensively trim anything after the JSON
