@@ -341,22 +341,18 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
           cache_control: { type: "ephemeral" },
         },
       ],
-      // The assistant prefill forces the reply to BEGIN as raw JSON — the model
-      // can't open a ```json fence first (which it sometimes did despite the
-      // prompt, failing the parse and junking a 2-minute generation).
-      messages: [
-        { role: "user", content: userPrompt },
-        { role: "assistant", content: "{" },
-      ],
+      messages: [{ role: "user", content: userPrompt }],
     });
     const response = await stream.finalMessage();
 
     const completion = response.content[0]?.type === "text" ? response.content[0].text : "";
-    // Re-attach the prefilled "{" and defensively trim anything after the JSON
-    // body (a trailing fence or stray prose can't be ruled out).
-    let raw = ("{" + completion).trim();
+    // This model rejects assistant prefill, so the reply can arrive wrapped in a
+    // ```json fence despite the prompt. Extract the JSON body directly: from the
+    // first "{" to the last "}" — dropping any fence or stray prose either side.
+    let raw = completion.trim();
+    const firstBrace = raw.indexOf("{");
     const lastBrace = raw.lastIndexOf("}");
-    if (lastBrace !== -1) raw = raw.slice(0, lastBrace + 1);
+    if (firstBrace !== -1 && lastBrace > firstBrace) raw = raw.slice(firstBrace, lastBrace + 1);
 
     type StudyNote = { verse_ref: string; note: string };
     let planData: {
