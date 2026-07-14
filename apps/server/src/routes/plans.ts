@@ -27,20 +27,18 @@ plans.get("/", async (c) => {
   return c.json({ plans: rows, countByCategory });
 });
 
-// GET /api/plans/category/:category  → plans within a category visible to this user
+// GET /api/plans/category/:category  → plans within a category visible to this
+// user. The special category "all" returns every visible plan (across all
+// categories) — including ones whose category isn't a browsable tile.
 plans.get("/category/:category", async (c) => {
   const userId = c.var.user.id;
   const category = c.req.param("category");
+  const visible = or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId));
   const rows = await db
     .select()
     .from(devotionalPlans)
-    .where(
-      and(
-        eq(devotionalPlans.category, category),
-        or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId))
-      )
-    )
-    .orderBy(asc(devotionalPlans.createdAt));
+    .where(category === "all" ? visible : and(eq(devotionalPlans.category, category), visible))
+    .orderBy(asc(devotionalPlans.category), asc(devotionalPlans.createdAt));
 
   // Derive a "book of the Bible" summary per plan from its daily passages.
   const planIds = rows.map((p) => p.id);

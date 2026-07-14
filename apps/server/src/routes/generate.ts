@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import { devotionalPlans, devotionalDays, profiles } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, type MembershipTier } from "../lib/tiers.js";
+import { isAdmin } from "../lib/admin.js";
 
 export const generate = new Hono<AppEnv>();
 
@@ -259,29 +260,11 @@ generate.post("/", async (c) => {
     return c.json({ error: "Please enter a single book of the Bible (e.g. Romans, Psalms, 1 Corinthians)." }, 400);
   }
 
-  // ── Token check ────────────────────────────────────────────────────────────
-  const [p] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
-  const tier = (p?.membershipTier ?? "free") as MembershipTier;
-  const tierLimit = TIER_LIMITS[tier].aiTokensPerMonth;
-  const now = Date.now();
-  const windowStart = p?.generatedWindowStart ? new Date(p.generatedWindowStart).getTime() : null;
-  const windowExpired = !windowStart || now - windowStart > WINDOW_MS;
-  const count = windowExpired ? 0 : (p?.generatedCount ?? 0);
-  const activeWindowStart = windowExpired ? now : windowStart!;
-
-  if (tierLimit === 0) {
-    return c.json({ error: "AI-generated plans require a Connect membership or higher." }, 403);
-  }
-
-  if (count >= tierLimit) {
-    const resetsAt = new Date(activeWindowStart + WINDOW_MS);
-    return c.json(
-      {
-        error: `You're out of tokens until ${resetsAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-        resetsAt: resetsAt.toISOString(),
-      },
-      429
-    );
+  // Plan creation (AI generation) is an admin/team capability — the team authors
+  // plans for everyone; it's no longer a per-tier end-user perk, so there's no
+  // token quota here anymore.
+  if (!(await isAdmin(userId))) {
+    return c.json({ error: "Plan creation is limited to the IronSharp team." }, 403);
   }
 
   // ── Dedup check ────────────────────────────────────────────────────────────
@@ -448,18 +431,6 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
 
     if (!inserted) return c.json({ error: "Failed to save plan." }, 500);
     planId = inserted.id;
-  }
-
-  // ── Consume token (only for fresh generations, not cache hits) ────────────
-  if (!reused) {
-    await db
-      .update(profiles)
-      .set({
-        generatedCount: count + 1,
-        generatedWindowStart: new Date(activeWindowStart),
-        updatedAt: new Date(),
-      })
-      .where(eq(profiles.userId, userId));
   }
 
   return c.json({ planId, reused });

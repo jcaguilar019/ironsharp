@@ -33,12 +33,10 @@ import { Button } from "@/components/Button";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
-import { TokenCoins } from "@/components/TokenCoins";
-import { useGroups, usePlansByCategory, useProfile, useGenerateTokens } from "@/lib/queries";
+import { useGroups, usePlansByCategory, useProfile } from "@/lib/queries";
 import { ApiClient, ApiError, type Group } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { GROUP_TYPE_KEYS, GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
-import { generateGate } from "@/lib/generateGate";
 
 const TYPE_DESC: Record<string, string> = {
   "one-on-one": "Mentor one person, with discipleship tools",
@@ -77,7 +75,10 @@ export default function NewPlanFlow() {
   const card = useThemeColor("card");
   const border = useThemeColor("border");
 
-  const myId = useProfile().data?.userId;
+  const profileData = useProfile().data;
+  const myId = profileData?.userId;
+  // AI generation is team-only now; non-admins pick from the library.
+  const isAdmin = profileData?.isAdmin ?? false;
 
   const [createdGroup, setCreatedGroup] = useState<Group | null>(null);
   const activeGroupId = createdGroup?.id ?? params.groupId ?? null;
@@ -103,20 +104,7 @@ export default function NewPlanFlow() {
   const [browseCat, setBrowseCat] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
 
-  // AI generation tokens (gated by tier, same rule as the solo flow).
-  const tokens = useGenerateTokens();
-  const tokensRemaining = tokens.data?.tokensRemaining ?? 0;
-  const tierLimit = tokens.data?.tierLimit ?? 0;
-  const resetsAt = tokens.data?.resetsAt;
-
-  const openCreate = () => {
-    const gate = generateGate(tokens.data);
-    if (gate) {
-      Alert.alert(gate.title, gate.message);
-      return;
-    }
-    router.push(`/plans/create${activeGroupId ? `?groupId=${activeGroupId}` : ""}`);
-  };
+  const openCreate = () => router.push(`/plans/create${activeGroupId ? `?groupId=${activeGroupId}` : ""}`);
 
   // Focus the name field only after the open transition settles. Focusing during
   // the push makes the keyboard animate in mid-transition and stutters the screen.
@@ -278,22 +266,23 @@ export default function NewPlanFlow() {
           <View>
             {browseCat === null ? (
               <View className="flex-row flex-wrap justify-between">
-                {/* Create your own (AI) */}
-                <Pressable
-                  onPress={openCreate}
-                  accessibilityRole="button"
-                  accessibilityLabel="Create your own plan with AI"
-                  className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
-                  style={{ backgroundColor: "#1C2B3A" }}
-                >
-                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "65%", backgroundColor: "rgba(0,0,0,0.35)" }} />
-                  <View className="p-3">
-                    <Sparkles size={22} color="#fff" />
-                    <Text className="mt-2 font-serif text-base font-bold uppercase text-white">Create Your Own</Text>
-                    <Text className="text-xs text-white/70">Generate with AI</Text>
-                    <TokenCoins count={tokensRemaining} limit={tierLimit} />
-                  </View>
-                </Pressable>
+                {/* Create your own (AI) — team-only now */}
+                {isAdmin ? (
+                  <Pressable
+                    onPress={openCreate}
+                    accessibilityRole="button"
+                    accessibilityLabel="Create your own plan with AI"
+                    className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
+                    style={{ backgroundColor: "#1C2B3A" }}
+                  >
+                    <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "65%", backgroundColor: "rgba(0,0,0,0.35)" }} />
+                    <View className="p-3">
+                      <Sparkles size={22} color="#fff" />
+                      <Text className="mt-2 font-serif text-base font-bold uppercase text-white">Create Your Own</Text>
+                      <Text className="text-xs text-white/70">Generate with AI</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
 
                 {CATEGORIES.map((cat) => {
                   const img = CATEGORY_IMAGES[cat.id];

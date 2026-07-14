@@ -1,5 +1,4 @@
 import {
-  Alert,
   Image,
   ImageSourcePropType,
   Pressable,
@@ -9,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Sparkles } from "lucide-react-native";
+import { ChevronRight, LayoutGrid, Sparkles } from "lucide-react-native";
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   mens:           require("../../assets/images/categories/mens.jpg"),
@@ -25,10 +24,9 @@ const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { ErrorState } from "@/components/ErrorState";
-import { TokenCoins } from "@/components/TokenCoins";
-import { usePlans, useGenerateTokens } from "@/lib/queries";
+import { useThemeColor } from "@/components/useThemeColor";
+import { usePlans, useProfile } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/categories";
-import { generateGate } from "@/lib/generateGate";
 
 /**
  * The solo "Choose a plan" flow — browse the premade library by category or
@@ -38,25 +36,18 @@ import { generateGate } from "@/lib/generateGate";
 export default function NewPlanScreen() {
   const router = useRouter();
   const { isError, refetch } = usePlans();
-  const tokens = useGenerateTokens();
+  // Plan creation (AI generation) is an admin/team capability now — non-admins
+  // browse the library only.
+  const isAdmin = useProfile().data?.isAdmin ?? false;
   const white = "#FFFFFF";
-
-  const tokensRemaining = tokens.data?.tokensRemaining ?? 0;
-  const tierLimit = tokens.data?.tierLimit ?? 0;
-  const resetsAt = tokens.data?.resetsAt;
+  const primary = useThemeColor("primary");
+  const muted = useThemeColor("muted-foreground");
 
   const openCategory = (id: string) => {
     router.push(`/plans/${id}`);
   };
 
-  const openCreate = () => {
-    const gate = generateGate(tokens.data);
-    if (gate) {
-      Alert.alert(gate.title, gate.message);
-      return;
-    }
-    router.push("/plans/create");
-  };
+  const openCreate = () => router.push("/plans/create");
 
   if (isError) {
     return (
@@ -77,40 +68,60 @@ export default function NewPlanScreen() {
         contentContainerClassName="mx-auto w-full max-w-lg px-6 py-6"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row flex-wrap justify-between">
-          {/* Create Your Own — AI generation (pinned first) */}
-          <Pressable
-            onPress={openCreate}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Create your own plan"
-            className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
-            style={{ backgroundColor: "#1C2B3A" }}
-          >
-            <View
-              style={{
-                position: "absolute",
-                top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: "rgba(255,255,255,0.03)",
-              }}
-            />
-            <View
-              style={{
-                position: "absolute",
-                bottom: 0, left: 0, right: 0,
-                height: "65%",
-                backgroundColor: "rgba(0,0,0,0.35)",
-              }}
-            />
-            <View className="p-3">
-              <Sparkles size={22} color={white} />
-              <Text className="mt-2 font-serif text-base font-bold uppercase text-white">
-                Create Your Own
-              </Text>
-              <Text className="text-xs text-white/70">Generate with AI</Text>
-              <TokenCoins count={tokensRemaining} limit={tierLimit} />
+        {/* Browse everything — surfaces plans whose category isn't a tile. */}
+        <Pressable
+          onPress={() => router.push("/plans/all")}
+          accessibilityRole="button"
+          accessibilityLabel="Browse all plans"
+          className="mb-4 flex-row items-center justify-between rounded-2xl border border-border bg-card px-5 py-4"
+        >
+          <View className="flex-row items-center gap-3">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+              <LayoutGrid size={18} color={primary} />
             </View>
-          </Pressable>
+            <View>
+              <Text className="font-sans-semibold text-base text-foreground">All plans</Text>
+              <Text className="text-xs text-muted-foreground">Browse the full library</Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={muted} />
+        </Pressable>
+
+        <View className="flex-row flex-wrap justify-between">
+          {/* Create Your Own — AI generation, team-only (pinned first) */}
+          {isAdmin ? (
+            <Pressable
+              onPress={openCreate}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Create your own plan"
+              className="mb-3 aspect-[4/5] w-[48%] justify-end overflow-hidden rounded-2xl"
+              style={{ backgroundColor: "#1C2B3A" }}
+            >
+              <View
+                style={{
+                  position: "absolute",
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 0, left: 0, right: 0,
+                  height: "65%",
+                  backgroundColor: "rgba(0,0,0,0.35)",
+                }}
+              />
+              <View className="p-3">
+                <Sparkles size={22} color={white} />
+                <Text className="mt-2 font-serif text-base font-bold uppercase text-white">
+                  Create Your Own
+                </Text>
+                <Text className="text-xs text-white/70">Generate with AI</Text>
+              </View>
+            </Pressable>
+          ) : null}
 
           {CATEGORIES.map((cat) => {
             const img = CATEGORY_IMAGES[cat.id];
