@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, LayoutGrid, Sparkles } from "lucide-react-native";
 
 const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   mens:           require("../../assets/images/categories/mens.jpg"),
@@ -265,6 +265,26 @@ export default function NewPlanFlow() {
         {step === "plan" && (
           <View>
             {browseCat === null ? (
+              <View>
+                {/* Browse everything — surfaces plans whose category isn't a tile. */}
+                <Pressable
+                  onPress={() => setBrowseCat("all")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Browse all plans"
+                  className="mb-4 flex-row items-center justify-between rounded-2xl border border-border bg-card px-5 py-4"
+                >
+                  <View className="flex-row items-center gap-3">
+                    <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                      <LayoutGrid size={18} color={primary} />
+                    </View>
+                    <View>
+                      <Text className="font-sans-semibold text-base text-foreground">All plans</Text>
+                      <Text className="text-xs text-muted-foreground">Browse the full library</Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color={muted} />
+                </Pressable>
+
               <View className="flex-row flex-wrap justify-between">
                 {/* Create your own (AI) — team-only now */}
                 {isAdmin ? (
@@ -310,6 +330,7 @@ export default function NewPlanFlow() {
                     </Pressable>
                   );
                 })}
+              </View>
               </View>
             ) : (
               <PlanPicker
