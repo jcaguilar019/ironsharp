@@ -7,6 +7,7 @@ import { devotionalPlans, devotionalDays, profiles } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, type MembershipTier } from "../lib/tiers.js";
 import { isAdmin } from "../lib/admin.js";
+import { deDash } from "../lib/dedash.js";
 
 export const generate = new Hono<AppEnv>();
 
@@ -65,8 +66,8 @@ STUDY NOTES (per day) — REQUIRED on every day
 An array of { verse_ref, note } entries that illuminate the day's passage in order. One entry per natural verse group — typically 3–6 entries depending on passage length. Cover the whole passage, in sequence.
 Each note:
 - ONE sentence only, never two. Maximum 40 words.
-- Two movements joined by an em dash: first a theological observation about what the verse reveals (about God, human nature, salvation, or the Christian life); then one application landing — what that truth means for the reader's actual life today.
-- No labels ("Theology:" / "Application:"). No questions — a note is a statement. Never summarize the verse; illuminate it. Both halves must earn each other.
+- Two movements joined by a colon: first a theological observation about what the verse reveals (about God, human nature, salvation, or the Christian life), then the one application it lands, what that truth means for the reader's actual life today.
+- No labels ("Theology:" / "Application:"). No questions; a note is a statement. Never summarize the verse; illuminate it. Both halves must earn each other.
 - verse_ref format matches the day's range: "v2–4", "v9–13", etc.
 Register example (Proverbs 27:17): "Iron on iron produces friction before it produces a sharper edge — if no one in your life has made you uncomfortable enough to actually change, you do not yet have the kind of friendship this verse is describing."
 
@@ -88,6 +89,7 @@ Tone rules for the reflection:
 - Never preachy, performative, or clinical.
 - Plain language only. No jargon. No churchy vocabulary.
 - Short sentences carry more weight than long ones.
+- NEVER use em dashes (—). Non-negotiable, everywhere in the output. Reach for the tool the sentence actually needs instead: a colon to introduce or explain, a semicolon or a full stop to divide two complete thoughts, commas or parentheses for an aside. When tempted to dash, split the sentence or recast it.
 - Write to the specific person holding this plan, as if you actually know them.
 
 REFLECTION QUESTIONS — NON-NEGOTIABLE RULES
@@ -141,7 +143,8 @@ FINAL VERIFICATION (run mentally before outputting each day)
 9. Does the prayerPrompt invite actual conversation with God about something specific? If no — rewrite it.
 10. Are there exactly 2 reflection questions? If no — fix it.
 11. Does every day have a passageContext (1–2 sentence orienting setup, not a summary)? If no — fix it.
-12. Does every day have studyNotes covering the passage in order — each one sentence, ≤40 words, observation joined to application by an em dash? If no — fix it.
+12. Does every day have studyNotes covering the passage in order, each one sentence, ≤40 words, observation joined to application by a colon (never an em dash)? If no, fix it.
+13. Is the entire output free of em dashes (—)? If any appear anywhere (reflection, questions, notes, titles), rewrite with a colon, semicolon, comma, parentheses, or a new sentence.
 
 OUTPUT FORMAT
 Respond with ONLY valid JSON. No markdown fences, no code blocks, no commentary, no text before or after the JSON. If your output is not parseable as JSON it will fail.
@@ -157,7 +160,7 @@ Respond with ONLY valid JSON. No markdown fences, no code blocks, no commentary,
       "theme": "Short punchy theme phrase",
       "passageContext": "1–2 sentence orienting setup for the passage...",
       "studyNotes": [
-        { "verse_ref": "v2–4", "note": "One-sentence observation — em dash — application landing." }
+        { "verse_ref": "v2–4", "note": "One-sentence observation: the application it lands." }
       ],
       "reflection": "The pastoral reflection on the passage (9–12 sentences)...",
       "reflectionQ1": "The diagnostic question...",
@@ -397,9 +400,9 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
       const [plan] = await tx
         .insert(devotionalPlans)
         .values({
-          title: planData.title,
-          subtitle: planData.subtitle,
-          description: planData.description,
+          title: deDash(planData.title),
+          subtitle: deDash(planData.subtitle),
+          description: deDash(planData.description),
           category: "generated",
           totalDays: days,
           source: "generated",
@@ -416,13 +419,13 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
           planId: plan.id,
           dayNumber: d.dayNumber,
           chapter: d.chapter,
-          theme: d.theme,
-          passageContext: d.passageContext,
-          studyNotes: d.studyNotes,
-          reflection: d.reflection ?? null,
-          reflectionQ1: d.reflectionQ1,
-          reflectionQ2: d.reflectionQ2,
-          prayerPrompt: d.prayerPrompt,
+          theme: deDash(d.theme),
+          passageContext: deDash(d.passageContext),
+          studyNotes: d.studyNotes.map((n) => ({ verse_ref: n.verse_ref, note: deDash(n.note) })),
+          reflection: d.reflection ? deDash(d.reflection) : null,
+          reflectionQ1: deDash(d.reflectionQ1),
+          reflectionQ2: deDash(d.reflectionQ2),
+          prayerPrompt: deDash(d.prayerPrompt),
         }))
       );
 
