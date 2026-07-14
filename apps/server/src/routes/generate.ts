@@ -7,7 +7,6 @@ import { devotionalPlans, devotionalDays, profiles } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, type MembershipTier } from "../lib/tiers.js";
 import { isAdmin } from "../lib/admin.js";
-import { deDash } from "../lib/dedash.js";
 
 export const generate = new Hono<AppEnv>();
 
@@ -400,9 +399,9 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
       const [plan] = await tx
         .insert(devotionalPlans)
         .values({
-          title: deDash(planData.title),
-          subtitle: deDash(planData.subtitle),
-          description: deDash(planData.description),
+          title: planData.title,
+          subtitle: planData.subtitle,
+          description: planData.description,
           category: "generated",
           totalDays: days,
           source: "generated",
@@ -419,13 +418,13 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
           planId: plan.id,
           dayNumber: d.dayNumber,
           chapter: d.chapter,
-          theme: deDash(d.theme),
-          passageContext: deDash(d.passageContext),
-          studyNotes: d.studyNotes.map((n) => ({ verse_ref: n.verse_ref, note: deDash(n.note) })),
-          reflection: d.reflection ? deDash(d.reflection) : null,
-          reflectionQ1: deDash(d.reflectionQ1),
-          reflectionQ2: deDash(d.reflectionQ2),
-          prayerPrompt: deDash(d.prayerPrompt),
+          theme: d.theme,
+          passageContext: d.passageContext,
+          studyNotes: d.studyNotes,
+          reflection: d.reflection ?? null,
+          reflectionQ1: d.reflectionQ1,
+          reflectionQ2: d.reflectionQ2,
+          prayerPrompt: d.prayerPrompt,
         }))
       );
 
