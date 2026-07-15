@@ -93,27 +93,20 @@ submissions.get("/group/day", async (c) => {
     (await groupRuns(membership.groupId, planId))[0] ??
     null;
 
-  // Get all members of that group
-  const members = await db
+  // Fetch the day's submissions joined to profiles directly — NOT filtered to
+  // current members — so someone who submitted and later left the group doesn't
+  // vanish from a feed they contributed to. The groupId scope already limits
+  // rows to answers made inside this group.
+  const subs = await db
     .select({
-      userId: groupMembers.userId,
+      sub: devotionalSubmissions,
       displayName: profiles.displayName,
       avatarUrl: profiles.avatarUrl,
     })
-    .from(groupMembers)
-    .leftJoin(profiles, eq(profiles.userId, groupMembers.userId))
-    .where(eq(groupMembers.groupId, membership.groupId));
-
-  const memberIds = members.map((m) => m.userId);
-  if (memberIds.length === 0) return c.json({ responses: [] });
-
-  // Fetch their submissions for this day
-  const subs = await db
-    .select()
     .from(devotionalSubmissions)
+    .leftJoin(profiles, eq(profiles.userId, devotionalSubmissions.userId))
     .where(
       and(
-        inArray(devotionalSubmissions.userId, memberIds),
         eq(devotionalSubmissions.planId, planId),
         eq(devotionalSubmissions.dayNumber, dayNumber),
         // Only this group's answers — not members' personal copies of the same plan.
@@ -122,23 +115,23 @@ submissions.get("/group/day", async (c) => {
       )
     );
 
-  const subByUser = new Map(subs.map((s) => [s.userId, s]));
-
-  const responses = members
-    .filter((m) => subByUser.has(m.userId))
-    .map((m) => {
-      const sub = subByUser.get(m.userId)!;
-      const isOwn = m.userId === userId;
+  const responses = subs
+    .map(({ sub, displayName, avatarUrl }) => {
+      const isOwn = sub.userId === userId;
       return {
-        userId: m.userId,
+        userId: sub.userId,
         isOwn,
-        displayName: m.displayName ?? "Member",
-        avatarUrl: m.avatarUrl ?? null,
+        displayName: displayName ?? "Member",
+        avatarUrl: avatarUrl ?? null,
         response1: isOwn || !sub.q1Private ? sub.response1 : null,
         response2: isOwn || !sub.q2Private ? sub.response2 : null,
+        // The discipler's daily question — same privacy treatment as Q1/Q2.
+        response3: isOwn || !sub.q3Private ? sub.response3 : null,
+        q3Question: sub.q3Question,
         prayer: isOwn || !sub.prayerPrivate ? sub.prayer : null,
         q1Private: sub.q1Private,
         q2Private: sub.q2Private,
+        q3Private: sub.q3Private,
         prayerPrivate: sub.prayerPrivate,
         submittedAt: sub.submittedAt,
       };
@@ -355,7 +348,11 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
 
   for (const { groupId } of memberRows) {
     const [group] = await db
-      .select({ streakCount: groups.streakCount, lastStreakDate: groups.lastStreakDate })
+      .select({
+        streakCount: groups.streakCount,
+        lastStreakDate: groups.lastStreakDate,
+        currentPlanStartedAt: groups.currentPlanStartedAt,
+      })
       .from(groups)
       .where(eq(groups.id, groupId))
       .limit(1);
@@ -404,14 +401,24 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
 
     // Check if every member is done — mid-day joiners aren't required today,
     // or inviting someone would freeze the group's streak/advance until the
-    // next ghost-advance.
+    // next ghost-advance. On the plan's FIRST day everyone is required
+    // regardless of join time (mirrors the allDone rule in groups.ts), or a
+    // group created today would have zero required members and its streak
+    // could never tick on day one.
+    const planStartedToday =
+      !!group.currentPlanStartedAt && group.currentPlanStartedAt >= todayStart;
     const [totals] = await db
       .select({
         total: count(),
         done: sql<number>`sum(case when done_today then 1 else 0 end)::int`,
       })
       .from(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), lt(groupMembers.joinedAt, todayStart)));
+      .where(
+        and(
+          eq(groupMembers.groupId, groupId),
+          planStartedToday ? undefined : lt(groupMembers.joinedAt, todayStart)
+        )
+      );
 
     const total = totals?.total ?? 0;
     const done = totals?.done ?? 0;

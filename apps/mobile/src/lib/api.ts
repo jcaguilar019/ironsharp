@@ -277,9 +277,12 @@ export type GroupDayResponse = {
   avatarUrl: string | null;
   response1: string | null;
   response2: string | null;
+  response3: string | null;
+  q3Question: string | null;
   prayer: string | null;
   q1Private: boolean;
   q2Private: boolean;
+  q3Private: boolean;
   prayerPrivate: boolean;
   submittedAt: string;
 };

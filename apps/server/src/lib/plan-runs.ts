@@ -63,21 +63,37 @@ export async function groupRuns(groupId: string, planId: string): Promise<PlanRu
 export async function ensurePersonalRun(userId: string, planId: string): Promise<PlanRun> {
   const existing = await activePersonalRun(userId, planId);
   if (existing) return existing;
-  const [run] = await db
-    .insert(planRuns)
-    .values({ planId, ownerType: "user", userId })
-    .returning();
-  return run!;
+  try {
+    const [run] = await db
+      .insert(planRuns)
+      .values({ planId, ownerType: "user", userId })
+      .returning();
+    return run!;
+  } catch (err) {
+    // uniq_plan_runs_active_user: a concurrent request created the run between
+    // our check and insert — use theirs so submissions land in ONE run.
+    const raced = await activePersonalRun(userId, planId);
+    if (raced) return raced;
+    throw err;
+  }
 }
 
 export async function ensureGroupRun(groupId: string, planId: string, currentDay = 1): Promise<PlanRun> {
   const existing = await activeGroupRun(groupId, planId);
   if (existing) return existing;
-  const [run] = await db
-    .insert(planRuns)
-    .values({ planId, ownerType: "group", groupId, currentDay })
-    .returning();
-  return run!;
+  try {
+    const [run] = await db
+      .insert(planRuns)
+      .values({ planId, ownerType: "group", groupId, currentDay })
+      .returning();
+    return run!;
+  } catch (err) {
+    // uniq_plan_runs_active_group: two members submitting at the same moment
+    // must NOT split the group across two runs (feeds are scoped to one run).
+    const raced = await activeGroupRun(groupId, planId);
+    if (raced) return raced;
+    throw err;
+  }
 }
 
 /** Close a run out — "completed" finished the last day; "ended" was stopped/replaced. */

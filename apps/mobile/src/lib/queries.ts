@@ -128,7 +128,10 @@ export function useGroupDayResponses(
     queryFn: () => ApiClient.getGroupDayResponses(planId, dayNumber, groupId).then((r) => r.responses),
     // Group feed exists only in a group context — a personal run has no "room".
     enabled: authed && enabled && !!planId && !!groupId && dayNumber > 0,
-    staleTime: 60_000,
+    // The done screen sits open while partners are still reading — poll so
+    // their answers appear without leaving the screen (stops on unmount).
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 }
 

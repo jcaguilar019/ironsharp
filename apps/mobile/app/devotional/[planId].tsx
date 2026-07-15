@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, BookMarked, BookOpen, Car, CheckCircle, ChevronDown, ChevronUp, Headphones, Lock, Map, Mic, Play, Trash2, Unlock } from "lucide-react-native";
+import { ArrowUp, BookMarked, BookOpen, Car, CheckCircle, ChevronDown, ChevronRight, ChevronUp, Headphones, Lock, Map, Mic, Play, Trash2, Unlock, Users } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
@@ -613,8 +613,14 @@ function GroupResponseCard({
   fgColor: string;
   muted: string;
 }) {
-  const allPrivate = response.q1Private && response.q2Private;
-  const hasAnyContent = response.response1 || response.response2 || response.prayer;
+  // The server nulls private fields for everyone but the author, so visibility
+  // is "has text AND not flagged private" — the author's own private answers
+  // also collapse to "Shared privately" here, matching what partners see.
+  const visible1 = !!response.response1 && !response.q1Private;
+  const visible2 = !!response.response2 && !response.q2Private;
+  const visible3 = !!response.response3 && !response.q3Private;
+  const visiblePrayer = !!response.prayer && !response.prayerPrivate;
+  const hasVisibleContent = visible1 || visible2 || visible3 || visiblePrayer;
 
   return (
     <View
@@ -660,13 +666,13 @@ function GroupResponseCard({
       </View>
 
       {/* Answers */}
-      {!hasAnyContent || allPrivate ? (
+      {!hasVisibleContent ? (
         <Text style={{ color: muted, fontSize: 13, fontStyle: "italic" }}>
           Shared privately
         </Text>
       ) : (
         <View style={{ gap: 8 }}>
-          {response.response1 && !response.q1Private && (
+          {visible1 && (
             <View style={{ gap: 3 }}>
               <Text style={{ color: muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Reflect
@@ -676,7 +682,7 @@ function GroupResponseCard({
               </Text>
             </View>
           )}
-          {response.response2 && !response.q2Private && (
+          {visible2 && (
             <View style={{ gap: 3 }}>
               <Text style={{ color: muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Act
@@ -686,7 +692,22 @@ function GroupResponseCard({
               </Text>
             </View>
           )}
-          {response.prayer && !response.prayerPrivate && (
+          {visible3 && (
+            <View style={{ gap: 3 }}>
+              <Text style={{ color: muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Daily Question
+              </Text>
+              {response.q3Question ? (
+                <Text style={{ color: muted, fontSize: 12, fontStyle: "italic" }}>
+                  {response.q3Question}
+                </Text>
+              ) : null}
+              <Text style={{ color: fgColor, fontSize: 14, lineHeight: 20 }}>
+                {response.response3}
+              </Text>
+            </View>
+          )}
+          {visiblePrayer && (
             <View style={{ gap: 3 }}>
               <Text style={{ color: muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
                 Prayer
@@ -812,6 +833,14 @@ export default function DevotionalReader() {
   const activeGroup = groupId ? (groups.data ?? []).find((g) => g.id === groupId) : null;
   const currentDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
 
+  // Opened in PERSONAL context while one of the user's groups runs this same
+  // plan: answers saved here are a personal copy the group never sees, don't
+  // mark the member done, and don't advance the group's day. Surface the group
+  // path instead of letting that fork happen silently.
+  const groupRunningThisPlan = !groupId
+    ? ((groups.data ?? []).find((g) => g.plan?.id === planId) ?? null)
+    : null;
+
   // Only the group's creator/leader can end a shared plan for everyone.
   const profile = useProfile();
   const isGroupLeader =
@@ -836,11 +865,6 @@ export default function DevotionalReader() {
     queryKey: ["plan", planId],
     queryFn: () => ApiClient.getPlan(planId).then((r) => r.plan),
     enabled: !!planId && planId !== "undefined",
-  });
-  const dayQ = useQuery({
-    queryKey: ["day", planId, currentDay],
-    queryFn: () => ApiClient.getDay(planId, currentDay).then((r) => r.day),
-    enabled: !!planId,
   });
   const submissionQ = useQuery({
     queryKey: ["submission", planId, currentDay, groupId],
@@ -873,14 +897,39 @@ export default function DevotionalReader() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [reflectionOpen, setReflectionOpen] = useState(true);
   const [done, setDone] = useState(false);
+  // The day just submitted, captured at submit time. The live currentDay moves
+  // underneath us when our own submission is the one that advances the group
+  // (last finisher), so deriving "which day did I complete" from it would
+  // label day 1's completion "Day 2 of 7".
+  const [justCompletedDay, setJustCompletedDay] = useState<number | null>(null);
   const [reread, setReread] = useState(false);
   const isDoneState = done || lockedUntilTomorrow;
-  // Which day the "what your group shared" feed shows. Just-submitted → the
-  // current day. Reopening while locked: a group may not have advanced yet
-  // (others still pending), so if OUR submission for the current day exists,
-  // the feed day is the current day — not currentDay - 1.
-  const completedDayForFeed = done || submissionQ.data ? currentDay : currentDay - 1;
-  const groupResponsesQ = useGroupDayResponses(planId, completedDayForFeed, isDoneState, groupId);
+  // Which day the done screen and group feed talk about. Prefer the captured
+  // day; on reopen (no capture), an existing submission for the current day
+  // means the group hasn't advanced past us — otherwise we completed the day
+  // before the current one.
+  const completedDay = justCompletedDay ?? (submissionQ.data ? currentDay : currentDay - 1);
+  const groupResponsesQ = useGroupDayResponses(planId, completedDay, isDoneState, groupId);
+
+  // Re-read revisits the day just COMPLETED. The live currentDay may already
+  // point at tomorrow's reading (the group advances the moment the last
+  // finisher submits), which made "Re-read today's passage" open the next
+  // day's blank form instead of what was just read.
+  const displayDay = reread ? completedDay : currentDay;
+  const dayQ = useQuery({
+    queryKey: ["day", planId, displayDay],
+    queryFn: () => ApiClient.getDay(planId, displayDay).then((r) => r.day),
+    enabled: !!planId && displayDay > 0,
+  });
+  // The completed day's saved answers, to prefill a re-read once the live day
+  // has moved on. getSubmission is scoped to the CURRENT run server-side, so
+  // restarting the plan later starts blank rather than resurrecting these.
+  const rereadSubmissionQ = useQuery({
+    queryKey: ["submission", planId, displayDay, groupId],
+    queryFn: () =>
+      ApiClient.getSubmission(planId, displayDay, groupId).then((r) => r.submission),
+    enabled: !!planId && reread && displayDay !== currentDay,
+  });
 
   const draftKey = groupId
     ? `@ironsharp/draft_${planId}_${groupId}_day_${currentDay}`
@@ -927,9 +976,10 @@ export default function DevotionalReader() {
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   }, [response1, response2, response3, prayer, q1Private, q2Private, q3Private, prayerPrivate, passageRead, draftKey, isDoneState]);
 
-  // Prefill from any existing submission for this day.
+  // Prefill from any existing submission for the day being shown — the live
+  // day normally, the completed day's answers during a re-read.
   useEffect(() => {
-    const s = submissionQ.data;
+    const s = reread && displayDay !== currentDay ? rereadSubmissionQ.data : submissionQ.data;
     if (s) {
       setResponse1(s.response1 ?? "");
       setResponse2(s.response2 ?? "");
@@ -940,7 +990,7 @@ export default function DevotionalReader() {
       setQ3Private(s.q3Private);
       setPrayerPrivate(s.prayerPrivate);
     }
-  }, [submissionQ.data]);
+  }, [submissionQ.data, rereadSubmissionQ.data, reread, displayDay, currentDay]);
 
   const plan = planQ.data;
   const day = dayQ.data;
@@ -978,8 +1028,12 @@ export default function DevotionalReader() {
         else
           await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
       }
+      // Hand the submit-time day to onSuccess — by the time it runs, the
+      // refetched group/progress may already point at the next day.
+      return currentDay;
     },
-    onSuccess: async () => {
+    onSuccess: async (submittedDay) => {
+      setJustCompletedDay(submittedDay);
       deferDailyNudgeToTomorrow().catch(() => {});
       const midnight = new Date();
       midnight.setDate(midnight.getDate() + 1);
@@ -1021,24 +1075,30 @@ export default function DevotionalReader() {
   }
 
   if (isDoneState && !reread) {
-    const completedDay = done ? currentDay : currentDay - 1;
+    // Judge "was that the last day?" by the day actually completed, not the
+    // live one: after a last-day completion the plan clears and the live day
+    // resets, which would flip this screen back to "Come back tomorrow".
+    const wasLastDay = totalDays > 0 && completedDay >= totalDays;
     const verse = getDailyVerse();
     const groupResponses = groupResponsesQ.data ?? [];
     const hasGroupResponses = groupResponses.length > 0;
 
     return (
       <Screen edges={["top", "bottom"]}>
-        <Header subtitle={isLastDay ? "Plan complete" : "Today's reading"} />
+        {/* Bare back chevron: this screen is reachable from Home, Groups, or a
+            fresh open, so any text next to the arrow reads as a (sometimes
+            wrong) destination label. The heading below identifies the screen. */}
+        <Header />
         <ScrollView
           contentContainerClassName="px-6 py-8 pb-16"
           showsVerticalScrollIndicator={false}
         >
           {/* Heading */}
           <Text className="mb-1 text-center font-serif text-3xl font-bold text-foreground">
-            {isLastDay ? "Plan complete." : "Done. Come back tomorrow."}
+            {wasLastDay ? "Plan complete." : "Done. Come back tomorrow."}
           </Text>
           <Text className="mb-6 text-center text-sm text-muted-foreground">
-            {isLastDay
+            {wasLastDay
               ? `You finished all ${totalDays} days. Well done.`
               : `Day ${completedDay} of ${totalDays} complete`}
           </Text>
@@ -1066,10 +1126,35 @@ export default function DevotionalReader() {
               </View>
             </View>
           )}
+          {groupId && groupResponsesQ.isError ? (
+            <Pressable
+              onPress={() => groupResponsesQ.refetch()}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading your group's responses"
+              className="mb-6 rounded-xl border border-border bg-card px-4 py-3"
+            >
+              <Text className="text-center text-sm text-muted-foreground">
+                Couldn't load your group's responses. Tap to retry.
+              </Text>
+            </Pressable>
+          ) : null}
+          {/* Partners still reading: the feed polls while this screen is open,
+              so their answers appear here without leaving. Hidden once everyone
+              is in, on plan completion, and while the first fetch is loading. */}
+          {groupId &&
+          !wasLastDay &&
+          !groupResponsesQ.isError &&
+          !groupResponsesQ.isLoading &&
+          groupResponses.length < (activeGroup?.members.length ?? 0) ? (
+            <Text className="mb-6 text-center font-serif-italic text-sm text-muted-foreground">
+              Waiting for the rest of your group to finish today's reading — their
+              answers will show up here.
+            </Text>
+          ) : null}
 
           {/* Buttons */}
           <View className="gap-3">
-            {isLastDay && (
+            {wasLastDay && (
               <Button
                 title={groupId ? "Choose your group's next plan" : "Start a new plan"}
                 onPress={() =>
@@ -1083,7 +1168,7 @@ export default function DevotionalReader() {
             )}
             <Button
               title="Back to Plans"
-              variant={isLastDay ? "outline" : "primary"}
+              variant={wasLastDay ? "outline" : "primary"}
               onPress={() => router.replace("/(tabs)/groups")}
             />
             <Button
@@ -1107,8 +1192,9 @@ export default function DevotionalReader() {
 
   return (
     <Screen edges={["top", "bottom"]}>
+      {/* Bare chevron (app-wide rule): the plan name lives in the day line
+          below, so nothing beside the arrow can read as a destination. */}
       <Header
-        subtitle={plan?.title ?? "Devotional"}
         rightAction={
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
             {(!groupId || isGroupLeader) && (
@@ -1214,7 +1300,7 @@ export default function DevotionalReader() {
           {/* Day + chapter */}
           <View>
             <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-              Day {currentDay} of {totalDays}
+              {plan?.title ? `${plan.title} · ` : ""}Day {displayDay} of {totalDays}
             </Text>
             <Text className="mt-1 font-serif text-2xl font-bold text-foreground">
               {day?.chapter}
@@ -1225,6 +1311,30 @@ export default function DevotionalReader() {
               </Text>
             ) : null}
           </View>
+
+          {/* Personal copy of a plan the user's group is reading together */}
+          {groupRunningThisPlan ? (
+            <Pressable
+              onPress={() =>
+                router.replace(`/devotional/${planId}?groupId=${groupRunningThisPlan.id}`)
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Read this plan with ${groupRunningThisPlan.name} instead`}
+              className="flex-row items-center gap-3 rounded-2xl border border-border bg-card p-4"
+            >
+              <Users size={18} color={primary} />
+              <View className="flex-1">
+                <Text className="font-sans-semibold text-sm text-foreground">
+                  {groupRunningThisPlan.name} is reading this plan too
+                </Text>
+                <Text className="mt-0.5 text-xs text-muted-foreground">
+                  You're in your personal copy — answers here won't count for the
+                  group. Tap to read with them instead.
+                </Text>
+              </View>
+              <ChevronRight size={16} color={muted} />
+            </Pressable>
+          ) : null}
 
           {/* Bible passage bubble */}
           <View onLayout={(e) => { cardYRef.current = e.nativeEvent.layout.y; }}>
@@ -1258,7 +1368,7 @@ export default function DevotionalReader() {
                 }}
               >
                 <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 9, letterSpacing: 2, color: muted, textTransform: "uppercase" }}>
-                  Your Response
+                  Reflection
                 </Text>
                 {reflectionOpen
                   ? <ChevronUp size={14} color={muted} />

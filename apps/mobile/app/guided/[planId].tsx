@@ -77,8 +77,13 @@ export default function GuidedDevotional() {
     return s;
   }, [dayQ.data, q3]);
 
+  // Captured at submit time: after a last-day completion the plan clears and
+  // the live isLastDay flips false, which would swap the done heading back to
+  // "Come back tomorrow" on the plan-complete screen.
+  const [finishedLastDay, setFinishedLastDay] = useState(false);
   const onComplete = useCallback(
     async (answers: GuidedAnswers) => {
+      setFinishedLastDay(isLastDay);
       await ApiClient.saveSubmission({
         planId,
         dayNumber: currentDay,
@@ -221,7 +226,7 @@ export default function GuidedDevotional() {
             <Volume2 size={40} color={primary} />
             <Text className="text-center font-serif text-3xl font-bold text-foreground">Commute Mode</Text>
             <Text className="text-center text-base leading-relaxed text-muted-foreground">
-              {planQ.data?.title} · Day {currentDay}
+              {planQ.data?.title} · Day {currentDay}{totalDays > 0 ? ` of ${totalDays}` : ""}
               {"\n\n"}Find a quiet space. I'll read aloud, then pause so you can respond out loud — hands-free.
             </Text>
             <Pressable
@@ -368,7 +373,7 @@ export default function GuidedDevotional() {
           <View className="grow items-center justify-center gap-5">
             <CheckCircle2 size={44} color={primary} />
             <Text className="text-center font-serif text-3xl font-bold text-foreground">
-              {isLastDay ? "Plan complete." : "Done. Come back tomorrow."}
+              {finishedLastDay ? "Plan complete." : "Done. Come back tomorrow."}
             </Text>
             <View className="mt-2 w-full">
               <Button title="Close" onPress={close} />

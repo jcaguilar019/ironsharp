@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -9,6 +10,7 @@ import {
   jsonb,
   unique,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /* ============================================================
@@ -355,6 +357,16 @@ export const planRuns = pgTable(
   (t) => ({
     userPlanIdx: index("idx_plan_runs_user_plan").on(t.userId, t.planId),
     groupPlanIdx: index("idx_plan_runs_group_plan").on(t.groupId, t.planId),
+    // At most ONE open run per owner+plan. Two simultaneous first-submitters
+    // used to be able to each create a run via ensure*Run, silently splitting
+    // the group's submissions across runs (feeds/history scoped to one run
+    // would then miss the other's answers).
+    activeUserRunUniq: uniqueIndex("uniq_plan_runs_active_user")
+      .on(t.userId, t.planId)
+      .where(sql`owner_type = 'user' and completed_at is null and ended_at is null`),
+    activeGroupRunUniq: uniqueIndex("uniq_plan_runs_active_group")
+      .on(t.groupId, t.planId)
+      .where(sql`owner_type = 'group' and completed_at is null and ended_at is null`),
   })
 );
 

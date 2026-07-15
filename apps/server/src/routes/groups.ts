@@ -862,6 +862,7 @@ groupsRoute.patch("/:id/day", async (c) => {
       streakCount: groups.streakCount,
       currentDay: groups.currentDay,
       currentPlanId: groups.currentPlanId,
+      currentPlanStartedAt: groups.currentPlanStartedAt,
       archivedAt: groups.archivedAt,
     })
     .from(groups)
@@ -917,11 +918,19 @@ groupsRoute.patch("/:id/day", async (c) => {
     .from(groupMembers)
     .where(eq(groupMembers.groupId, groupId));
 
-  // Members who joined mid-day aren't required for today — otherwise inviting
-  // someone freezes the group until tomorrow's ghost-advance.
+  // Members invited mid-day aren't required for today — otherwise inviting
+  // someone freezes the group until tomorrow's ghost-advance. The pass only
+  // applies when the plan started on a PREVIOUS day: on the plan's first day
+  // every member is required regardless of join time (they can still do day 1
+  // today), or a founding member added moments after "start plan" would be
+  // skipped and the day would advance before they ever saw day 1.
   const { start: todayStart } = clientDayWindow(c);
+  const planStartedToday = !!grp.currentPlanStartedAt && grp.currentPlanStartedAt >= todayStart;
   const allDone = allMembers.every(
-    (m) => m.doneToday || m.userId === userId || m.joinedAt >= todayStart
+    (m) =>
+      m.doneToday ||
+      m.userId === userId ||
+      (m.joinedAt >= todayStart && !planStartedToday)
   );
 
   if (allDone) {

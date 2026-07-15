@@ -123,7 +123,7 @@ export async function notifyGroupCompleteIfDone(
 
   for (const { groupId } of memberRows) {
     const [group] = await db
-      .select({ name: groups.name })
+      .select({ name: groups.name, currentPlanStartedAt: groups.currentPlanStartedAt })
       .from(groups)
       .where(eq(groups.id, groupId))
       .limit(1);
@@ -134,8 +134,20 @@ export async function notifyGroupCompleteIfDone(
       .from(groupMembers)
       .where(eq(groupMembers.groupId, groupId));
 
-    // Mid-day joiners aren't required for today's completion.
-    const required = todayStart ? allMembers.filter((m) => m.joinedAt < todayStart) : allMembers;
+    // Mid-day joiners aren't required for today's completion — but on the
+    // plan's FIRST day everyone is required regardless of join time (mirrors
+    // groups.ts/submissions.ts), or a group created today would have zero
+    // required members and never fire this on day one. On the plan's last day
+    // currentPlanStartedAt may already be cleared by the client's completion
+    // PATCH; the joined-before-today arm still covers any group older than a day.
+    const planStartedToday =
+      todayStart != null &&
+      group.currentPlanStartedAt != null &&
+      group.currentPlanStartedAt >= todayStart;
+    const required =
+      todayStart && !planStartedToday
+        ? allMembers.filter((m) => m.joinedAt < todayStart)
+        : allMembers;
     const allIds = required.map((m) => m.userId);
     if (allIds.length === 0) continue;
 
