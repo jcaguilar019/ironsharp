@@ -35,6 +35,7 @@ import {
   Plus,
   Sun,
   Trash2,
+  Users,
   X,
 } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
@@ -700,7 +701,7 @@ export default function GroupsScreen() {
               >
                 <View className="flex-row items-center gap-2">
                   <Sun size={16} color={primary} />
-                  <Text className="flex-1 font-serif text-lg font-bold text-foreground" numberOfLines={1}>
+                  <Text className="flex-1 font-serif text-lg font-bold text-foreground" numberOfLines={2}>
                     {activeDevo.planTitle}
                   </Text>
                 </View>
@@ -819,7 +820,10 @@ export default function GroupsScreen() {
                   {/* Drag affordance — press and hold anywhere on the card to lift and reorder */}
                   <GripVertical size={18} color={muted} />
 
-                  <View style={{ width: 3, height: 40, borderRadius: 2, backgroundColor: config.color }} />
+                  {/* Type indicator — same colored-silhouettes circle as the Home rows */}
+                  <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Users size={20} color={config.color} />
+                  </View>
 
                   <Pressable
                     onPress={() => toggle(group.id)}
@@ -833,7 +837,8 @@ export default function GroupsScreen() {
                         {group.name}
                       </Text>
                       <Text className="mt-0.5 text-sm text-muted-foreground">
-                        {config.label}
+                        {/* Type is conveyed by the icon color; lead with progress instead */}
+                        {group.plan ? `Day ${group.currentDay} of ${group.plan.totalDays}` : "No plan yet"}
                         {group.plan?.chapter ? ` · ${group.plan.chapter}` : ""}
                         {` · ${doneCount}/${group.members.length} today`}
                       </Text>

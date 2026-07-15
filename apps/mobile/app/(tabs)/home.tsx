@@ -7,6 +7,7 @@ import { StreakFlame } from "@/components/StreakFlame";
 import { Avatar } from "@/components/Avatar";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useProfile, useActiveDevotional, useCommunityToday, useDiscipleships, useGroups } from "@/lib/queries";
+import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
 import { useLocalDoneToday } from "@/lib/useLocalDoneToday";
 
 export default function HomeScreen() {
@@ -159,6 +160,9 @@ export default function HomeScreen() {
         {/* Group readings not covered by the hero card */}
         {secondaryGroups.map((g) => {
           const done = !!g.members.find((m) => m.userId === myId)?.doneToday;
+          // Group-type accent (matches the Groups tab) — icon + done check only;
+          // the tint circle stays primary so the rows read as one family.
+          const accent = GROUP_TYPE_CONFIG[g.groupType]?.color ?? primary;
           return (
             <Pressable
               key={g.id}
@@ -167,18 +171,19 @@ export default function HomeScreen() {
               accessibilityLabel={`Open ${g.name}'s reading`}
               className="mb-3 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-4"
             >
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                <Users size={17} color={primary} />
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Users size={20} color={accent} />
               </View>
               <View className="flex-1">
                 <Text className="font-sans-semibold text-base text-foreground" numberOfLines={1}>
                   {g.name}
                 </Text>
-                <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+                {/* Two lines so a long title can't push the day count off-screen */}
+                <Text className="text-sm text-muted-foreground" numberOfLines={2}>
                   {g.plan!.title} · Day {g.currentDay} of {g.plan!.totalDays}
                 </Text>
               </View>
-              {done ? <CheckCircle2 size={18} color={primary} /> : <ChevronRight size={18} color={muted} />}
+              {done ? <CheckCircle2 size={18} color={accent} /> : <ChevronRight size={18} color={muted} />}
             </Pressable>
           );
         })}
