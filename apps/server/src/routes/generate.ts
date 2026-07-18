@@ -127,9 +127,6 @@ Must never:
 - Repeat Q1
 - Use churchy vocabulary or jargon
 
-PRAYER PROMPT
-Every day has a prayerPrompt. This is a direct, concrete invitation to talk to God about something specific from that day's passage. It is NOT a reflection question. It is "say this to God" — not "think about this." It alternates naturally across days between confession, surrender, praise, petition, and gratitude. It names what to bring, in what posture, with what honesty. Never generic. "Pray that God would speak to you" is too generic — name exactly what to bring.
-
 FINAL VERIFICATION (run mentally before outputting each day)
 1. Is the reflection 9–12 sentences? If no — fix it.
 2. Does it read like a real person who genuinely cares wrote it for one reader — warm and human — rather than an article or explainer? If it sounds informative or detached — rewrite it.
@@ -139,11 +136,10 @@ FINAL VERIFICATION (run mentally before outputting each day)
 6. Does Q2 restate what the passage is demanding and force a real person, situation, or pattern? If no — rewrite it.
 7. Can Q2 be answered abstractly or generically? If yes — rewrite it.
 8. Do both questions sound like a caring friend asking, not a worksheet interrogating? If they feel clinical — rewrite them.
-9. Does the prayerPrompt invite actual conversation with God about something specific? If no — rewrite it.
-10. Are there exactly 2 reflection questions? If no — fix it.
-11. Does every day have a passageContext (1–2 sentence orienting setup, not a summary)? If no — fix it.
-12. Does every day have studyNotes covering the passage in order, each one sentence, ≤40 words, observation joined to application by a colon (never an em dash)? If no, fix it.
-13. Is the entire output free of em dashes (—)? If any appear anywhere (reflection, questions, notes, titles), rewrite with a colon, semicolon, comma, parentheses, or a new sentence.
+9. Are there exactly 2 reflection questions? If no — fix it.
+10. Does every day have a passageContext (1–2 sentence orienting setup, not a summary)? If no — fix it.
+11. Does every day have studyNotes covering the passage in order, each one sentence, ≤40 words, observation joined to application by a colon (never an em dash)? If no, fix it.
+12. Is the entire output free of em dashes (—)? If any appear anywhere (reflection, questions, notes, titles), rewrite with a colon, semicolon, comma, parentheses, or a new sentence.
 
 OUTPUT FORMAT
 Respond with ONLY valid JSON. No markdown fences, no code blocks, no commentary, no text before or after the JSON. If your output is not parseable as JSON it will fail.
@@ -163,8 +159,7 @@ Respond with ONLY valid JSON. No markdown fences, no code blocks, no commentary,
       ],
       "reflection": "The pastoral reflection on the passage (9–12 sentences)...",
       "reflectionQ1": "The diagnostic question...",
-      "reflectionQ2": "The uncomfortable mirror question...",
-      "prayerPrompt": "The prayer/praise prompt..."
+      "reflectionQ2": "The uncomfortable mirror question..."
     }
   ]
 }
@@ -353,7 +348,6 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
         reflection: string;
         reflectionQ1: string;
         reflectionQ2: string;
-        prayerPrompt: string;
       }[];
     };
 
@@ -424,7 +418,6 @@ Generate exactly ${days} days. Each day should progress logically through ${inpu
           reflection: d.reflection ?? null,
           reflectionQ1: d.reflectionQ1,
           reflectionQ2: d.reflectionQ2,
-          prayerPrompt: d.prayerPrompt,
         }))
       );
 

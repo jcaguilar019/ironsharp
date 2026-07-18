@@ -24,7 +24,7 @@ function ResponseBlock({
   isPrivate,
 }: {
   label: string;
-  question: string;
+  question?: string;
   answer: string | null;
   isPrivate: boolean;
 }) {
@@ -139,7 +139,6 @@ function DayCard({
       {submission.prayer ? (
         <ResponseBlock
           label="Prayer / Praise"
-          question={day.prayerPrompt ?? ""}
           answer={submission.prayer}
           isPrivate={submission.prayerPrivate}
         />

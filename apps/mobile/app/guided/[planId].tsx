@@ -23,6 +23,11 @@ function localDateString(): string {
 const VOICE_INSTRUCTIONS =
   "Read slowly, calmly and warmly — like a pastor gently guiding a quiet, reflective devotional. Unhurried, with space to breathe.";
 
+// The day's own prayerPrompt is never surfaced to the reader — the written screen
+// shows a bare Prayer & Praise box. Guided mode still has to say something to cue
+// the answer, so it asks in the same neutral terms as that box's placeholder.
+const PRAYER_CUE = "Prayer and praise. Take a moment to pray.";
+
 export default function GuidedDevotional() {
   const { planId: rawPlanId, groupId: groupIdParam } = useLocalSearchParams<{ planId: string; groupId?: string }>();
   const planId = String(rawPlanId);
@@ -73,7 +78,7 @@ export default function GuidedDevotional() {
     if (day.reflectionQ1) s.push({ kind: "prompt", label: "Reflect", field: "response1", question: day.reflectionQ1 });
     if (day.reflectionQ2) s.push({ kind: "prompt", label: "Act", field: "response2", question: day.reflectionQ2 });
     if (q3) s.push({ kind: "prompt", label: "Daily Question", field: "response3", question: q3.questionText });
-    if (day.prayerPrompt) s.push({ kind: "prompt", label: "Pray", field: "prayer", question: day.prayerPrompt });
+    s.push({ kind: "prompt", label: "Pray", field: "prayer", question: PRAYER_CUE });
     return s;
   }, [dayQ.data, q3]);
 
