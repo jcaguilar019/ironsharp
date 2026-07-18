@@ -295,7 +295,7 @@ function DiscipleshipSection({
       <Text style={{ fontFamily: "DMSans_400Regular", fontSize: 12, color: muted, fontStyle: "italic" }}>
         {rel.status === "pending"
           ? "Invite pending — manage it in Discipleship at the top of this tab."
-          : "Active — open responses, flags, and the mailbox from Discipleship at the top of this tab."}
+          : "Active — open responses, saved items, and the mailbox from Discipleship at the top of this tab."}
       </Text>
     );
   }
@@ -709,9 +709,19 @@ export default function GroupsScreen() {
                   Day {activeDevo.currentDay} of {activeDevo.totalDays}
                   {activeDevo.chapter ? ` · ${activeDevo.chapter}` : ""}
                 </Text>
-                <Text style={{ color: activeDevo.doneToday ? muted : primary }} className="mt-2 text-sm font-sans-medium">
-                  {activeDevo.doneToday ? "Done for today" : "Continue Reading →"}
-                </Text>
+                <View className="mt-2 flex-row items-center gap-2">
+                  {activeDevo.doneToday ? (
+                    <>
+                      <CheckCircle2 size={16} color={primary} />
+                      <Text style={{ color: muted }} className="text-sm font-sans-medium">Done for today</Text>
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen size={16} color={primary} />
+                      <Text style={{ color: primary }} className="text-sm font-sans-medium">Continue Reading →</Text>
+                    </>
+                  )}
+                </View>
               </Pressable>
               <Pressable
                 onPress={() => router.push("/plans")}

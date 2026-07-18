@@ -27,7 +27,7 @@ function ResponseBlock({
   isOwn,
 }: {
   label: string;
-  question: string;
+  question?: string;
   answer: string | null;
   isPrivate: boolean;
   isOwn: boolean;
@@ -101,7 +101,7 @@ function DayCard({ day, response }: { day: DevotionalDay | undefined; response: 
       <ResponseBlock label="Reflect" question={day?.reflectionQ1 ?? ""} answer={response.response1} isPrivate={response.q1Private} isOwn={response.isOwn} />
       <ResponseBlock label="Act" question={day?.reflectionQ2 ?? ""} answer={response.response2} isPrivate={response.q2Private} isOwn={response.isOwn} />
       {response.prayer || response.prayerPrivate ? (
-        <ResponseBlock label="Prayer / Praise" question={day?.prayerPrompt ?? ""} answer={response.prayer} isPrivate={response.prayerPrivate} isOwn={response.isOwn} />
+        <ResponseBlock label="Prayer / Praise" answer={response.prayer} isPrivate={response.prayerPrivate} isOwn={response.isOwn} />
       ) : null}
     </View>
   );
@@ -129,7 +129,10 @@ export default function PastResponses() {
   const participants = members.filter((m) => participantIds.has(m.userId));
 
   const ownId = responses.find((r) => r.isOwn)?.userId ?? null;
-  const activeUser = selectedUser ?? ownId ?? participants[0]?.userId ?? null;
+  // Land on someone else's answers: arriving from "Group responses" you just
+  // wrote your own, and your chip is right there when you want them.
+  const firstOther = participants.find((m) => m.userId !== ownId)?.userId ?? null;
+  const activeUser = selectedUser ?? firstOther ?? ownId ?? participants[0]?.userId ?? null;
 
   const daysByNumber = new Map((days.data ?? []).map((d) => [d.dayNumber, d]));
   const userResponses = responses
@@ -140,7 +143,7 @@ export default function PastResponses() {
 
   return (
     <Screen edges={["top", "bottom"]}>
-      <Header title={String(title ?? "Plan")} subtitle="Past responses" />
+      <Header title="Group Responses" subtitle={String(title ?? "Devotional")} />
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator color={primary} />

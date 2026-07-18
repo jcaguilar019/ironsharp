@@ -100,6 +100,33 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        {/* Discipleship takes priority over plans — surface it above the reading card */}
+        {activeDisc ? (
+          <Pressable
+            onPress={() => router.push(`/discipleship/${activeDisc.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open discipleship with ${activeDisc.counterpart.displayName}`}
+            className="mb-6 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-5"
+          >
+            <Avatar name={activeDisc.counterpart.displayName} url={activeDisc.counterpart.avatarUrl} accent={primary} />
+            <View className="flex-1">
+              <Text className="text-xs font-sans-semibold uppercase tracking-wider text-muted-foreground">Discipleship</Text>
+              <Text className="font-sans-semibold text-base text-foreground" numberOfLines={1}>
+                {activeDisc.counterpart.displayName}
+              </Text>
+              <Text className="text-sm text-muted-foreground">
+                {activeDisc.role === "discipler" ? "You're discipling them" : "Your discipler"}
+              </Text>
+            </View>
+            {activeDisc.unreadCount > 0 ? (
+              <View style={{ minWidth: 20, height: 20, borderRadius: 10, backgroundColor: primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 }}>
+                <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 11 }}>{activeDisc.unreadCount}</Text>
+              </View>
+            ) : null}
+            <ChevronRight size={18} color={muted} />
+          </Pressable>
+        ) : null}
+
         {/* My Time with God — main highlight */}
         <Pressable
           onPress={() =>
@@ -123,7 +150,7 @@ export default function HomeScreen() {
             {active
               ? `${active.planTitle} · Day ${active.currentDay} of ${active.totalDays}`
               : groupReading
-                ? `${groupReading.plan!.title} · Day ${groupReading.currentDay} of ${groupReading.plan!.totalDays}`
+                ? `${groupReading.plan!.title} · Day ${groupReading.currentDay} of ${groupReading.plan!.totalDays} · ${groupReading.members.filter((m) => m.doneToday).length}/${groupReading.members.length} today`
                 : "Start a plan to begin"}
           </Text>
           <Text className="mb-2 font-serif text-2xl font-bold text-foreground">
@@ -180,40 +207,18 @@ export default function HomeScreen() {
                 </Text>
                 {/* Two lines so a long title can't push the day count off-screen */}
                 <Text className="text-sm text-muted-foreground" numberOfLines={2}>
-                  {g.plan!.title} · Day {g.currentDay} of {g.plan!.totalDays}
+                  {g.plan!.title} · Day {g.currentDay} of {g.plan!.totalDays} ·{" "}
+                  {g.members.filter((m) => m.doneToday).length}/{g.members.length} today
                 </Text>
               </View>
-              {done ? <CheckCircle2 size={18} color={accent} /> : <ChevronRight size={18} color={muted} />}
+              {/* Ghosted check that "lights up" on completion — no chevron, the whole row is the door */}
+              {done
+                ? <CheckCircle2 size={18} color={accent} />
+                : <CheckCircle2 size={18} color={muted} style={{ opacity: 0.35 }} />}
             </Pressable>
           );
         })}
         {secondaryGroups.length > 0 ? <View className="mb-3" /> : null}
-
-        {activeDisc ? (
-          <Pressable
-            onPress={() => router.push(`/discipleship/${activeDisc.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Open discipleship with ${activeDisc.counterpart.displayName}`}
-            className="mb-6 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-5"
-          >
-            <Avatar name={activeDisc.counterpart.displayName} url={activeDisc.counterpart.avatarUrl} accent={primary} />
-            <View className="flex-1">
-              <Text className="text-xs font-sans-semibold uppercase tracking-wider text-muted-foreground">Discipleship</Text>
-              <Text className="font-sans-semibold text-base text-foreground" numberOfLines={1}>
-                {activeDisc.counterpart.displayName}
-              </Text>
-              <Text className="text-sm text-muted-foreground">
-                {activeDisc.role === "discipler" ? "You're discipling them" : "Your discipler"}
-              </Text>
-            </View>
-            {activeDisc.unreadCount > 0 ? (
-              <View style={{ minWidth: 20, height: 20, borderRadius: 10, backgroundColor: primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 }}>
-                <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 11 }}>{activeDisc.unreadCount}</Text>
-              </View>
-            ) : null}
-            <ChevronRight size={18} color={muted} />
-          </Pressable>
-        ) : null}
 
         {/* Daily quote */}
         <View style={{ borderRadius: 12 }} className="bg-card-deep p-5">

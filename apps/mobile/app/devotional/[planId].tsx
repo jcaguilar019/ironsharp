@@ -1177,9 +1177,16 @@ export default function DevotionalReader() {
               onPress={() => { setReread(true); setPassageRead(true); }}
             />
             <Button
-              title="View my responses"
+              title={groupId ? "Group responses" : "View my responses"}
               variant="outline"
-              onPress={() => router.push(`/devotional/history/${planId}${groupId ? `?groupId=${groupId}` : ""}`)}
+              onPress={() =>
+                groupId
+                  ? router.push({
+                      pathname: "/plans/past-responses",
+                      params: { groupId, planId, title: plan?.title ?? "" },
+                    })
+                  : router.push(`/devotional/history/${planId}`)
+              }
             />
           </View>
         </ScrollView>
