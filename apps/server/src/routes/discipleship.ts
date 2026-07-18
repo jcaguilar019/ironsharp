@@ -326,7 +326,12 @@ discipleship.get("/:id/responses", async (c) => {
       )
       .orderBy(desc(devotionalSubmissions.dayNumber)),
     db
-      .select({ dayNumber: devotionalDays.dayNumber, chapter: devotionalDays.chapter })
+      .select({
+        dayNumber: devotionalDays.dayNumber,
+        chapter: devotionalDays.chapter,
+        reflectionQ1: devotionalDays.reflectionQ1,
+        reflectionQ2: devotionalDays.reflectionQ2,
+      })
       .from(devotionalDays)
       .where(eq(devotionalDays.planId, planId)),
     db
@@ -339,7 +344,7 @@ discipleship.get("/:id/responses", async (c) => {
       .where(eq(flaggedResponses.discipleshipRelationshipId, rel.id)),
   ]);
 
-  const chapterByDay = new Map(days.map((d) => [d.dayNumber, d.chapter]));
+  const dayByNumber = new Map(days.map((d) => [d.dayNumber, d]));
   const questionByDate = new Map(questions.map((q) => [q.forDate, q.questionText]));
   const flagsByResponse = new Map<string, string[]>();
   for (const f of flags) {
@@ -352,10 +357,11 @@ discipleship.get("/:id/responses", async (c) => {
   // identical to the isOwn||!private rule in submissions.ts.
   const responses = subs.map((s) => {
     const subDate = s.submittedAt.toISOString().slice(0, 10);
+    const dayInfo = dayByNumber.get(s.dayNumber);
     return {
       id: s.id,
       dayNumber: s.dayNumber,
-      chapter: chapterByDay.get(s.dayNumber) ?? null,
+      chapter: dayInfo?.chapter ?? null,
       submittedAt: s.submittedAt,
       response1: s.q1Private ? null : s.response1,
       response2: s.q2Private ? null : s.response2,
@@ -368,6 +374,10 @@ discipleship.get("/:id/responses", async (c) => {
       // Prefer the snapshot stored on the submission; fall back to date-matching
       // for older rows saved before q3Question existed.
       q3Question: s.q3Question ?? questionByDate.get(subDate) ?? null,
+      // The actual Reflect/Act prompts the disciple answered, so the discipler
+      // sees the question, not just the "Reflect"/"Act" label.
+      reflectionQ1: dayInfo?.reflectionQ1 ?? null,
+      reflectionQ2: dayInfo?.reflectionQ2 ?? null,
       flagged: flagsByResponse.get(s.id) ?? [],
     };
   });
@@ -394,7 +404,7 @@ discipleship.post("/:id/flags", async (c) => {
   const userId = c.var.user.id;
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
-  if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can flag." }, 403);
+  if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can save." }, 403);
   if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
   if (!(await disciplerHasAccess(userId, rel.groupId))) return c.json(DISCIPLER_TIER_ERROR, 403);
 
@@ -424,7 +434,7 @@ discipleship.delete("/:id/flags", async (c) => {
   const userId = c.var.user.id;
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
-  if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can unflag." }, 403);
+  if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can remove a saved item." }, 403);
 
   const parsed = flagSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
@@ -448,7 +458,7 @@ discipleship.get("/:id/flags", async (c) => {
   const userId = c.var.user.id;
   const rel = await loadRelationship(c.req.param("id"));
   if (!rel) return c.json({ error: "Not found" }, 404);
-  if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can view flags." }, 403);
+  if (rel.disciplerId !== userId) return c.json({ error: "Only the discipler can view saved items." }, 403);
   if (rel.status !== "active") return c.json({ error: "This disciple hasn't accepted the invite yet." }, 403);
   if (!(await disciplerHasAccess(userId, rel.groupId))) return c.json(DISCIPLER_TIER_ERROR, 403);
   if (!rel.groupId) return c.json({ flags: [] });

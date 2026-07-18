@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, CornerUpLeft, Flag, Lock, Plus, Send, Star, Trash2, X } from "lucide-react-native";
+import { Bookmark, ChevronLeft, CornerUpLeft, Lock, Plus, Send, Trash2, X } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Avatar } from "@/components/Avatar";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -243,14 +243,14 @@ function ResponsesPanel({
       await qc.invalidateQueries({ queryKey: ["discipleship", id, "responses"] });
       await qc.invalidateQueries({ queryKey: ["discipleship", id, "flags"] });
     } catch (err) {
-      Alert.alert("Couldn't update flag", err instanceof ApiError ? err.message : "Please try again.");
+      Alert.alert("Couldn't update", err instanceof ApiError ? err.message : "Please try again.");
     }
   };
 
   const fieldsFor = (r: DiscipleResponse) =>
     [
-      { type: "q1" as const, label: "Reflect", text: r.response1, isPrivate: r.q1Private },
-      { type: "q2" as const, label: "Act", text: r.response2, isPrivate: r.q2Private },
+      { type: "q1" as const, label: r.reflectionQ1 ?? "Reflect", text: r.response1, isPrivate: r.q1Private },
+      { type: "q2" as const, label: r.reflectionQ2 ?? "Act", text: r.response2, isPrivate: r.q2Private },
       ...(r.q3Question ? [{ type: "q3" as const, label: r.q3Question, text: r.response3, isPrivate: r.q3Private }] : []),
       { type: "praise" as const, label: "Prayer & Praise", text: r.prayer, isPrivate: r.prayerPrivate },
     ];
@@ -318,9 +318,9 @@ function ResponsesPanel({
             backgroundColor: flaggedOnly ? withAlpha(primary, 0.12) : "transparent",
           }}
         >
-          <Star size={13} color={flaggedOnly ? primary : muted} fill={flaggedOnly ? primary : "transparent"} />
+          <Bookmark size={13} color={flaggedOnly ? primary : muted} fill={flaggedOnly ? primary : "transparent"} />
           <Text style={{ fontFamily: "DMSans_500Medium", fontSize: 13, color: flaggedOnly ? primary : muted }}>
-            Flagged
+            Saved
           </Text>
         </Pressable>
         <Pressable
@@ -338,7 +338,7 @@ function ResponsesPanel({
         {list.length === 0 ? (
           <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 14, textAlign: "center", marginTop: 32 }}>
             {flaggedOnly
-              ? "Nothing flagged yet. Tap the flag on a response to keep it here."
+              ? "Nothing saved yet. Tap to save a response and it'll show up here."
               : "No responses yet. They'll appear here the moment your disciple submits."}
           </Text>
         ) : (
@@ -361,15 +361,17 @@ function ResponsesPanel({
                 </Pressable>
               </View>
 
-              {fieldsFor(r).map((f) => {
+              {fieldsFor(r)
+                .filter((f) => !flaggedOnly || r.flagged.includes(f.type))
+                .map((f) => {
                 const flagged = r.flagged.includes(f.type);
                 return (
                   <View key={f.type} style={{ marginBottom: 12 }}>
                     <View className="flex-row items-center justify-between" style={{ marginBottom: 3, gap: 8 }}>
                       <Text style={{ flex: 1, fontFamily: "DMSans_500Medium", fontSize: 12, color: muted }}>{f.label}</Text>
                       {!f.isPrivate && f.text ? (
-                        <Pressable hitSlop={8} onPress={() => toggleFlag(r.id, f.type, flagged)} accessibilityRole="button" accessibilityLabel={flagged ? "Unflag" : "Flag"}>
-                          <Flag size={15} color={flagged ? primary : muted} fill={flagged ? primary : "transparent"} />
+                        <Pressable hitSlop={8} onPress={() => toggleFlag(r.id, f.type, flagged)} accessibilityRole="button" accessibilityLabel={flagged ? "Remove from saved" : "Save"}>
+                          <Bookmark size={15} color={flagged ? primary : muted} fill={flagged ? primary : "transparent"} />
                         </Pressable>
                       ) : null}
                     </View>

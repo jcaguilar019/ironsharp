@@ -453,6 +453,8 @@ export type DiscipleResponse = {
   q3Private: boolean;
   prayerPrivate: boolean;
   q3Question: string | null;
+  reflectionQ1: string | null;
+  reflectionQ2: string | null;
   flagged: QuestionType[];
 };
 
