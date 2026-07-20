@@ -195,7 +195,6 @@ export type GroupMember = {
   userId: string;
   memberRole: string;
   doneToday: boolean;
-  streakCount: number;
   displayName: string;
   avatarUrl: string | null;
 };
@@ -210,12 +209,13 @@ export type GroupPlan = {
 export type Group = {
   id: string;
   name: string;
-  groupType: "one-on-one" | "family" | "small-group";
+  // Must stay in sync with GROUP_TYPES in apps/server/src/routes/groups.ts and
+  // GROUP_TYPE_CONFIG in src/lib/groupTypes.ts. "community" is labelled "Church".
+  groupType: "one-on-one" | "family" | "small-group" | "large-group" | "community";
   inviteCode: string;
   /** The group's creator — the only member who can end it or remove others. */
   createdBy: string;
   currentDay: number;
-  streakCount: number;
   displayOrder: number;
   plan: GroupPlan | null;
   members: GroupMember[];

@@ -14,7 +14,7 @@ import {
 } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
-import { clientDateString, clientDayWindow, effectiveStreak } from "../lib/localday.js";
+import { clientDateString, clientDayWindow } from "../lib/localday.js";
 import { activeGroupRun, closeRun, ensureGroupRun, groupRuns, setRunDay } from "../lib/plan-runs.js";
 import { isCalendarPaced } from "../lib/group-pacing.js";
 
@@ -69,8 +69,7 @@ groupsRoute.get("/", async (c) => {
   const userId = c.var.user.id;
   // A member counts as done if they've submitted the group's CURRENT day, OR
   // submitted anything for this plan today. The submissions table is the source
-  // of truth (the doneToday flag resets on day-advance; lastStreakDate is only
-  // stamped when completing through the group context, not from Home/Plans).
+  // of truth, since the doneToday flag resets on day-advance.
   // The "current day" arm covers multi-member groups where a member finished on
   // a prior calendar day and the group hasn't advanced yet; the "today" arm
   // covers a solo/last member whose completion advances the day and would
@@ -269,7 +268,6 @@ groupsRoute.get("/", async (c) => {
         inviteCode: group.inviteCode,
         createdBy: group.createdBy,
         currentDay: group.currentDay,
-        streakCount: effectiveStreak(group.streakCount, group.lastStreakDate, today),
         displayOrder: membership.displayOrder,
         plan: plan
           ? {
@@ -284,7 +282,6 @@ groupsRoute.get("/", async (c) => {
           userId: m.userId,
           memberRole: m.memberRole,
           doneToday: doneUserIds.has(m.userId),
-          streakCount: effectiveStreak(m.streakCount, m.lastStreakDate, today),
           displayName: p?.displayName ?? "Member",
           avatarUrl: p?.avatarUrl ?? null,
         })),
@@ -905,23 +902,18 @@ groupsRoute.patch("/:id/day", async (c) => {
   const { nextDay, completed } = parsed.data;
 
   const [membership] = await db
-    .select({
-      id: groupMembers.id,
-      streakCount: groupMembers.streakCount,
-      lastStreakDate: groupMembers.lastStreakDate,
-    })
+    .select({ id: groupMembers.id })
     .from(groupMembers)
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
     .limit(1);
   if (!membership) return c.json({ error: "Not a member" }, 403);
 
   // Reset stale doneToday flags when the calendar day has rolled over, mirroring
-  // the same guard in updateGroupStreaks (submissions.ts). Local day, not UTC.
+  // the same guard in markGroupMemberDone (submissions.ts). Local day, not UTC.
   const today = clientDateString(c);
   const [grp] = await db
     .select({
       lastStreakDate: groups.lastStreakDate,
-      streakCount: groups.streakCount,
       currentDay: groups.currentDay,
       currentPlanId: groups.currentPlanId,
       currentPlanStartedAt: groups.currentPlanStartedAt,
@@ -952,28 +944,17 @@ groupsRoute.patch("/:id/day", async (c) => {
     }
   }
 
+  // `lastStreakDate` no longer tracks a streak — it is the once-per-day marker
+  // that keeps this reset from firing on every request and wiping the group's
+  // checkmarks. Keep writing it.
   if (grp && (!grp.lastStreakDate || grp.lastStreakDate < today)) {
-    const prev = grp.lastStreakDate ? new Date(grp.lastStreakDate + "T00:00:00Z") : null;
-    if (prev) prev.setUTCDate(prev.getUTCDate() + 1);
-    const isYesterday = prev ? prev.toISOString().slice(0, 10) === today : false;
-    const carry = isYesterday ? grp.streakCount : 0;
     await db.update(groupMembers).set({ doneToday: false }).where(eq(groupMembers.groupId, groupId));
-    await db.update(groups).set({ streakCount: carry, lastStreakDate: today, updatedAt: new Date() }).where(eq(groups.id, groupId));
-  }
-
-  // Compute and persist member's individual streak within this group.
-  let newMemberStreak = membership.streakCount;
-  if (!membership.lastStreakDate || membership.lastStreakDate < today) {
-    const mPrev = membership.lastStreakDate ? new Date(membership.lastStreakDate + "T00:00:00Z") : null;
-    if (mPrev) mPrev.setUTCDate(mPrev.getUTCDate() + 1);
-    newMemberStreak = mPrev && mPrev.toISOString().slice(0, 10) === today
-      ? membership.streakCount + 1
-      : 1;
+    await db.update(groups).set({ lastStreakDate: today, updatedAt: new Date() }).where(eq(groups.id, groupId));
   }
 
   await db
     .update(groupMembers)
-    .set({ doneToday: true, streakCount: newMemberStreak, lastStreakDate: today })
+    .set({ doneToday: true })
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
   // A calendar-paced group's day is the clock's to move, not a member's (see

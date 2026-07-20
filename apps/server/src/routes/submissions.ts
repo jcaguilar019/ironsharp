@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, asc, count, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   devotionalSubmissions,
@@ -20,7 +20,6 @@ import {
   personalRuns,
   type PlanRun,
 } from "../lib/plan-runs.js";
-import { isCalendarPaced } from "../lib/group-pacing.js";
 
 export const submissions = new Hono<AppEnv>();
 
@@ -286,7 +285,7 @@ submissions.put("/", async (c) => {
   if (!existing) {
     const today = clientDateString(c);
     const { start: todayStart } = clientDayWindow(c);
-    updateStreaks(userId, planId, dayNumber, today, groupId, todayStart).catch((err) => console.error("[submissions] updateStreaks failed:", err));
+    updateStreaks(userId, planId, dayNumber, today, groupId).catch((err) => console.error("[submissions] updateStreaks failed:", err));
     notifyPartnerDone(userId, planId, groupId).catch((err) => console.error("[submissions] notifyPartnerDone failed:", err));
     notifyGroupCompleteIfDone(userId, planId, dayNumber, groupId, run.id, todayStart).catch((err) => console.error("[submissions] notifyGroupCompleteIfDone failed:", err));
   }
@@ -330,7 +329,17 @@ async function updatePersonalStreak(userId: string, today: string) {
     .where(eq(profiles.userId, userId));
 }
 
-async function updateGroupStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null, todayStart: Date) {
+/**
+ * Mark the submitting member done inside the group this submission belongs to,
+ * and roll the group's per-day state over when the local day changes.
+ *
+ * Despite what `lastStreakDate` is called, this no longer keeps any streak.
+ * Neither the group streak nor the per-member-in-group streak was ever rendered
+ * anywhere in the app, so both stopped being computed — the columns are kept
+ * (see db/schema.ts), just no longer written. The only streak a user ever sees
+ * is the personal one, in updatePersonalStreak above.
+ */
+async function markGroupMemberDone(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null) {
   // A personal submission (no group instance) never advances a group.
   if (!groupId) return;
   // Only the group this submission was actually made in counts toward its day.
@@ -349,12 +358,7 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
 
   for (const { groupId } of memberRows) {
     const [group] = await db
-      .select({
-        streakCount: groups.streakCount,
-        lastStreakDate: groups.lastStreakDate,
-        currentPlanStartedAt: groups.currentPlanStartedAt,
-        groupType: groups.groupType,
-      })
+      .select({ lastStreakDate: groups.lastStreakDate })
       .from(groups)
       .where(eq(groups.id, groupId))
       .limit(1);
@@ -363,92 +367,30 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
 
     // New day: reset doneToday for all members, then immediately stamp today so
     // subsequent submitters don't re-trigger this reset and wipe earlier members.
-    // Also carry forward or zero out streakCount now, so the "all done" step can
-    // simply do streakCount + 1 regardless of which member triggers it.
+    // `lastStreakDate` outlived the streak it was named for — it is now purely
+    // that once-per-day marker, so it must keep being written or this reset
+    // fires on every submission and clears everyone's checkmarks.
     if (!group.lastStreakDate || group.lastStreakDate < today) {
-      const streakCarryover =
-        group.lastStreakDate && isYesterday(group.lastStreakDate, today)
-          ? group.streakCount
-          : 0;
       await db
         .update(groupMembers)
         .set({ doneToday: false })
         .where(eq(groupMembers.groupId, groupId));
       await db
         .update(groups)
-        .set({ streakCount: streakCarryover, lastStreakDate: today, updatedAt: new Date() })
+        .set({ lastStreakDate: today, updatedAt: new Date() })
         .where(eq(groups.id, groupId));
-    }
-
-    // Mark this member done and update their individual streak within this group.
-    const [memberRow] = await db
-      .select({ streakCount: groupMembers.streakCount, lastStreakDate: groupMembers.lastStreakDate })
-      .from(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
-      .limit(1);
-
-    let newMemberStreak = memberRow?.streakCount ?? 1;
-    if (memberRow && (!memberRow.lastStreakDate || memberRow.lastStreakDate < today)) {
-      const prev = memberRow.lastStreakDate ? new Date(memberRow.lastStreakDate + "T00:00:00Z") : null;
-      if (prev) prev.setUTCDate(prev.getUTCDate() + 1);
-      newMemberStreak = prev && prev.toISOString().slice(0, 10) === today
-        ? memberRow.streakCount + 1
-        : 1;
     }
 
     await db
       .update(groupMembers)
-      .set({ doneToday: true, streakCount: newMemberStreak, lastStreakDate: today })
+      .set({ doneToday: true })
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
-
-    // Calendar-paced groups don't keep a group streak. The bar below is every
-    // member, which is unreachable once a group is church-sized — the number
-    // would sit at 0 forever and mean nothing. Members keep their own per-group
-    // streak, stamped just above. See lib/group-pacing.ts.
-    if (isCalendarPaced(group.groupType)) continue;
-
-    // Check if every member is done — mid-day joiners aren't required today,
-    // or inviting someone would freeze the group's streak/advance until the
-    // next catch-up pass. On the plan's FIRST day everyone is required
-    // regardless of join time (mirrors the allDone rule in groups.ts), or a
-    // group created today would have zero required members and its streak
-    // could never tick on day one.
-    const planStartedToday =
-      !!group.currentPlanStartedAt && group.currentPlanStartedAt >= todayStart;
-    const [totals] = await db
-      .select({
-        total: count(),
-        done: sql<number>`sum(case when done_today then 1 else 0 end)::int`,
-      })
-      .from(groupMembers)
-      .where(
-        and(
-          eq(groupMembers.groupId, groupId),
-          planStartedToday ? undefined : lt(groupMembers.joinedAt, todayStart)
-        )
-      );
-
-    const total = totals?.total ?? 0;
-    const done = totals?.done ?? 0;
-    if (total === 0 || done < total) continue;
-
-    // Everyone's done — re-fetch streakCount (may have been updated by the reset above).
-    const [fresh] = await db
-      .select({ streakCount: groups.streakCount })
-      .from(groups)
-      .where(eq(groups.id, groupId))
-      .limit(1);
-
-    await db
-      .update(groups)
-      .set({ streakCount: (fresh?.streakCount ?? 0) + 1, lastStreakDate: today, updatedAt: new Date() })
-      .where(eq(groups.id, groupId));
   }
 }
 
-async function updateStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null, todayStart: Date) {
+async function updateStreaks(userId: string, planId: string, dayNumber: number, today: string, groupId: string | null) {
   await Promise.all([
     updatePersonalStreak(userId, today),
-    updateGroupStreaks(userId, planId, dayNumber, today, groupId, todayStart),
+    markGroupMemberDone(userId, planId, dayNumber, today, groupId),
   ]);
 }

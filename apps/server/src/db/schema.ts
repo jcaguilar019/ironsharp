@@ -215,7 +215,14 @@ export const groups = pgTable("groups", {
   // both are treated as "stamp it, don't advance", so nobody loses a day to
   // the migration.
   currentDayStartedAt: timestamp("current_day_started_at", { withTimezone: true }),
+  // RETIRED — no longer written. The group streak needed 100% of members done,
+  // which is unreachable once a group is church-sized, and it was never rendered
+  // anywhere in the app. Column kept so the history survives.
   streakCount: integer("streak_count").notNull().default(0),
+  // NOT a streak field despite the name, and still load-bearing: this is the
+  // once-per-local-day marker that lets the doneToday reset fire exactly once
+  // (routes/submissions.ts, routes/groups.ts). Stop writing it and every
+  // submission re-clears the whole group's checkmarks.
   lastStreakDate: date("last_streak_date"),
   inviteCode: text("invite_code").notNull().unique(),
   createdBy: text("created_by").notNull(),
@@ -239,6 +246,10 @@ export const groupMembers = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     displayOrder: integer("display_order").notNull().default(0),
     doneToday: boolean("done_today").notNull().default(false),
+    // RETIRED — no longer written. A per-member-within-a-group streak was
+    // computed on every submission and shipped to the client, which never
+    // displayed it. Columns kept: "who has been consistent in this group" is a
+    // plausible discipler feature, and the stored history costs nothing.
     streakCount: integer("streak_count").notNull().default(0),
     lastStreakDate: date("last_streak_date"),
     // Whether this member has seen the one-time "group deleted" notice for an
