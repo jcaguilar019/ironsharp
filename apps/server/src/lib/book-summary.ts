@@ -16,6 +16,26 @@ export function parseBook(ref: string): string {
   return (m?.[1] ?? trimmed).trim();
 }
 
+/**
+ * How many days a plan spends in each book, most days first.
+ *
+ * summarizeBooks() collapses 3+ books to "<top> and various books in the
+ * Bible", which loses every book but one — a plan with eight days in Romans
+ * behind a Matthew lead becomes unfindable by "Romans". This keeps the tally so
+ * search can both MATCH on any book and RANK by how much of the plan it is.
+ */
+export function bookCounts(refs: string[]): { book: string; days: number }[] {
+  const counts = new Map<string, number>();
+  for (const ref of refs) {
+    const book = parseBook(ref);
+    if (!book) continue;
+    counts.set(book, (counts.get(book) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([book, days]) => ({ book, days }))
+    .sort((a, b) => b.days - a.days);
+}
+
 export function summarizeBooks(refs: string[]): string {
   const books = refs.map(parseBook).filter(Boolean);
   if (books.length === 0) return "";

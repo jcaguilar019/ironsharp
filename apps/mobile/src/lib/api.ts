@@ -79,6 +79,12 @@ export type DevotionalPlan = {
   imageUrl: string | null;
   /** Derived server-side from the plan's daily passages (category list only). */
   bookSummary?: string;
+  /**
+   * Days spent in each book, most first (category list only). bookSummary keeps
+   * only the lead book, so this is what lets search find — and rank by — a book
+   * the summary dropped.
+   */
+  books?: { book: string; days: number }[];
 };
 
 export type DevotionalDay = {

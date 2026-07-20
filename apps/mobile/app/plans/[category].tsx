@@ -5,12 +5,13 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { BookOpen, ChevronRight } from "lucide-react-native";
+import { BookOpen, ChevronRight, Search, X } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { Header } from "@/components/Header";
 import { ErrorState } from "@/components/ErrorState";
@@ -18,6 +19,7 @@ import { useThemeColor } from "@/components/useThemeColor";
 import { usePlansByCategory, useProgress, useGroups } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
 import { categoryLabel } from "@/lib/categories";
+import { searchPlans } from "@/lib/planSearch";
 import { purgePersonalPlanLocalState } from "@/lib/planLocal";
 
 export default function PlanList() {
@@ -30,10 +32,31 @@ export default function PlanList() {
   const groups = useGroups();
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
+  const fg = useThemeColor("foreground");
+  const border = useThemeColor("border");
+  const card = useThemeColor("card");
 
   const progressByPlan = new Map((progress.data ?? []).map((p) => [p.planId, p]));
 
   const [assigning, setAssigning] = useState(false);
+
+  // Search lives on the All Plans screen only — that's the one place already
+  // holding the whole library, so there's nothing extra to fetch and no
+  // confusion about a category heading sitting above library-wide results.
+  const canSearch = cat === "all";
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const trimmed = query.trim().toLowerCase();
+  const searching = canSearch && searchOpen && trimmed.length > 0;
+
+  const results = searching ? searchPlans(plans ?? [], trimmed) : null;
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery("");
+  };
+
+  const visiblePlans = results ?? plans ?? [];
 
   // Plans selected here are personal — they live on your home page. Assigning a
   // plan to a group happens only in the group flow (app/plans/new.tsx).
@@ -112,10 +135,61 @@ export default function PlanList() {
 
   return (
     <Screen edges={["top", "bottom"]}>
-      <Header title={cat === "all" ? "All Plans" : categoryLabel(cat)} subtitle="Plans" />
+      <Header
+        title={cat === "all" ? "All Plans" : categoryLabel(cat)}
+        subtitle="Plans"
+        rightAction={
+          canSearch ? (
+            <Pressable
+              onPress={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={searchOpen ? "Close search" : "Search plans"}
+              className="h-9 w-9 items-center justify-center rounded-full active:bg-muted/40"
+            >
+              {/* Stays a magnifying glass while open — an X here read as a
+                  second "clear", competing with the one inside the field. */}
+              <Search size={20} color={searchOpen ? primary : fg} />
+            </Pressable>
+          ) : undefined
+        }
+      />
+
+      {canSearch && searchOpen ? (
+        <View className="px-4 pb-2">
+          <View
+            style={{ borderWidth: 1, borderColor: border, backgroundColor: card }}
+            className="flex-row items-center gap-2 rounded-xl px-3"
+          >
+            <Search size={16} color={muted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search plans — try a book, like Romans"
+              placeholderTextColor={muted}
+              autoFocus
+              autoCorrect={false}
+              returnKeyType="search"
+              style={{ flex: 1, paddingVertical: 10, color: fg, fontFamily: "DMSans_400Regular", fontSize: 15 }}
+            />
+            {query.length > 0 ? (
+              <Pressable
+                onPress={() => setQuery("")}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
+                <X size={16} color={muted} />
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
       <ScrollView
         contentContainerClassName="mx-auto w-full max-w-lg gap-3 px-4 py-4"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {isLoading ? (
           <ActivityIndicator color={primary} />
@@ -124,7 +198,17 @@ export default function PlanList() {
             message="We couldn't load these plans. Check your connection and try again."
             onRetry={() => refetch()}
           />
-        ) : (plans ?? []).length === 0 ? (
+        ) : searching && visiblePlans.length === 0 ? (
+          <View className="items-center rounded-xl border border-border bg-card p-8">
+            <Search size={26} color={primary} />
+            <Text className="mt-3 font-serif text-xl font-semibold text-foreground">
+              No matches
+            </Text>
+            <Text className="mt-1 text-center text-sm text-muted-foreground">
+              Nothing matched “{query.trim()}”. Try a book of the Bible, or part of a plan&apos;s name.
+            </Text>
+          </View>
+        ) : visiblePlans.length === 0 ? (
           <View className="items-center rounded-xl border border-border bg-card p-8">
             <BookOpen size={26} color={primary} />
             <Text className="mt-3 font-serif text-xl font-semibold text-foreground">
@@ -135,7 +219,7 @@ export default function PlanList() {
             </Text>
           </View>
         ) : (
-          (plans ?? []).map((plan) => {
+          visiblePlans.map((plan) => {
             const prog = progressByPlan.get(plan.id);
             const completed = !!prog?.completedAt;
             const actionLabel = !prog

@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { devotionalPlans, devotionalDays } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
-import { summarizeBooks } from "../lib/book-summary.js";
+import { bookCounts, summarizeBooks } from "../lib/book-summary.js";
 import { canReadPlan } from "../lib/plan-access.js";
 
 export const plans = new Hono<AppEnv>();
@@ -56,10 +56,16 @@ plans.get("/category/:category", async (c) => {
     }
   }
 
-  const plansWithBooks = rows.map((p) => ({
-    ...p,
-    bookSummary: summarizeBooks(booksByPlan.get(p.id) ?? []),
-  }));
+  const plansWithBooks = rows.map((p) => {
+    const chapters = booksByPlan.get(p.id) ?? [];
+    return {
+      ...p,
+      bookSummary: summarizeBooks(chapters),
+      // Full per-book tally, so search can rank an all-Romans plan above one
+      // that only passes through Romans.
+      books: bookCounts(chapters),
+    };
+  });
 
   return c.json({ plans: plansWithBooks });
 });
