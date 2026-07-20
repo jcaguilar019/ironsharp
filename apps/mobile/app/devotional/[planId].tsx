@@ -46,7 +46,7 @@ function parseFocusVerses(ref: string): string | null {
   const match = ref.match(/:(.+)$/);
   return match ? match[1].trim() : null;
 }
-import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion, useProfile } from "@/lib/queries";
+import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion, useProfile, usePlanSubmissions } from "@/lib/queries";
 import type { GroupDayResponse } from "@/lib/api";
 
 /** The viewer's local calendar date as "YYYY-MM-DD" (en-CA renders ISO). */
@@ -726,7 +726,12 @@ function GroupResponseCard({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function DevotionalReader() {
-  const { planId: planIdParam, groupId: groupIdParam } = useLocalSearchParams<{ planId: string; groupId?: string }>();
+  const { planId: planIdParam, groupId: groupIdParam, day: dayParam } = useLocalSearchParams<{
+    planId: string;
+    groupId?: string;
+    /** Open a specific day instead of the live one — how catch-up reaches a missed day. */
+    day?: string;
+  }>();
   const planId = String(planIdParam);
   const groupId = groupIdParam ?? null;
   const router = useRouter();
@@ -750,11 +755,15 @@ export default function DevotionalReader() {
     try {
       const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
       const keys = await AsyncStorage.getAllKeys();
+      // Day locks are per-day now; the bare keys are the pre-catch-up legacy
+      // shape, still matched so an old lock doesn't survive a restart.
       const stale = keys.filter((k) =>
         scope === "group" && groupId
           ? k.startsWith(`@ironsharp/draft_${planId}_${groupId}`) ||
+            k.startsWith(`@ironsharp/devotional_locked_until_${planId}_${groupId}_day_`) ||
             k === `@ironsharp/devotional_locked_until_${planId}_${groupId}`
           : k.startsWith(`@ironsharp/draft_${planId}_day_`) ||
+            k.startsWith(`@ironsharp/devotional_locked_until_${planId}_day_`) ||
             k === `@ironsharp/devotional_locked_until_${planId}`
       );
       if (stale.length > 0) await AsyncStorage.multiRemove(stale);
@@ -831,7 +840,21 @@ export default function DevotionalReader() {
   // In group context use the group's shared day, not the user's personal day.
   const groups = useGroups();
   const activeGroup = groupId ? (groups.data ?? []).find((g) => g.id === groupId) : null;
-  const currentDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
+  const liveDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
+
+  // `?day=` opens a day the reader has fallen behind on. Clamped to the live day
+  // in both directions: garbage is ignored, and reading AHEAD is never allowed —
+  // the group is meant to be in the same passage. Everything below keys off
+  // `currentDay`, so this is the single place that decides which day is open.
+  const requestedDay = Number(dayParam);
+  const currentDay =
+    Number.isInteger(requestedDay) && requestedDay >= 1 && requestedDay <= liveDay
+      ? requestedDay
+      : liveDay;
+  // Catching up on a day the plan has already moved past. A backfilled day
+  // records answers but must not touch today: it doesn't tick today's checkmark
+  // and it never advances the plan.
+  const isBackfill = currentDay < liveDay;
 
   // Opened in PERSONAL context while one of the user's groups runs this same
   // plan: answers saved here are a personal copy the group never sees, don't
@@ -847,11 +870,14 @@ export default function DevotionalReader() {
     !!activeGroup &&
     activeGroup.members.some((m) => m.userId === profile.data?.userId && m.memberRole === "leader");
 
-  // Scope the day lock so personal and group runs don't interfere.
+  // Scope the day lock so personal and group runs don't interfere — and so it's
+  // per DAY. The lock drives isDoneState, so a plan-wide key would make a missed
+  // day open straight into the "already finished" screen whenever today was done,
+  // and submitting a caught-up day would lock the day the reader is actually on.
   const [lockedUntilTomorrow, setLockedUntilTomorrow] = useState(false);
   const lockKey = groupId
-    ? `@ironsharp/devotional_locked_until_${planId}_${groupId}`
-    : `@ironsharp/devotional_locked_until_${planId}`;
+    ? `@ironsharp/devotional_locked_until_${planId}_${groupId}_day_${currentDay}`
+    : `@ironsharp/devotional_locked_until_${planId}_day_${currentDay}`;
 
   useEffect(() => {
     import("@react-native-async-storage/async-storage").then(({ default: AsyncStorage }) => {
@@ -910,6 +936,15 @@ export default function DevotionalReader() {
   // before the current one.
   const completedDay = justCompletedDay ?? (submissionQ.data ? currentDay : currentDay - 1);
   const groupResponsesQ = useGroupDayResponses(planId, completedDay, isDoneState, groupId);
+
+  // How many earlier days are still unanswered. Only fetched on the done screen,
+  // which is the one moment we know the reader is engaged and willing — but it
+  // links to the day list rather than pushing them straight into another
+  // reading, since someone eight days behind needs to choose, not be shoved.
+  const planSubmissionsQ = usePlanSubmissions(planId, groupId, isDoneState);
+  const answeredDays = new Set((planSubmissionsQ.data ?? []).map((s) => s.dayNumber));
+  let openDayCount = 0;
+  for (let n = 1; n < liveDay; n++) if (!answeredDays.has(n)) openDayCount++;
 
   // Re-read revisits the day just COMPLETED. The live currentDay may already
   // point at tomorrow's reading (the group advances the moment the last
@@ -1017,16 +1052,21 @@ export default function DevotionalReader() {
         submissionSource: "typed",
         groupId,
       });
-      if (groupId) {
-        await ApiClient.updateGroupProgress(groupId, {
-          nextDay: isLastDay ? undefined : currentDay + 1,
-          completed: isLastDay,
-        });
-      } else if (progressRow) {
-        if (isLastDay)
-          await ApiClient.updateProgress(planId, { completed: true });
-        else
-          await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
+      // A caught-up day records its answers and stops there. Advancing off it
+      // would drag the plan BACKWARD (personal) or tick today's checkmark for a
+      // day that isn't today (group) — the reader is behind, not finishing.
+      if (!isBackfill) {
+        if (groupId) {
+          await ApiClient.updateGroupProgress(groupId, {
+            nextDay: isLastDay ? undefined : currentDay + 1,
+            completed: isLastDay,
+          });
+        } else if (progressRow) {
+          if (isLastDay)
+            await ApiClient.updateProgress(planId, { completed: true });
+          else
+            await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
+        }
       }
       // Hand the submit-time day to onSuccess — by the time it runs, the
       // refetched group/progress may already point at the next day.
@@ -1043,6 +1083,9 @@ export default function DevotionalReader() {
       await AsyncStorage.removeItem(draftKey);
       await qc.invalidateQueries({ queryKey: ["progress"] });
       await qc.invalidateQueries({ queryKey: ["progress", "active"] });
+      // The day just answered must stop counting as open on the done screen
+      // and in the day list.
+      await qc.invalidateQueries({ queryKey: ["submissions", "plan", planId] });
       if (groupId) await qc.invalidateQueries({ queryKey: ["groups"] });
       // Streak is updated server-side after submission — refresh profile so counts are current.
       await qc.invalidateQueries({ queryKey: ["profile"] });
@@ -1112,6 +1155,31 @@ export default function DevotionalReader() {
               {verse.ref}
             </Text>
           </View>
+
+          {/* Days still open — a count that links to the list, not a shove into
+              the next reading. Hidden on plan completion, where it's moot. */}
+          {!wasLastDay && openDayCount > 0 && (
+            <Pressable
+              onPress={() =>
+                router.push(
+                  `/devotional/days/${planId}${groupId ? `?groupId=${groupId}` : ""}`
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${openDayCount} days still open. Open the day list.`}
+              className="mb-6 w-full flex-row items-center gap-3 rounded-xl border border-border bg-card px-5 py-4 active:bg-muted/40"
+            >
+              <View className="flex-1">
+                <Text className="font-sans-medium text-sm text-foreground">
+                  {openDayCount} {openDayCount === 1 ? "day is" : "days are"} still open
+                </Text>
+                <Text className="mt-0.5 text-xs text-muted-foreground">
+                  Catch up whenever you like
+                </Text>
+              </View>
+              <ChevronRight size={18} color={muted} />
+            </Pressable>
+          )}
 
           {/* Group responses feed */}
           {hasGroupResponses && (
@@ -1272,7 +1340,13 @@ export default function DevotionalReader() {
               </Pressable>
 
               <Pressable
-                onPress={() => { setShowPlayMenu(false); router.push(`/guided/${planId}${groupId ? `?groupId=${groupId}` : ""}`); }}
+                onPress={() => {
+                  setShowPlayMenu(false);
+                  // Carry the day across, or guided mode silently jumps back to
+                  // the live day and advances the plan off a catch-up read.
+                  const q = [groupId ? `groupId=${groupId}` : "", isBackfill ? `day=${currentDay}` : ""].filter(Boolean).join("&");
+                  router.push(`/guided/${planId}${q ? `?${q}` : ""}`);
+                }}
                 className="flex-row items-start gap-3 border-t border-border px-4 py-3.5 active:opacity-70"
               >
                 <View className="mt-0.5 h-8 w-8 items-center justify-center rounded-lg bg-primary/10">

@@ -29,7 +29,12 @@ const VOICE_INSTRUCTIONS =
 const PRAYER_CUE = "Prayer and praise. Take a moment to pray.";
 
 export default function GuidedDevotional() {
-  const { planId: rawPlanId, groupId: groupIdParam } = useLocalSearchParams<{ planId: string; groupId?: string }>();
+  const { planId: rawPlanId, groupId: groupIdParam, day: dayParam } = useLocalSearchParams<{
+    planId: string;
+    groupId?: string;
+    /** Mirrors the typed reader — a day the reader is catching up on. */
+    day?: string;
+  }>();
   const planId = String(rawPlanId);
   const groupId = groupIdParam ?? null;
   const router = useRouter();
@@ -47,7 +52,15 @@ export default function GuidedDevotional() {
   const groups = useGroups();
   const activeGroup = groupId ? (groups.data ?? []).find((g) => g.id === groupId) : null;
   // Group runs follow the group's day; personal runs follow personal progress.
-  const currentDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
+  const liveDay = groupId ? (activeGroup?.currentDay ?? 1) : (progressRow?.currentDay ?? 1);
+  // Same clamp as the typed reader (app/devotional/[planId].tsx): a caught-up day
+  // may be opened, reading ahead may not.
+  const requestedDay = Number(dayParam);
+  const currentDay =
+    Number.isInteger(requestedDay) && requestedDay >= 1 && requestedDay <= liveDay
+      ? requestedDay
+      : liveDay;
+  const isBackfill = currentDay < liveDay;
 
   // If this is a disciple reading their one-on-one, surface the discipler's Q3.
   const discipleships = useDiscipleships();
@@ -101,29 +114,35 @@ export default function GuidedDevotional() {
         submissionSource: "voice",
         groupId,
       });
-      if (groupId) {
-        await ApiClient.updateGroupProgress(groupId, {
-          nextDay: isLastDay ? undefined : currentDay + 1,
-          completed: isLastDay,
-        });
-      } else if (progressRow) {
-        if (isLastDay) await ApiClient.updateProgress(planId, { completed: true });
-        else await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
+      // A caught-up day records answers only — it never advances the plan.
+      if (!isBackfill) {
+        if (groupId) {
+          await ApiClient.updateGroupProgress(groupId, {
+            nextDay: isLastDay ? undefined : currentDay + 1,
+            completed: isLastDay,
+          });
+        } else if (progressRow) {
+          if (isLastDay) await ApiClient.updateProgress(planId, { completed: true });
+          else await ApiClient.updateProgress(planId, { currentDay: currentDay + 1 });
+        }
       }
 
-      // Mirror the reader: lock the plan until local midnight so Home /
-      // Devotionals show "Done today". Scoped per instance (personal vs group).
+      // Mirror the reader: lock until local midnight so Home / Devotionals show
+      // "Done today". Scoped per instance (personal vs group) AND per day, so
+      // finishing a caught-up day doesn't lock the day the reader is on.
       const midnight = new Date();
       midnight.setDate(midnight.getDate() + 1);
       midnight.setHours(0, 0, 0, 0);
       const lockKey = groupId
-        ? `@ironsharp/devotional_locked_until_${planId}_${groupId}`
-        : `@ironsharp/devotional_locked_until_${planId}`;
+        ? `@ironsharp/devotional_locked_until_${planId}_${groupId}_day_${currentDay}`
+        : `@ironsharp/devotional_locked_until_${planId}_day_${currentDay}`;
       const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
       await AsyncStorage.setItem(lockKey, String(midnight.getTime()));
 
       await qc.invalidateQueries({ queryKey: ["progress"] });
       await qc.invalidateQueries({ queryKey: ["progress", "active"] });
+      // Mirror the reader: the day just answered stops counting as open.
+      await qc.invalidateQueries({ queryKey: ["submissions", "plan", planId] });
       if (groupId) await qc.invalidateQueries({ queryKey: ["groups"] });
       await qc.invalidateQueries({ queryKey: ["profile"] });
       // Today's reading is done — skip tonight's nudge (same as the reader).

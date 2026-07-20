@@ -7,7 +7,7 @@ import { StreakFlame } from "@/components/StreakFlame";
 import { Avatar } from "@/components/Avatar";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useProfile, useActiveDevotional, useCommunityToday, useDiscipleships, useGroups } from "@/lib/queries";
-import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
+import { GROUP_TYPE_CONFIG, groupReadingHref } from "@/lib/groupTypes";
 import { useLocalDoneToday } from "@/lib/useLocalDoneToday";
 
 export default function HomeScreen() {
@@ -16,7 +16,7 @@ export default function HomeScreen() {
   const { data: active } = useActiveDevotional();
   // Server `doneToday` covers fresh installs; the local lock covers the
   // evening gap when the UTC day has rolled over but the user's hasn't.
-  const localDone = useLocalDoneToday(active?.planId);
+  const localDone = useLocalDoneToday(active?.planId, undefined, active?.currentDay);
   const doneToday = !!active?.doneToday || localDone;
   const community = useCommunityToday();
   const todayDevo = community.data?.devotional ?? null;
@@ -134,7 +134,7 @@ export default function HomeScreen() {
               active
                 ? `/devotional/${active.planId}`
                 : groupReading
-                  ? `/devotional/${groupReading.plan!.id}?groupId=${groupReading.id}`
+                  ? (groupReadingHref(groupReading) ?? "/plans")
                   : "/plans"
             )
           }
@@ -193,7 +193,7 @@ export default function HomeScreen() {
           return (
             <Pressable
               key={g.id}
-              onPress={() => router.push(`/devotional/${g.plan!.id}?groupId=${g.id}`)}
+              onPress={() => router.push(groupReadingHref(g) ?? "/plans")}
               accessibilityRole="button"
               accessibilityLabel={`Open ${g.name}'s reading`}
               className="mb-3 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-4"

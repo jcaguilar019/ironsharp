@@ -71,6 +71,24 @@ export function useDays(planId: string | undefined) {
   });
 }
 
+/**
+ * Every submission this user has made against one plan INSTANCE (personal when
+ * groupId is null, otherwise that group's copy). Backs the day list's done /
+ * missed marks — no new endpoint needed.
+ */
+export function usePlanSubmissions(
+  planId: string | undefined,
+  groupId?: string | null,
+  enabled = true
+) {
+  const { authed } = useAuthed();
+  return useQuery({
+    queryKey: ["submissions", "plan", planId, groupId ?? null],
+    queryFn: () => ApiClient.getPlanSubmissions(planId!, groupId).then((r) => r.submissions),
+    enabled: authed && !!planId && enabled,
+  });
+}
+
 export function useGenerateTokens() {
   const { authed } = useAuthed();
   return useQuery({

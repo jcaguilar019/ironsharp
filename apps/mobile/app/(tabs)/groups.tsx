@@ -51,7 +51,7 @@ import { useToast } from "@/components/Toast";
 import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
 import { Avatar } from "@/components/Avatar";
 import { useGroups, useDiscipleships, useProfile, useActiveDevotional } from "@/lib/queries";
-import { GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
+import { GROUP_TYPE_CONFIG, groupReadingHref } from "@/lib/groupTypes";
 import { effectiveTier, isDisciplerTier } from "@/lib/tiers";
 import { logError } from "@/lib/logger";
 import {
@@ -912,7 +912,7 @@ export default function GroupsScreen() {
                     <View className="flex-row gap-3">
                       {group.plan ? (
                         <Pressable
-                          onPress={() => router.push(`/devotional/${group.plan!.id}?groupId=${group.id}`)}
+                          onPress={() => router.push(groupReadingHref(group) ?? "/plans")}
                           style={{ borderWidth: 1, borderColor: config.color, borderRadius: 8, backgroundColor: withAlpha(config.color, 0.12) }}
                           className="flex-row items-center gap-1.5 px-3 py-2"
                         >

@@ -12,6 +12,9 @@ export async function purgePersonalPlanLocalState(planId: string): Promise<void>
     const stale = keys.filter(
       (k) =>
         k.startsWith(`@ironsharp/draft_${planId}_day_`) ||
+        // Day locks are per-day; the bare key is the pre-catch-up legacy shape.
+        // Neither prefix matches a group key, which carries a group segment.
+        k.startsWith(`@ironsharp/devotional_locked_until_${planId}_day_`) ||
         k === `@ironsharp/devotional_locked_until_${planId}`
     );
     if (stale.length > 0) await AsyncStorage.multiRemove(stale);
