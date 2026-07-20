@@ -1248,12 +1248,9 @@ export default function DevotionalReader() {
               title={groupId ? "Group responses" : "View my responses"}
               variant="outline"
               onPress={() =>
-                groupId
-                  ? router.push({
-                      pathname: "/plans/past-responses",
-                      params: { groupId, planId, title: plan?.title ?? "" },
-                    })
-                  : router.push(`/devotional/history/${planId}`)
+                router.push(
+                  `/devotional/history/${planId}${groupId ? `?groupId=${groupId}&view=group` : ""}`
+                )
               }
             />
           </View>

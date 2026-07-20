@@ -128,10 +128,7 @@ export default function PastGroups() {
                           disabled={!p.planId}
                           onPress={() =>
                             p.planId &&
-                            router.push({
-                              pathname: "/plans/past-responses",
-                              params: { groupId: g.id, planId: p.planId, title: p.title },
-                            })
+                            router.push(`/devotional/history/${p.planId}?groupId=${g.id}&view=group`)
                           }
                           className="flex-row items-center gap-3 rounded-xl border border-border bg-background p-4"
                         >

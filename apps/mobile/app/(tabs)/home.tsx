@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const communityResponded = !!community.data?.myResponse;
   const communityCount = community.data?.feed?.length ?? 0;
   const discipleships = useDiscipleships();
-  const activeDisc = (discipleships.data ?? []).find((r) => r.status === "active") ?? null;
+  const activeDiscs = (discipleships.data ?? []).filter((r) => r.status === "active");
   const groups = useGroups();
   // When there's no personal plan, the Home card falls back to the first group
   // reading — a group-only user has "time with God" today too, not "Choose a Plan".
@@ -100,33 +100,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Discipleship takes priority over plans — surface it above the reading card */}
-        {activeDisc ? (
-          <Pressable
-            onPress={() => router.push(`/discipleship/${activeDisc.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={`Open discipleship with ${activeDisc.counterpart.displayName}`}
-            className="mb-6 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-5"
-          >
-            <Avatar name={activeDisc.counterpart.displayName} url={activeDisc.counterpart.avatarUrl} accent={primary} />
-            <View className="flex-1">
-              <Text className="text-xs font-sans-semibold uppercase tracking-wider text-muted-foreground">Discipleship</Text>
-              <Text className="font-sans-semibold text-base text-foreground" numberOfLines={1}>
-                {activeDisc.counterpart.displayName}
-              </Text>
-              <Text className="text-sm text-muted-foreground">
-                {activeDisc.role === "discipler" ? "You're discipling them" : "Your discipler"}
-              </Text>
-            </View>
-            {activeDisc.unreadCount > 0 ? (
-              <View style={{ minWidth: 20, height: 20, borderRadius: 10, backgroundColor: primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 }}>
-                <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 11 }}>{activeDisc.unreadCount}</Text>
-              </View>
-            ) : null}
-            <ChevronRight size={18} color={muted} />
-          </Pressable>
-        ) : null}
-
         {/* My Time with God — main highlight */}
         <Pressable
           onPress={() =>
@@ -184,6 +157,34 @@ export default function HomeScreen() {
           </View>
         </Pressable>
 
+        {/* Discipleship — every active relationship gets its own card, stacked right below the hero */}
+        {activeDiscs.map((disc) => (
+          <Pressable
+            key={disc.id}
+            onPress={() => router.push(`/discipleship/${disc.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open discipleship with ${disc.counterpart.displayName}`}
+            className="mb-6 w-full flex-row items-center gap-3 rounded-2xl border border-border bg-card p-5"
+          >
+            <Avatar name={disc.counterpart.displayName} url={disc.counterpart.avatarUrl} accent={primary} />
+            <View className="flex-1">
+              <Text className="text-xs font-sans-semibold uppercase tracking-wider text-muted-foreground">Discipleship</Text>
+              <Text className="font-sans-semibold text-base text-foreground" numberOfLines={1}>
+                {disc.counterpart.displayName}
+              </Text>
+              <Text className="text-sm text-muted-foreground">
+                {disc.role === "discipler" ? "You're discipling them" : "Your discipler"}
+              </Text>
+            </View>
+            {disc.unreadCount > 0 ? (
+              <View style={{ minWidth: 20, height: 20, borderRadius: 10, backgroundColor: primary, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 }}>
+                <Text style={{ color: "#fff", fontFamily: "DMSans_700Bold", fontSize: 11 }}>{disc.unreadCount}</Text>
+              </View>
+            ) : null}
+            <ChevronRight size={18} color={muted} />
+          </Pressable>
+        ))}
+
         {/* Group readings not covered by the hero card */}
         {secondaryGroups.map((g) => {
           const done = !!g.members.find((m) => m.userId === myId)?.doneToday;
@@ -214,7 +215,7 @@ export default function HomeScreen() {
               {/* Ghosted check that "lights up" on completion — no chevron, the whole row is the door */}
               {done
                 ? <CheckCircle2 size={18} color={accent} />
-                : <CheckCircle2 size={18} color={muted} style={{ opacity: 0.35 }} />}
+                : <CheckCircle2 size={18} color={muted} style={{ opacity: 0.5 }} />}
             </Pressable>
           );
         })}
