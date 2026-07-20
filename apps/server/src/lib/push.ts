@@ -7,6 +7,7 @@ import {
   devotionalSubmissions,
   discipleRelationships,
 } from "../db/schema.js";
+import { isCalendarPaced } from "./group-pacing.js";
 
 type PushMessage = {
   to: string;
@@ -123,11 +124,21 @@ export async function notifyGroupCompleteIfDone(
 
   for (const { groupId } of memberRows) {
     const [group] = await db
-      .select({ name: groups.name, currentPlanStartedAt: groups.currentPlanStartedAt })
+      .select({
+        name: groups.name,
+        currentPlanStartedAt: groups.currentPlanStartedAt,
+        groupType: groups.groupType,
+      })
       .from(groups)
       .where(eq(groups.id, groupId))
       .limit(1);
     if (!group) continue;
+
+    // "Everyone finished" is not a moment a calendar-paced group ever reaches,
+    // so bail before the member scan rather than running it on every submission
+    // for a push that can't fire. Milestone pings ("a third of the group
+    // finished") are the intended replacement here — not built yet.
+    if (isCalendarPaced(group.groupType)) continue;
 
     const allMembers = await db
       .select({ userId: groupMembers.userId, joinedAt: groupMembers.joinedAt })

@@ -209,6 +209,12 @@ export const groups = pgTable("groups", {
   // underway when a discipler dropped below Sharpen (the grace window).
   currentPlanStartedAt: timestamp("current_plan_started_at", { withTimezone: true }),
   currentDay: integer("current_day").notNull().default(1),
+  // When the group landed on `currentDay`. Calendar-paced groups (see
+  // lib/group-pacing.ts) advance off this clock instead of waiting for every
+  // member. Null means no plan is running, or the group predates the column —
+  // both are treated as "stamp it, don't advance", so nobody loses a day to
+  // the migration.
+  currentDayStartedAt: timestamp("current_day_started_at", { withTimezone: true }),
   streakCount: integer("streak_count").notNull().default(0),
   lastStreakDate: date("last_streak_date"),
   inviteCode: text("invite_code").notNull().unique(),

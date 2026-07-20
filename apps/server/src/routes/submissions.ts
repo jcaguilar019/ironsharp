@@ -20,6 +20,7 @@ import {
   personalRuns,
   type PlanRun,
 } from "../lib/plan-runs.js";
+import { isCalendarPaced } from "../lib/group-pacing.js";
 
 export const submissions = new Hono<AppEnv>();
 
@@ -352,6 +353,7 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
         streakCount: groups.streakCount,
         lastStreakDate: groups.lastStreakDate,
         currentPlanStartedAt: groups.currentPlanStartedAt,
+        groupType: groups.groupType,
       })
       .from(groups)
       .where(eq(groups.id, groupId))
@@ -399,9 +401,15 @@ async function updateGroupStreaks(userId: string, planId: string, dayNumber: num
       .set({ doneToday: true, streakCount: newMemberStreak, lastStreakDate: today })
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
+    // Calendar-paced groups don't keep a group streak. The bar below is every
+    // member, which is unreachable once a group is church-sized — the number
+    // would sit at 0 forever and mean nothing. Members keep their own per-group
+    // streak, stamped just above. See lib/group-pacing.ts.
+    if (isCalendarPaced(group.groupType)) continue;
+
     // Check if every member is done — mid-day joiners aren't required today,
     // or inviting someone would freeze the group's streak/advance until the
-    // next ghost-advance. On the plan's FIRST day everyone is required
+    // next catch-up pass. On the plan's FIRST day everyone is required
     // regardless of join time (mirrors the allDone rule in groups.ts), or a
     // group created today would have zero required members and its streak
     // could never tick on day one.

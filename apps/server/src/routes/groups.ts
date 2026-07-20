@@ -16,6 +16,7 @@ import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
 import { clientDateString, clientDayWindow, effectiveStreak } from "../lib/localday.js";
 import { activeGroupRun, closeRun, ensureGroupRun, groupRuns, setRunDay } from "../lib/plan-runs.js";
+import { isCalendarPaced } from "../lib/group-pacing.js";
 
 export const groupsRoute = new Hono<AppEnv>();
 groupsRoute.use("*", requireAuth);
@@ -90,26 +91,63 @@ groupsRoute.get("/", async (c) => {
 
   const result = await Promise.all(
     memberships.map(async ({ group, membership, plan }) => {
-      // Ghost-member catch-up: a group's day only advances when EVERYONE has
-      // submitted, so one silent member would freeze the group forever. If the
-      // current day has a submission from a PREVIOUS local day and the group
-      // still hasn't moved, advance it now — the day simply counts as missed
-      // for whoever didn't submit, and the streak doesn't extend. Advances at
-      // most one day per load, so a long idle gap catches up gently.
+      // Catch-up: move the shared day forward when it should have moved and
+      // didn't. What "should have" means depends on the group's pacing
+      // (lib/group-pacing.ts):
+      //
+      //   convoy   — the day only advances once EVERYONE submits, so one silent
+      //              member would freeze the group forever. If the current day
+      //              carries a submission from a PREVIOUS local day, move on —
+      //              the day counts as missed for whoever skipped it, and the
+      //              streak doesn't extend.
+      //   calendar — the day advances on the clock. It's stale as soon as the
+      //              local day it started in has passed: no member's silence
+      //              holds it, and no member's submission is needed to release
+      //              it.
+      //
+      // Either branch advances at most one day per load, and calendar groups
+      // re-stamp currentDayStartedAt on the way through — so they move at most
+      // one day per calendar DAY, never several at once.
+      //
+      // That makes a dormant calendar group drift behind the wall calendar
+      // (quiet for a week → it resumes on day 2, not day 8). Deliberate: the
+      // reader pins members to the group's current day, so days the group skips
+      // past are unreachable by anyone, forever. Drifting loses nothing;
+      // jumping would delete content. Revisit when optional backfill lands —
+      // once members can open a day they missed, jumping straight to the
+      // date-derived day becomes safe and is the more honest behavior.
       if (group.currentPlanId && group.currentDay) {
-        const [stale] = await db
-          .select({ id: devotionalSubmissions.id })
-          .from(devotionalSubmissions)
-          .where(
-            and(
-              eq(devotionalSubmissions.planId, group.currentPlanId),
-              eq(devotionalSubmissions.groupId, group.id),
-              eq(devotionalSubmissions.dayNumber, group.currentDay),
-              lt(devotionalSubmissions.submittedAt, todayStart)
+        let dayIsStale = false;
+        if (isCalendarPaced(group.groupType)) {
+          if (group.currentDayStartedAt) {
+            dayIsStale = group.currentDayStartedAt < todayStart;
+          } else {
+            // No clock yet — a group whose plan was already running when this
+            // shipped. Start the clock instead of treating "unknown" as stale,
+            // or the first load after deploy would skip everyone a day.
+            const now = new Date();
+            await db
+              .update(groups)
+              .set({ currentDayStartedAt: now, updatedAt: now })
+              .where(and(eq(groups.id, group.id), isNull(groups.currentDayStartedAt)));
+            group.currentDayStartedAt = now;
+          }
+        } else {
+          const [staleRow] = await db
+            .select({ id: devotionalSubmissions.id })
+            .from(devotionalSubmissions)
+            .where(
+              and(
+                eq(devotionalSubmissions.planId, group.currentPlanId),
+                eq(devotionalSubmissions.groupId, group.id),
+                eq(devotionalSubmissions.dayNumber, group.currentDay),
+                lt(devotionalSubmissions.submittedAt, todayStart)
+              )
             )
-          )
-          .limit(1);
-        if (stale) {
+            .limit(1);
+          dayIsStale = !!staleRow;
+        }
+        if (dayIsStale) {
           // Optimistic lock: several members can load simultaneously, so every
           // mutation is guarded by the (planId, currentDay) we based it on — the
           // first request wins, the rest see zero rows and change nothing
@@ -118,7 +156,13 @@ groupsRoute.get("/", async (c) => {
             // Last day went stale — close the plan out like /:id/day does.
             const closed = await db
               .update(groups)
-              .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
+              .set({
+                currentPlanId: null,
+                currentPlanStartedAt: null,
+                currentDay: 1,
+                currentDayStartedAt: null,
+                updatedAt: new Date(),
+              })
               .where(
                 and(
                   eq(groups.id, group.id),
@@ -143,11 +187,16 @@ groupsRoute.get("/", async (c) => {
             }
             group.currentPlanId = null;
             group.currentDay = 1;
+            group.currentDayStartedAt = null;
             plan = null;
           } else {
             const advanced = await db
               .update(groups)
-              .set({ currentDay: group.currentDay + 1, updatedAt: new Date() })
+              .set({
+                currentDay: group.currentDay + 1,
+                currentDayStartedAt: new Date(),
+                updatedAt: new Date(),
+              })
               .where(and(eq(groups.id, group.id), eq(groups.currentDay, group.currentDay)))
               .returning({ id: groups.id });
             if (advanced.length > 0) {
@@ -161,6 +210,7 @@ groupsRoute.get("/", async (c) => {
               }
             }
             group.currentDay = group.currentDay + 1;
+            group.currentDayStartedAt = new Date();
           }
         }
       }
@@ -777,7 +827,13 @@ groupsRoute.patch("/:id/plan", async (c) => {
 
   await db
     .update(groups)
-    .set({ currentPlanId: planId, currentPlanStartedAt: new Date(), currentDay: 1, updatedAt: new Date() })
+    .set({
+      currentPlanId: planId,
+      currentPlanStartedAt: new Date(),
+      currentDay: 1,
+      currentDayStartedAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(groups.id, groupId));
 
   await db
@@ -824,7 +880,13 @@ groupsRoute.delete("/:id/plan", async (c) => {
   }
   await db
     .update(groups)
-    .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
+    .set({
+      currentPlanId: null,
+      currentPlanStartedAt: null,
+      currentDay: 1,
+      currentDayStartedAt: null,
+      updatedAt: new Date(),
+    })
     .where(eq(groups.id, groupId));
   await db
     .update(groupMembers)
@@ -863,6 +925,7 @@ groupsRoute.patch("/:id/day", async (c) => {
       currentDay: groups.currentDay,
       currentPlanId: groups.currentPlanId,
       currentPlanStartedAt: groups.currentPlanStartedAt,
+      groupType: groups.groupType,
       archivedAt: groups.archivedAt,
     })
     .from(groups)
@@ -913,25 +976,34 @@ groupsRoute.patch("/:id/day", async (c) => {
     .set({ doneToday: true, streakCount: newMemberStreak, lastStreakDate: today })
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
-  const allMembers = await db
-    .select({ doneToday: groupMembers.doneToday, userId: groupMembers.userId, joinedAt: groupMembers.joinedAt })
-    .from(groupMembers)
-    .where(eq(groupMembers.groupId, groupId));
+  // A calendar-paced group's day is the clock's to move, not a member's (see
+  // lib/group-pacing.ts). Marking done and the member's own streak still apply;
+  // the advance and the plan close-out both happen in the catch-up pass on
+  // GET /api/groups instead. At that size "everyone finished" would never be
+  // true anyway, so allDone stays false rather than reporting a fiction.
+  let allDone = false;
 
-  // Members invited mid-day aren't required for today — otherwise inviting
-  // someone freezes the group until tomorrow's ghost-advance. The pass only
-  // applies when the plan started on a PREVIOUS day: on the plan's first day
-  // every member is required regardless of join time (they can still do day 1
-  // today), or a founding member added moments after "start plan" would be
-  // skipped and the day would advance before they ever saw day 1.
-  const { start: todayStart } = clientDayWindow(c);
-  const planStartedToday = !!grp.currentPlanStartedAt && grp.currentPlanStartedAt >= todayStart;
-  const allDone = allMembers.every(
-    (m) =>
-      m.doneToday ||
-      m.userId === userId ||
-      (m.joinedAt >= todayStart && !planStartedToday)
-  );
+  if (!isCalendarPaced(grp.groupType)) {
+    const allMembers = await db
+      .select({ doneToday: groupMembers.doneToday, userId: groupMembers.userId, joinedAt: groupMembers.joinedAt })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+
+    // Members invited mid-day aren't required for today — otherwise inviting
+    // someone freezes the group until tomorrow's catch-up. The pass only
+    // applies when the plan started on a PREVIOUS day: on the plan's first day
+    // every member is required regardless of join time (they can still do day 1
+    // today), or a founding member added moments after "start plan" would be
+    // skipped and the day would advance before they ever saw day 1.
+    const { start: todayStart } = clientDayWindow(c);
+    const planStartedToday = !!grp.currentPlanStartedAt && grp.currentPlanStartedAt >= todayStart;
+    allDone = allMembers.every(
+      (m) =>
+        m.doneToday ||
+        m.userId === userId ||
+        (m.joinedAt >= todayStart && !planStartedToday)
+    );
+  }
 
   if (allDone) {
     if (completed) {
@@ -955,13 +1027,19 @@ groupsRoute.patch("/:id/day", async (c) => {
       }
       await db
         .update(groups)
-        .set({ currentPlanId: null, currentPlanStartedAt: null, currentDay: 1, updatedAt: new Date() })
+        .set({
+          currentPlanId: null,
+          currentPlanStartedAt: null,
+          currentDay: 1,
+          currentDayStartedAt: null,
+          updatedAt: new Date(),
+        })
         .where(eq(groups.id, groupId));
     } else if (nextDay !== undefined && nextDay > grp.currentDay) {
       // Guarded by the day we read, so two same-moment finishers can't double-advance.
       await db
         .update(groups)
-        .set({ currentDay: nextDay, updatedAt: new Date() })
+        .set({ currentDay: nextDay, currentDayStartedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(groups.id, groupId), eq(groups.currentDay, grp.currentDay)));
       if (grp.currentPlanId) {
         const run = await activeGroupRun(groupId, grp.currentPlanId);
