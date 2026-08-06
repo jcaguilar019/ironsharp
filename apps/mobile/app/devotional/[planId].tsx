@@ -422,7 +422,7 @@ const TRANSLATION_STORAGE_KEY = "@ironsharp/bible_translation";
 
 // ─── Feature 3: Bible Passage Card ───────────────────────────────────────────
 
-const VERSES_PER_PAGE = 15;
+const VERSES_PER_PAGE = 10;
 
 function BiblePassageCard({ passageRef, readThrough, onPageChange, passageRead, onMarkRead }: { passageRef: string; readThrough?: boolean; onPageChange?: () => void; passageRead?: boolean; onMarkRead?: () => void; }) {
   const cardBg = useThemeColor("card");
