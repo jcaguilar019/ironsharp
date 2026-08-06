@@ -7,7 +7,7 @@ export const PLANS: PlanSeed[] = [
   {
     "title": "Formed — 14 Days of Spiritual Discipline",
     "subtitle": "Train yourself for godliness.",
-    "category": "general",
+    "category": "new-believer",
     "totalDays": 14,
     "description": "Fourteen days through the practices that shape a soul — not rules to follow, but space for God to change you.",
     "howToUse": null,
@@ -222,7 +222,7 @@ export const PLANS: PlanSeed[] = [
   {
     "title": "The Revelation You Missed",
     "subtitle": "This is not a prophecy chart. It's a picture of Jesus.",
-    "category": "general",
+    "category": "new-believer",
     "totalDays": 7,
     "description": "Revelation isn't a timeline to crack. It's a vision of Jesus for a church under pressure — seven days to finally see it.",
     "howToUse": null,
@@ -338,7 +338,7 @@ export const PLANS: PlanSeed[] = [
   {
     "title": "Faith That Shows Up",
     "subtitle": "If it doesn't change anything, is it faith?",
-    "category": "general",
+    "category": "new-believer",
     "totalDays": 7,
     "description": "James won't let your faith stay theoretical. Seven days through the New Testament's most practical, most uncomfortable letter.",
     "howToUse": null,
@@ -454,7 +454,7 @@ export const PLANS: PlanSeed[] = [
   {
     "title": "You Were Chosen Before You Knew You Were Lost",
     "subtitle": "Your identity was settled before you were born.",
-    "category": "general",
+    "category": "new-believer",
     "totalDays": 14,
     "description": "Before the world began, God chose you. Fourteen days to stop building an identity and start living from one.",
     "howToUse": null,

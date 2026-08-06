@@ -4,11 +4,31 @@ import { db } from "../db/index.js";
 import { devotionalPlans, devotionalDays } from "../db/schema.js";
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { bookCounts, summarizeBooks } from "../lib/book-summary.js";
+import { CANON, normalizeBookName } from "../lib/bible-coverage.js";
 import { canReadPlan } from "../lib/plan-access.js";
 
 export const plans = new Hono<AppEnv>();
 
 plans.use("*", requireAuth);
+
+const CANON_ORDER = new Map(CANON.map((b) => [b.book, b.bookOrder]));
+
+/**
+ * Where a plan sits in Bible order, for the library listing.
+ *
+ * A shelf of read-throughs wants to read Romans, 1 Corinthians, 2 Corinthians,
+ * not whatever order they happened to be inserted in. The book is the one the
+ * plan spends the most days in (bookCounts is already sorted that way), which
+ * keeps "1 & 2 Timothy" under 1 Timothy and leaves a themed plan under whatever
+ * it mostly walks through. Anything unrecognisable sorts to the end rather than
+ * to the front, so a bad reference never silently leads the shelf.
+ */
+function canonRank(books: { book: string; days: number }[]): number {
+  const top = books[0]?.book;
+  if (!top) return Number.MAX_SAFE_INTEGER;
+  const canonical = normalizeBookName(top);
+  return (canonical && CANON_ORDER.get(canonical)) || Number.MAX_SAFE_INTEGER;
+}
 
 // GET /api/plans  → all plans visible to this user (public + their own generated)
 plans.get("/", async (c) => {
@@ -65,6 +85,16 @@ plans.get("/category/:category", async (c) => {
       // that only passes through Romans.
       books: bookCounts(chapters),
     };
+  });
+
+  // Category first (unchanged), then Bible order, then oldest first. The SQL
+  // above cannot do the middle one: a plan's book is derived from its days, not
+  // stored on the row.
+  plansWithBooks.sort((a, b) => {
+    if (a.category !== b.category) return a.category < b.category ? -1 : 1;
+    const rank = canonRank(a.books) - canonRank(b.books);
+    if (rank !== 0) return rank;
+    return (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0);
   });
 
   return c.json({ plans: plansWithBooks });
