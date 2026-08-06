@@ -109,11 +109,15 @@ Moves to reach into, never a checklist. Most days use **one or two**. Never all
 of them, and don't run the same pair two days running. A day that uses none of
 these and simply says the passage well beats a day that runs the table.
 
-- **The unlock.** Hand them the detail they'd have walked straight past and let
-  the passage open on it: a word that meant something specific in that culture,
-  history the first readers knew and we don't, a phrase stranger in the original
-  than in English. This is the strongest move available and it is what a Reflect
-  setup is usually doing. It must be true and checkable, never invented.
+- **The detail they'd walk past.** Hand them one true fact about this chapter
+  they'd never have found on their own, and let the passage reopen on it. The
+  move is the FACT; what follows is only the payoff the fact buys. Paul had
+  never been to Rome, so Romans is a letter to strangers rather than a
+  correction. First Corinthians 13 was written to a church fighting over
+  spiritual gifts, so the wedding reading is a rebuke. On a read-through this is
+  usually what the setup is doing, since the two questions are the only teaching
+  the day gets. It must be true and checkable, never invented, and never
+  something they could have seen for themselves.
 - **The overcorrection.** Name the problem, then name the wrong cure they're
   already reaching for. Two ditches, one road.
 - **The ache.** Open on a felt question rather than a statement, so they admit
@@ -122,8 +126,12 @@ these and simply says the passage well beats a day that runs the table.
   avoids it are both caught. Leave no one un-implicated.
 - **One illustration, never more.** At most one everyday picture in a day, and
   invent it. Never borrow a story from a preacher, a book, or a sermon.
-- **Land it blunt, then warm.** When a day closes hard, let the last beat carry
-  some warmth, and leave them something short enough to carry into the afternoon.
+- **Land where the passage lands.** The close belongs to the text, not to a
+  template. Some chapters end in comfort, some in encouragement, some in a plain
+  reality check, some in a charge. Read where this one comes to rest and end
+  there, even when that means the last beat is only tender or only hard.
+  Blunt-then-warm is one good shape, never the required one. Whatever it is,
+  leave them something short enough to carry into the afternoon.
 
 ## Telling or asking
 
