@@ -1449,5 +1449,929 @@ export const PLANS: PlanSeed[] = [
         "prayerPrompt": null
       }
     ]
+  },
+  {
+    "title": "The Book of Romans",
+    "subtitle": "A letter to strangers, laying out everything.",
+    "category": "general",
+    "totalDays": 16,
+    "description": "Sixteen days through Romans, one chapter a day. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "Paul wrote Romans around AD 57, near the end of his third journey, and he had never once been to Rome. That single fact shapes the whole letter. Every other letter he wrote was fixing a church he had planted, so he could assume things; here he is a stranger introducing himself, and he wants their backing for a mission further west into Spain. So he lays the whole case out from the ground up, more completely than he ever does anywhere else. The church there was also divided. Jewish believers had been expelled from the city years earlier and had come back to find a mostly Gentile church that had learned to get along without them. That tension is not a side issue: it is why the letter spends three chapters on what God is doing with Israel, and why it ends in a long argument about who gets to judge whom over food and holy days. The hinge is chapter 12 verse 1, where eleven chapters of what God has done finally turn into a therefore. Watch how often Paul stops to argue with an imaginary objector who keeps interrupting him. And notice that he never softens a verdict on the way to the mercy.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "Romans 1:1–32",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul is introducing himself to a church that has never met him, and the first word he picks for who he is, doulos, means a slave. He is writing to the capital of an empire that ran on them. What do you make of that being the first thing he wants strangers to know about him?",
+        "reflectionQ2": "Three times at the end of this chapter Paul says God gave them over, and each time the punishment is being handed exactly what they kept asking for. Where has God let you have something you wanted badly, and what did having it do to you?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 2,
+        "chapter": "Romans 2:1–29",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul spends the end of chapter one listing sins his readers would have cheered him for naming, then opens chapter two by telling whoever was nodding along that they have no excuse either. Who were you agreeing with him about, right up until verse one?",
+        "reflectionQ2": "Paul ends the chapter saying the real thing is inward, and that its praise comes from God rather than from people. What part of your faith would quietly fall apart if no one ever noticed it again?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 3,
+        "chapter": "Romans 3:1–31",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The word Paul uses in verse 25 for what God made Jesus is the same word the Greek Old Testament uses for the mercy seat: the lid of the ark, behind a curtain, where blood was sprinkled once a year where no one could watch. Paul says God set Jesus out in public as that place. What changes when the hidden thing is put where anyone can look?",
+        "reflectionQ2": "Paul says everyone falls short, and that everyone who is put right with God is put right as a gift, with no distinction between them. Where do you still keep a private ranking of who needed more grace than you did?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 4,
+        "chapter": "Romans 4:1–25",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul rests his entire case on the order of two events: Abraham was counted righteous in Genesis 15, and circumcised in Genesis 17, years afterward. What would it mean for you that the verdict came first, before there was anything to show for it?",
+        "reflectionQ2": "Paul says Abraham looked straight at his own body, as good as dead, and God's promise still stood. What is the fact about your situation you keep staring at instead of what God actually said?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 5,
+        "chapter": "Romans 5:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul is careful about the timing here, and he says it twice: not after we came around, not once we cleaned up, but while we were still enemies. What would actually change today if you believed God settled the matter of you before you improved?",
+        "reflectionQ2": "Paul sets one man's act against another man's act and says the second one reaches further than the first. Where are you still living like what Adam did runs deeper in you than what Jesus did?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 6,
+        "chapter": "Romans 6:1–23",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul builds the whole chapter on slavery, then stops in verse 19 to apologize for the picture. He keeps using it anyway, because his point is that nobody is unowned. Whose are you, judging only by what you actually obeyed this week?",
+        "reflectionQ2": "Paul asks them what they got out of the things they are now ashamed of, and then lets the question sit there. Name one of yours, and answer him honestly: what did it actually give you?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 7,
+        "chapter": "Romans 7:1–25",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Out of all ten commandments Paul reaches for the only one nobody can see you break, do not covet, and says that is the one that showed him what he was. Which command would catch you if the only evidence allowed were what happens inside you?",
+        "reflectionQ2": "Paul says the problem is not that he does not know what is right. He knows, and does the other thing anyway. Where have you been treating a sin like an information problem when Paul says it is not one?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 8,
+        "chapter": "Romans 8:1–39",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "In verse 15 Paul leaves one word untranslated: Abba, the ordinary household word a child used at home, sitting in a Greek letter to a Latin-speaking city. He does not explain it. He just lets it stand. What do you make of God's Spirit putting a family word in your mouth instead of a title?",
+        "reflectionQ2": "Paul closes by listing everything that could cut you off from God's love and ruling each one out, including things that have not happened yet. What is on your list that you have never once heard God say he would leave you over?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 9,
+        "chapter": "Romans 9:1–33",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Before Paul says a single word about God choosing, he says he carries constant grief and could wish himself cut off from Christ if it would save his own people. He cannot start this chapter dry-eyed. What does that tell you about how this teaching is meant to be held?",
+        "reflectionQ2": "Paul takes the fairness objection and refuses to answer it. He asks who you are to talk back to God, and leaves it there. What does it do to you to be told the question is out of order instead of being given a reason?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 10,
+        "chapter": "Romans 10:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells people living in the emperor's own city that the thing you say out loud is that Jesus is Lord. That was the wording of the loyalty everyone around them gave to Caesar. What has it cost you lately to say out loud something everyone near you says about someone else?",
+        "reflectionQ2": "Paul says his own people are sincere and wrong, and that being sincere is not the thing that fixes it. Where have you been counting on the fact that you meant well?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 11,
+        "chapter": "Romans 11:1–36",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul builds the olive tree picture and then admits in verse 24 that it is backwards, since nobody grafts a wild branch into a cultivated tree; it is always done the other way. He keeps the picture anyway. What is he telling you about yourself by using an image that does not work in real life?",
+        "reflectionQ2": "After eleven chapters of argument Paul stops arguing and says God's judgments cannot be searched out and his ways cannot be traced. What have you been trying to get to the bottom of about God, and what would it take to let it go unsolved?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 12,
+        "chapter": "Romans 12:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul asks for a living sacrifice, which is two words that cancel each other out, since a sacrifice is by definition a thing that dies. He calls handing your body over like that your reasonable worship. What have you given God and then quietly taken back?",
+        "reflectionQ2": "Paul does not tell them to think less of themselves. He tells them to think accurately, by the measure of faith God handed out. What would an accurate estimate of you sound like, said out loud?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 13,
+        "chapter": "Romans 13:1–14",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells the church in Rome to submit to the governing authorities, and the man on the throne as he wrote was Nero. That same government later executed Paul. What do you do with a command that eventually cost its author his life?",
+        "reflectionQ2": "Paul says the only debt worth leaving open is love, and that love is what the whole law was after the entire time. Who is someone you have decided you have paid off?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 14,
+        "chapter": "Romans 14:1–23",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul calls the person with the stricter conscience the weak one, which is backwards from how that word usually gets thrown around, and then he flatly refuses to rule on who is right about the food. What is he protecting by not settling it?",
+        "reflectionQ2": "Paul says the person you are judging answers to God rather than to you, and that God is able to make them stand. Name the person you thought of. What have you been doing with a case that was never yours?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 15,
+        "chapter": "Romans 15:1–33",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Fifteen chapters in, Paul finally says what he wants: he is heading for Spain, and he needs Rome to send him. Everything before this was a stranger making his case. What does it change to learn the deepest theology in the Bible was written to people he was about to ask for something?",
+        "reflectionQ2": "Paul says the strong carry the weak instead of pleasing themselves, and then says even Christ did not please himself. Where has your strength been going mostly toward your own comfort?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 16,
+        "chapter": "Romans 16:1–27",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul had never been to Rome, and he still ends by naming about twenty-six people there one at a time, starting with Phoebe, the woman he entrusted the letter to. It is the chapter almost everyone skips. What does it say about God that the most careful argument in the Bible ends in a list of names?",
+        "reflectionQ2": "In the middle of his goodbyes Paul says the God of peace will crush Satan under their feet shortly, which is the promise from Genesis 3 with ordinary people standing where it lands. What in your life have you stopped believing God intends to end?",
+        "prayerPrompt": null
+      }
+    ]
+  },
+  {
+    "title": "The Book of 1 Corinthians",
+    "subtitle": "A proud church, and a letter that will not flatter it.",
+    "category": "general",
+    "totalDays": 17,
+    "description": "Seventeen days through 1 Corinthians, one chapter a day. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "Paul wrote this around AD 55 from Ephesus, to a church he had planted himself about five years earlier. Corinth was a port city that Rome had razed and rebuilt as a colony, so it was full of freedmen and traders and new money, and it had a reputation the rest of Greece enjoyed repeating. This church was not struggling to believe. It was struggling to behave, and it was rather pleased with itself. They had sent Paul a letter full of questions, and he had also heard things from Chloe's household, so the letter keeps alternating between what he was told and what they asked. Watch for that seam: it has been reported to me, versus now concerning the things you wrote. Almost every problem in the letter grows from one root, which is people using a real gift or a real freedom to establish that they are further along than someone else. That is why the most famous chapter about love sits in the middle of an argument about spiritual gifts, and why it was never a wedding reading. Watch how often Paul answers a question about what is allowed by changing the subject to whether it builds anyone up.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "1 Corinthians 1:1–31",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says the message is a crucified Messiah, and crucifixion was the death Rome kept for slaves and rebels. It was not a word you said in decent company. What does it do to your picture of God that he put the most shameful thing in that culture at the center of everything?",
+        "reflectionQ2": "Paul tells them to look around the room and notice how few of them were impressive before God called them, and says that was the whole point. What is the thing about yourself you assume God worked around rather than chose you with?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 2,
+        "chapter": "1 Corinthians 2:1–16",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says he came to them in weakness and fear and much trembling, and he had arrived straight from Athens, where his most polished speech had earned him a shrug. He says he decided to stop trying to be impressive. What are you still trying to win people with?",
+        "reflectionQ2": "Paul says the Spirit searches even the deep things of God, and that this is the same Spirit God has given you. What have you assumed about God for years without ever once asking him about it?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 3,
+        "chapter": "1 Corinthians 3:1–23",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says every builder's work goes into a fire, and that some of it burns while the builder still gets out. He is describing work that was real and still came to nothing. What are you building that you have never asked whether it would survive that?",
+        "reflectionQ2": "Paul says the proof they are still infants is not their doctrine and not a scandal. It is envy and quarrelling. Who are you envious of right now, and what does Paul say that makes you?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 4,
+        "chapter": "1 Corinthians 4:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says he cares very little what they think of him, and then says something stranger: he does not trust his own verdict on himself either. What would change if your own opinion of you were not the last word?",
+        "reflectionQ2": "Paul asks what they have that they were not given, and if it was all given, why they are strutting. Name the thing about yourself you are quietly proudest of. Where did you get it?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 5,
+        "chapter": "1 Corinthians 5:1–13",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The situation Paul confronts is one even Corinth found shocking, and the part that stuns him is that the church had grown proud of how tolerant they were being about it. What are you calling grace that is really you avoiding a hard conversation?",
+        "reflectionQ2": "Paul says his business is the people inside the church and not the ones outside, and that they have it exactly backwards. Where do you spend more moral energy on people who never claimed to follow Jesus than on your own life?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 6,
+        "chapter": "1 Corinthians 6:1–20",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul lists everyone who will not inherit the kingdom and then says, to their faces and without softening the list, that this is what some of them were. Past tense. What would it take for you to hear were about the thing you still name yourself by?",
+        "reflectionQ2": "Paul says you are not your own because you were bought at a price, and he uses the language of a purchase in a port city where people were actually bought. What do you do with your body on the assumption that it is yours to spend?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 7,
+        "chapter": "1 Corinthians 7:1–40",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Twice in this chapter Paul stops to tell them which parts are a command from the Lord and which parts are only his own judgment. He marks the difference on purpose. What does it say about Paul that he would rather be trusted than simply obeyed?",
+        "reflectionQ2": "Paul tells them to hold marriage, grief, joy and buying loosely, because the shape of this world is passing. He does not tell them to quit any of it, only to stop gripping. What are you holding onto as if it were the thing that lasts?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 8,
+        "chapter": "1 Corinthians 8:1–13",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "This is not really a question about meat. Temple dining rooms were where business got done in Corinth, so turning down that invitation cost you contacts and standing. Paul answers a question about what is permitted by asking what builds people up. What did you last decide purely on the grounds that it was allowed?",
+        "reflectionQ2": "Paul says knowing more inflates you while love builds other people, and he says it directly to the ones who were right about the meat. Who have you been right at lately?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 9,
+        "chapter": "1 Corinthians 9:1–27",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Corinth hosted the Isthmian games, second only to the Olympics, so when Paul talks about runners and boxers and a crown that wilts, he is pointing at something they had all stood and watched. He says he trains like that so he is not disqualified himself. What in your life gets that kind of deliberate training?",
+        "reflectionQ2": "Paul says he is free from everyone and made himself a slave to everyone on purpose, so that he might win some. What freedom of yours have you never once given up for somebody else's sake?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 10,
+        "chapter": "1 Corinthians 10:1–33",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells a mostly Gentile church what happened to our fathers in the wilderness, handing them Israel's story as their own family history, and then says it was written down as a warning for them. What does it do to you to be handed a history you were not born into and told it is yours?",
+        "reflectionQ2": "Paul says nothing has come at you that is not common to everyone, and that God is faithful and always makes a way out. Where have you been treating your situation as the exception?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 11,
+        "chapter": "1 Corinthians 11:1–34",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The trouble at their table was who could get there early. The ones with means ate while the ones still working came in late to nothing, and Paul says a gathering like that does more harm than good. Who would have to rearrange their week for you to eat with them?",
+        "reflectionQ2": "Paul says to examine yourself before you eat, and the thing he wants examined is whether you can actually see the people in the room. What would you have to admit about how you see one particular person in your church?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 12,
+        "chapter": "1 Corinthians 12:1–31",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says the parts of the body that look weakest are the ones you cannot do without, and that the least presentable parts get the most care. He is describing a church. Who is that person where you are, and when did you last treat them that way?",
+        "reflectionQ2": "Paul tells them to want the best gifts, and then says he will show them something better than any of them. What are you chasing that Paul would call genuinely good and still not the point?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 13,
+        "chapter": "1 Corinthians 13:1–13",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "This is the wedding reading, and Paul wrote it to a church tearing itself apart over who had the better spiritual gifts. Every line is aimed at someone in that room who was certain they were the mature one. Read it again as an accusation: which line lands on you?",
+        "reflectionQ2": "Paul defines love with fifteen verbs and not one feeling. Which of those fifteen would the person closest to you be least likely to say about you?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 14,
+        "chapter": "1 Corinthians 14:1–40",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul's whole test in this chapter is what happens when an outsider walks in and listens. Not whether the gift is real, but whether anybody else came away with anything. What do you do in your faith that would mean nothing to a stranger standing beside you?",
+        "reflectionQ2": "Paul says everyone arrives with something to bring, and the only rule is that it builds someone up. What do you bring when you gather with other Christians, and who is it actually for?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 15,
+        "chapter": "1 Corinthians 15:1–34",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says he is handing on something that was handed to him, then names witnesses, including more than five hundred at once, most of whom he says are still alive. He is telling them to go and ask. What would it mean for your faith to be the kind of thing somebody could go check?",
+        "reflectionQ2": "Paul says that if this life is all there is, Christians are the most pitiable people alive, and he does not soften it. Does your life require the resurrection to make sense, or would it hold together fine without it?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 16,
+        "chapter": "1 Corinthians 15:35–58",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul answers the question about what kind of body by pointing at a seed: what comes up is not what you put in the ground, and it had to die first to become that. What does that do to the way you have been picturing being raised?",
+        "reflectionQ2": "Paul spends fifty-seven verses on the resurrection and lands the whole thing on this: so keep working, because none of it is wasted. What have you been doing that has felt pointless, and what does that line do to it?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 17,
+        "chapter": "1 Corinthians 16:1–24",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul dictated this entire letter and then takes the pen at the end to write the greeting in his own hand. After sixteen chapters of correction, he signs it himself. What does that say about how he meant all of it to be heard?",
+        "reflectionQ2": "Paul tells them to set money aside every week, in advance, so that nothing has to be collected once he arrives. Where does your generosity still depend on being asked?",
+        "prayerPrompt": null
+      }
+    ]
+  },
+  {
+    "title": "The Books of 1st and 2nd Thessalonians",
+    "subtitle": "The oldest letters we have, to a church he barely got to teach.",
+    "category": "general",
+    "totalDays": 8,
+    "description": "Eight days through 1 and 2 Thessalonians, one chapter a day. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "First Thessalonians is probably the earliest letter Paul wrote, and quite possibly the earliest thing in the New Testament, sent around AD 50 or 51 from Corinth. So the oldest surviving Christian writing is a letter to people worried that friends who had died were going to miss out. Paul had only been in Thessalonica a few weeks before a riot ran him out of the city, which means this is a church he barely got to teach, and he says plainly that not knowing how they were doing had been eating at him. He sent Timothy back to find out, Timothy came home with good news, and you can hear the relief through the first three chapters. The second letter follows within months, because something had gone wrong: someone was telling them the day of the Lord had already come, apparently using a letter with Paul's name on it, and some of them had quit working to sit and wait. That is why the second letter is cooler and more precise than the first. Watch how much of both letters is Paul talking about his own conduct while he was with them. He never separates what he taught from how he behaved while teaching it.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "1 Thessalonians 1:1–10",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "This is very likely the oldest letter Paul wrote and possibly the oldest Christian writing that survives, and the first thing on the page is him thanking God for their work of faith, labour of love, and patience of hope. What does it say about this faith that the earliest thing we have of it is a thank-you note?",
+        "reflectionQ2": "Paul says the report about them is already going around on its own: they turned from idols to the living God, and he does not have to tell anyone. What would the report about you say you turned from?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 2,
+        "chapter": "1 Thessalonians 2:1–20",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul picks a nursing mother as the picture of how he was among them, and in the same breath says he worked night and day so he would not cost them a thing. What does it tell you about him that he wanted to be remembered for what he refused to take?",
+        "reflectionQ2": "Paul says he handed them the message and his own life along with it, because they had become dear to him. Who are you giving the truth to without giving them any of yourself?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 3,
+        "chapter": "1 Thessalonians 3:1–13",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says he could not stand not knowing any longer, sent Timothy back and stayed behind alone in Athens, and he admits he was afraid the whole thing had been for nothing. He wrote that down and let them read it. What do you never let anyone see you worry about?",
+        "reflectionQ2": "Paul tells them that hearing they were still standing was the thing that brought him back to life. Whose walking with God would do that for you, and when did you last tell them so?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 4,
+        "chapter": "1 Thessalonians 4:1–18",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul's instruction to a church buzzing about the end of the world is to live quietly, mind their own business, and work with their hands. What is the least dramatic obedience God has been asking of you?",
+        "reflectionQ2": "Paul does not tell them to stop grieving. He tells them not to grieve the way people do who have no hope, which means there is a way to grieve that has hope inside it. What are you mourning, and what would hope actually change about how you carry it?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 5,
+        "chapter": "1 Thessalonians 5:1–28",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says the day comes like a thief, and then immediately tells them they are not in the dark, so it will not catch them the way it catches everyone else. He turns his own warning into a reassurance. What are you bracing for that God says is not going to blindside you?",
+        "reflectionQ2": "Paul stacks three of the shortest commands in the Bible back to back: rejoice always, pray without stopping, give thanks in everything, and says this is God's will for you. Which of those three have you quietly decided does not apply to your situation?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 6,
+        "chapter": "2 Thessalonians 1:1–12",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells them he brags about them to other churches, and the thing he brags about is that they are still standing while people make their lives hard. What would somebody honestly be able to brag about you for right now?",
+        "reflectionQ2": "Paul comforts a persecuted church by telling them God will settle accounts with the people hurting them. He offers that as relief, not as a threat. What does it do to you that God's justice is meant to land on you as good news?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 7,
+        "chapter": "2 Thessalonians 2:1–17",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells them not to be shaken by a spirit, a word, or a letter that looked like it came from him, because somebody was circulating a message with his name on it. He signs the end of this letter by hand so they can tell the difference. What have you accepted as true about God because of who told you rather than where it came from?",
+        "reflectionQ2": "After a chapter about deception and a coming man of lawlessness, Paul stops and prays that God would comfort their hearts and steady them. What is the fear God would have to settle before you could get anything done today?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 8,
+        "chapter": "2 Thessalonians 3:1–18",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Some of them had stopped working because they believed the end had arrived, and Paul's answer is that anyone who will not work should not eat. He is talking about people using something true about God as a reason to do nothing. Where has a real belief of yours become an excuse?",
+        "reflectionQ2": "Paul has just finished dealing with people freeloading off the church, and his next word to everyone else is not to get tired of doing good. He knows that watching somebody take advantage is what makes people quit. Who has worn you out, and what would it cost you to keep doing right by them anyway?",
+        "prayerPrompt": null
+      }
+    ]
+  },
+  {
+    "title": "The Books of 1st and 2nd Timothy",
+    "subtitle": "Two letters to one young leader.",
+    "category": "general",
+    "totalDays": 10,
+    "description": "Ten days through 1 and 2 Timothy, one chapter a day. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "Both letters go to Timothy, a young leader Paul had left behind in Ephesus to deal with a mess, and they are two of only four letters Paul wrote to a person rather than a church. The difference shows on every page: he is not arguing a case, he is talking to a man he loves and worries about. The first letter takes on teachers spinning endless speculation out of genealogies and the law, and Paul's answer is strikingly ordinary. He does not counter their ideas with better ideas; he hands Timothy lists of what a decent person actually looks like, mostly temper, money, drink and how a man is at home. The second letter is a different thing entirely. It is traditionally held to be the last thing Paul ever wrote, from a Roman prison, and he knows how it ends: he asks for his coat before winter, asks for his books, names the people who walked out on him, and asks for Mark, the man he had once flatly refused to travel with. What he is afraid of is that what he was given will not survive him. Watch how much of both letters is ordinary character rather than strategy, and how often he tells a younger man not to let anyone look down on him. And notice that when Paul finally sums up his own life, he does not say he won.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "1 Timothy 1:1–20",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul calls himself the worst of sinners, and the verb he picks is present tense: I am, not I was. This is decades after his conversion, near the end of his life. What do you make of a man that far along still talking about himself that way?",
+        "reflectionQ2": "Paul says the reason he was shown mercy is so he could be the demonstration case, proof that Jesus has patience enough for anyone who comes after. His worst was the point. What part of your past have you been treating as a disqualification when God may be treating it as the evidence?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 2,
+        "chapter": "1 Timothy 2:1–15",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul says there is one mediator between God and men, and he goes out of his way to call him the man Christ Jesus. He could have said Son of God, and he says man. What does it change for you that the one standing in between is one of us?",
+        "reflectionQ2": "Paul's very first instruction is prayer for kings and everyone in authority, and the ruler in question was no friend to Christians. Name the person in charge of something in your life you have complained about more than you have prayed for.",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 3,
+        "chapter": "1 Timothy 3:1–16",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul's list for a church leader runs to about fifteen items and only one of them is a skill. The rest are temper, money, drink, and how the man is at home. Which item on that list would the people who live with you say is your weakest?",
+        "reflectionQ2": "Paul says he is writing so Timothy will know how people ought to conduct themselves in God's household, and calls the church the pillar and support of the truth. What would change in how you act around other Christians if you took that description at face value?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 4,
+        "chapter": "1 Timothy 4:1–16",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells Timothy not to let anyone look down on him for being young, and the way he says to handle it is not to argue but to be the example, in speech, conduct, love, faith and purity. Which of those five would quiet the person who does not take you seriously?",
+        "reflectionQ2": "Paul tells Timothy to watch two things closely, his life and his teaching, and he puts the life first. Where has your attention to what is true outrun your attention to how you are actually living?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 5,
+        "chapter": "1 Timothy 5:1–25",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "In the middle of instructions about widows and elders, Paul stops to tell Timothy to quit drinking only water and take a little wine for his stomach. He is worried about the man's health. What does it tell you about the two of them that this made it into the letter?",
+        "reflectionQ2": "Paul says someone who will not provide for their own family has denied the faith and is worse than an unbeliever. That is the harshest sentence in the letter and it is about ordinary responsibility. Who is your own that you have been quietly leaving to somebody else?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 6,
+        "chapter": "1 Timothy 6:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The line everyone quotes is that money is the root of all evil, and that is not what Paul wrote. He wrote that the love of money is a root of all kinds of evil, and the people he is warning are the ones determined to get rich. Where has wanting more quietly become the thing organizing your decisions?",
+        "reflectionQ2": "Paul says godliness with contentment is great gain, and then sets the bar at food and clothing. What would you have to stop believing about your life in order to call that enough?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 7,
+        "chapter": "2 Timothy 1:1–18",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul reminds Timothy that his faith lived first in his grandmother Lois and then his mother Eunice, and he names them both. In the same chapter he says everyone in Asia has walked out on him. Who put faith into you that you could name out loud?",
+        "reflectionQ2": "Paul writes that God did not give us a spirit of fear but of power and love and a sound mind, and he writes it from a prison cell to a young man who seems to have been intimidated. What are you avoiding that you have been calling wisdom?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 8,
+        "chapter": "2 Timothy 2:1–26",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "In one sentence Paul lays out four generations: what he taught Timothy, Timothy handing it to faithful people, and those people teaching others. He is in prison, thinking three handoffs past his own death. Who would you hand yours to, and have you started?",
+        "reflectionQ2": "Paul writes that he is chained up like a criminal, and then says the word of God is not chained. He is in irons, pointing at what is not. What in your life have you assumed is stuck simply because you are?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 9,
+        "chapter": "2 Timothy 3:1–17",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The word Paul uses for scripture in verse 16 means God-breathed, and it appears nowhere else in the New Testament. He reaches for a word nobody else uses. What changes if you think of the Bible as something breathed out rather than written down?",
+        "reflectionQ2": "In a long list of what people will be like, Paul ends on the ones who keep the shape of godliness while denying its power, and tells Timothy to stay away from them. What part of your faith is currently shape without power?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 10,
+        "chapter": "2 Timothy 4:1–22",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul knows this is the end, and among his last requests are his coat, because winter is coming, and his books. He also asks for Mark, the man he once refused to travel with. What does it say about a life that it ends in a coat, some books, and a reconciliation?",
+        "reflectionQ2": "Paul does not say he won. He says he fought, he finished, and he kept the faith that was handed to him. If you said those three things about your life so far, which one would be hardest to say honestly?",
+        "prayerPrompt": null
+      }
+    ]
+  },
+  {
+    "title": "The Book of Titus",
+    "subtitle": "Blunt instructions for a hard island.",
+    "category": "general",
+    "totalDays": 3,
+    "description": "Three days through Titus, one chapter a day. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "Titus was on Crete doing much the same work Timothy was doing in Ephesus, and this letter is shorter and blunter for it. Crete had a reputation, and Paul quotes one of their own poets calling Cretans liars and lazy gluttons, then says the man told the truth. That is the situation Titus is pastoring into. The letter turns on one idea: that grace itself is what teaches a person to say no, and that an ordinary well-lived life makes the message about God look good to whoever is watching. Paul gives instructions to older men, older women, younger women, young men and household slaves, and the reason he gives is almost always about how it will land on an outsider. There is very little theory here. Watch for the two places where Paul stops the practical instruction cold and states the whole gospel in a couple of sentences, and notice where he chose to put them.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "Titus 1:1–16",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul quotes a Cretan poet calling Cretans liars and lazy gluttons, and then says the man told the truth. He uses a pagan writer as evidence about the very people Titus is pastoring. What do you make of Paul being willing to agree with an outsider's read on them?",
+        "reflectionQ2": "Paul says they claim to know God and then deny him by what they do. He does not say they are lying about believing. Where does your life contradict something you would say you believe?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 2,
+        "chapter": "Titus 2:1–15",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Paul tells household slaves that the way they do their work will make the teaching about God attractive, and the word he uses is the one behind our word cosmetic. He says an ordinary life makes the message look good. Whose picture of God is being formed by watching you?",
+        "reflectionQ2": "Paul says grace itself is what teaches you to say no. Not rules, not fear, grace. What have you been trying to quit by willpower that Paul says grace was meant to train out of you?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 3,
+        "chapter": "Titus 3:1–15",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Before Paul says a word about how to treat outsiders, he says we ourselves were once foolish, disobedient and deceived, and he puts himself in that sentence. Who do you talk about in a way that suggests you were never where they are?",
+        "reflectionQ2": "Paul says God saved us not because of anything we did right but because of his own mercy. What have you been quietly counting as your contribution?",
+        "prayerPrompt": null
+      }
+    ]
+  },
+  {
+    "title": "The Book of Philemon",
+    "subtitle": "The shortest letter Paul wrote, about one man.",
+    "category": "general",
+    "totalDays": 1,
+    "description": "One day in Philemon. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "This is the shortest letter Paul wrote, twenty-five verses, and it is about one man. Onesimus was a slave belonging to Philemon, a Christian in Colossae whose church met in his house. Onesimus ran, ended up with Paul, became a believer, and is now being sent back carrying this letter. Under Roman law Philemon could have done nearly anything he wanted to a returned runaway. Paul says plainly that he has the authority to command and is choosing to ask instead, and then offers to pay out of his own pocket whatever the man owes. He never gives the order everyone reading it expects. Watch for the play on the name Onesimus, which means useful, and watch what Paul asks Philemon to receive him back as. It is one day, and it is worth reading slowly.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "Philemon 1:1–25",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The runaway's name, Onesimus, means useful, and Paul plays on it: once he was useless to you, now he is useful. Then Paul writes an IOU in his own handwriting for whatever the man owes. What does it say about Paul that he would rather pay than give an order?",
+        "reflectionQ2": "Paul says he has every right to command Philemon to do this, and chooses to ask instead. He gives up his authority on purpose. Where could you get what you want by pulling rank, and what would asking cost you?",
+        "prayerPrompt": null
+      }
+    ]
+  },
+  {
+    "title": "The Book of Revelation",
+    "subtitle": "A letter to seven real churches, from an island.",
+    "category": "general",
+    "totalDays": 22,
+    "description": "Twenty-two days through Revelation, one chapter a day. The passage and two questions. No notes, no commentary, just you and the text.",
+    "howToUse": "John wrote this from Patmos, a small island off the coast of Asia Minor where Rome sent people it wanted out of the way, most likely in the nineties. He says he was there for the word of God and the testimony of Jesus. The first thing worth knowing is that this is a letter, sent to seven real churches sitting on a real mail route that ran in a circle through what is now western Turkey, and every one of them would have recognised their own city in what he says to them. The second is that almost every image in the book comes from somewhere else in the Bible. There are hundreds of echoes of Daniel, Ezekiel, Exodus and Zechariah, and John never once stops to say he is quoting. The book is built in sevens, and it circles rather than marches, so the same events get shown more than once from different angles. The hinge is chapter 5, where John hears that the Lion has conquered, turns to look, and sees a Lamb that had been killed. Hold onto that, because it is how the whole book works: what he hears and what he sees do not match, and the thing he sees is the truth. Watch for how often heaven interrupts everything to sing.",
+    "imageUrl": null,
+    "days": [
+      {
+        "dayNumber": 1,
+        "chapter": "Revelation 1:1–20",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "John is on Patmos, an island Rome used for putting people where they could not cause trouble, and that is where this comes to him. What do you make of God choosing a place of exile to show someone how the story ends?",
+        "reflectionQ2": "The man writing had known Jesus face to face, and when he sees him like this he goes down like a dead man. Then Jesus puts a hand on him and tells him not to be afraid. Which of those do you need more right now, the Jesus who terrifies you or the one who reaches out?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 2,
+        "chapter": "Revelation 2:1–29",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Jesus lists everything Ephesus got right: hard work, endurance, refusing to tolerate evil, testing people who claimed to be apostles and catching them out. Then he says he has one thing against them, and it is that they left their first love. What are you doing well that has quietly replaced why you started?",
+        "reflectionQ2": "Smyrna is one of only two churches Jesus has no complaint about, and it is the poorest and most beaten-down of the seven. He tells them they are rich, and that it is about to get harder. What have you concluded about God's opinion of you based on how your life is going?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 3,
+        "chapter": "Revelation 3:1–22",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Laodicea had no water of its own. Hot water was piped in from the springs at Hierapolis and cold water came from Colossae, and both arrived lukewarm and useless, which is exactly what Jesus is calling them. Then he offers them gold, white clothes and eye salve, the three things their city was famous for making. What is he saying by offering you the very thing you sell?",
+        "reflectionQ2": "The verse on all the greeting cards is spoken to a church, not to an outsider. Jesus is standing outside his own church asking to be let back in. When did you last actually check whether he was inside anything you were doing?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 4,
+        "chapter": "Revelation 4:1–11",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The twenty-four elders have crowns, and the only thing they ever do with them is throw them down in front of the throne, over and over. They are the only ones in the room with anything to give up. What have you been given that you have never once put down in front of God?",
+        "reflectionQ2": "The song in this room is not about what God has done for anybody. It is about the fact that he made everything, and that all of it exists because he wanted it to. What would change about your praying if you started where this song starts?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 5,
+        "chapter": "Revelation 5:1–14",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "An elder tells John to stop crying because the Lion of Judah has conquered, and John turns to look and sees a Lamb standing there as though it had been killed. What he hears and what he sees do not match. What does it do to the word conquered that the winner is standing there with the wounds still on him?",
+        "reflectionQ2": "John breaks down and weeps because no one can be found worthy to open the scroll. He is not crying over sin or suffering; he is crying because it looks like there may be nobody to run history. What are you afraid nobody is holding?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 6,
+        "chapter": "Revelation 6:1–17",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The souls under the altar ask how long, and what they get back is not soon and not a reason. They are given white robes and told to rest a little longer. What do you do with an answer from God that is not an explanation?",
+        "reflectionQ2": "Kings and generals and slaves all hide together and beg the rocks to fall on them, and the phrase John uses for what they are hiding from is the wrath of the Lamb. Which two words in that phrase have you been keeping apart in your head?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 7,
+        "chapter": "Revelation 7:1–17",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "John hears a number, one hundred forty-four thousand out of the tribes of Israel, and then turns to look and sees a crowd nobody could count out of every nation on earth. It is the same move as the Lion and the Lamb. What does that pattern suggest about the way God keeps his promises?",
+        "reflectionQ2": "The chapter ends with God himself wiping tears off faces. At that point it is not a crowd scene anymore. Which tears would you want him to get to first?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 8,
+        "chapter": "Revelation 8:1–13",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "After four chapters of singing that never once stops, heaven goes completely silent for half an hour. Whatever comes next is worth interrupting the worship for. What in your life have you never let get quiet enough to hear?",
+        "reflectionQ2": "The prayers people prayed are kept, and they go up in front of God mixed with incense out of an angel's hand. Nothing you said got lost. Which prayer of yours would you be most surprised to learn is still in that bowl?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 9,
+        "chapter": "Revelation 9:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "After everything in this chapter, the line John lands on is that the survivors did not repent. None of the disasters changed anybody. What does that tell you about what actually changes a person?",
+        "reflectionQ2": "John lists exactly what they would not give up: their murders, their sorceries, their immorality, their theft. They watched the world come apart and kept every one. What would you still be holding?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 10,
+        "chapter": "Revelation 10:1–11",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "John hears seven thunders speak and starts writing it down, and a voice from heaven stops him and tells him to seal it up. There is a piece of this vision God deliberately did not let us have. What do you do with the fact that God kept something back on purpose?",
+        "reflectionQ2": "John is told to eat the scroll and warned in advance that it will be sweet in his mouth and turn his stomach bitter. He eats it anyway. What has God given you that was both of those at the same time?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 11,
+        "chapter": "Revelation 11:1–19",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The two witnesses are killed, their bodies are left lying in the street for three and a half days while people celebrate and send each other gifts, and then they stand up. The party is the last thing before God moves. What do you assume about God when it looks like the other side won?",
+        "reflectionQ2": "The announcement is made in the past tense, as though it were already done, while the fighting is still going on below. What would change about your week if you treated the outcome as already settled?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 12,
+        "chapter": "Revelation 12:1–17",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The name John gives the dragon is the accuser, and he says the accusing went on in front of God day and night until he was thrown out. The main weapon in this war is an accusation. What accusation about yourself have you been treating as a verdict?",
+        "reflectionQ2": "John names three things that beat the accuser: the blood of the Lamb, the word of their testimony, and that they did not cling to their own lives. The second one is just saying out loud what happened to you. Who have you never told?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 13,
+        "chapter": "Revelation 13:1–18",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The pressure in this chapter is not violence first, it is commerce: without the mark you cannot buy or sell. The system squeezes by making ordinary life impossible. Where have you already gone along with something because not going along was going to be inconvenient?",
+        "reflectionQ2": "In the middle of the darkest chapter in the book, John mentions a book of life written before the world was made. The list existed before any of this started. What does that do to the fear this chapter is built to produce?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 14,
+        "chapter": "Revelation 14:1–20",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "A voice from heaven interrupts to say the dead who die in the Lord are blessed, that they rest from their labours, and that their works follow them. The work goes with them; it does not stay behind. Which of your works would you want walking behind you?",
+        "reflectionQ2": "The mark of the beast in the last chapter and the Father's name in this one go in the same place, out in the open where anyone can see. Everybody is marked by something. What is written on you that people can read without having to ask?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 15,
+        "chapter": "Revelation 15:1–8",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The song they sing beside the sea of glass is the song of Moses and the song of the Lamb, the same song that was sung on the far side of the Red Sea. The last rescue gets the first rescue's song. What older deliverance of yours would you sing about tonight?",
+        "reflectionQ2": "The whole song is about God's character and not one line of it is about what they escaped. They have just come through the worst of it, and they sing about who he is. What would your song be about if you wrote it right now?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 16,
+        "chapter": "Revelation 16:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Three separate times in this chapter John notes that people cursed God and did not repent. He keeps repeating it because that is the point of the chapter. What is your reflex when something goes badly wrong, and what does it show you?",
+        "reflectionQ2": "Right in the middle of the bowls, Jesus interrupts with one line aimed at whoever is reading: stay awake. He speaks straight to you in the middle of a catastrophe. What are you asleep to?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 17,
+        "chapter": "Revelation 17:1–18",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "John looks at the woman and says he marvelled with great wonder, and the angel immediately asks him why he is amazed. John is impressed by the very thing he is supposed to be seeing through. What have you caught yourself admiring that you know better than to admire?",
+        "reflectionQ2": "The whole war gets summarised in one sentence, and the winner is called the Lamb, not the Lion. John will not let that picture go even here. What is he protecting by refusing to switch to a stronger one?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 18,
+        "chapter": "Revelation 18:1–24",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The merchants mourn because nobody is buying anymore, and John runs their inventory: gold, silk, spice, cattle, and then the last two items on the list are slaves and the souls of men. People are the bottom line. What in your life treats people as the last item on a list?",
+        "reflectionQ2": "The call is to come out, and it is addressed to God's own people, who are apparently inside it and comfortable. What would coming out actually cost you?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 19,
+        "chapter": "Revelation 19:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The rider comes out in a robe already soaked in blood, before a single blow has been struck in this battle. The blood on him when he arrives is his own. What does that do to your picture of how he wins?",
+        "reflectionQ2": "John, who has seen every bit of this, still drops at the feet of an angel to worship and has to be told to stop. Even here he gets it wrong. What good thing have you been giving weight that belongs only to God?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 20,
+        "chapter": "Revelation 20:1–15",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "Two sets of books get opened: the record of what everyone did, and the book of life. Both are read out. What does it mean to you that the record is still read even for the people whose names are in the other book?",
+        "reflectionQ2": "Death itself gets thrown in. The thing that has been ending everything is the last thing to be ended. What does that do to the fear you carry about dying?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 21,
+        "chapter": "Revelation 21:1–27",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The city comes down. Nobody in this chapter goes up to God; God moves in with people, and John says there is no temple in the city because there is nothing left that needs bridging. What have you been picturing as going somewhere else that this chapter has coming here?",
+        "reflectionQ2": "John says the old things have passed away and then lists them: death, mourning, crying, pain. Which one on that list would you most need to see actually gone before you could believe it?",
+        "prayerPrompt": null
+      },
+      {
+        "dayNumber": 22,
+        "chapter": "Revelation 22:1–21",
+        "theme": null,
+        "passageContext": null,
+        "studyNotes": [],
+        "reflection": null,
+        "reflectionQ1": "The tree of life was last seen in Genesis with an angel and a flaming sword keeping people away from it. Here it stands in the middle of the street with its leaves out for the healing of the nations, and nobody is guarding it. What does it do to you that the story ends by handing back the one thing that was taken away?",
+        "reflectionQ2": "The last invitation in the Bible is a single word, come, and the only qualification named is being thirsty. After twenty-two chapters of thrones and plagues and armies, that is the door. What do you still think you have to be before you can walk through it?",
+        "prayerPrompt": null
+      }
+    ]
   }
 ];
