@@ -22,9 +22,7 @@
     "react-native-svg": "15.12.1"
   },
   "dependencies": {
-    "@neondatabase/auth": "^0.3.0-beta",
-    "expo-image-manipulator": "~13.0.6",
-    "expo-image-picker": "~16.0.6",
+    "@neondatabase/auth": "0.3.0-beta",
     "lucide-react-native": "^1.17.0",
     "metro-runtime": "^0.83.3"
   }
