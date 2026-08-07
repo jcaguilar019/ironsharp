@@ -46,7 +46,7 @@ function parseFocusVerses(ref: string): string | null {
   const match = ref.match(/:(.+)$/);
   return match ? match[1].trim() : null;
 }
-import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion, useProfile, usePlanSubmissions } from "@/lib/queries";
+import { useProgress, useGroupDayResponses, useGroups, useDiscipleships, useCustomQuestion, useProfile, usePlanSubmissions, useDays } from "@/lib/queries";
 import { isCalendarPaced } from "@/lib/groupTypes";
 import { getDailyVerse } from "@/lib/doneVerse";
 import type { GroupDayResponse } from "@/lib/api";
@@ -424,7 +424,18 @@ const TRANSLATION_STORAGE_KEY = "@ironsharp/bible_translation";
 
 const VERSES_PER_PAGE = 10;
 
-function BiblePassageCard({ passageRef, readThrough, onPageChange, passageRead, onMarkRead }: { passageRef: string; readThrough?: boolean; onPageChange?: () => void; passageRead?: boolean; onMarkRead?: () => void; }) {
+/** Ordinal words for a chapter split across days. Nothing in Scripture needs more. */
+const PART_WORDS = ["Part One", "Part Two", "Part Three", "Part Four", "Part Five"];
+
+/** First verse of a passage reference, for ordering the pieces of one chapter. */
+function startVerse(ref: string): number {
+  const match = ref.match(/:(.+)$/);
+  if (!match) return 1;
+  const n = parseInt(match[1]!.trim().replace(/[–—]/g, "-").split("-")[0] ?? "");
+  return isNaN(n) ? 1 : n;
+}
+
+function BiblePassageCard({ passageRef, readThrough, planRefs, onPageChange, passageRead, onMarkRead }: { passageRef: string; readThrough?: boolean; planRefs?: string[]; onPageChange?: () => void; passageRead?: boolean; onMarkRead?: () => void; }) {
   const cardBg = useThemeColor("card");
   const mutedBg = useThemeColor("muted");
   const borderColor = useThemeColor("border");
@@ -489,12 +500,13 @@ function BiblePassageCard({ passageRef, readThrough, onPageChange, passageRead, 
 
   // Read-throughs are one chapter a day, so the header reads "Matthew 26"
   // rather than echoing a verse range that covers the whole chapter anyway.
-  // A chapter too long for one sitting gets split across two days, and which
-  // half you are on is derived from the range against the chapter's real
-  // length — no stored label to fall out of sync with the passage. Themed
-  // plans use partial chapters constantly and must keep the plain reference.
-  // Only two parts are detectable this way; a chapter needing three (Psalm 119,
-  // Numbers 7) would need the part number carried in the data.
+  // A chapter too long for one sitting is split across days, and which piece
+  // you are on is counted from the plan's own days: every day covering this
+  // book and chapter, ordered by first verse. That is what makes three parts
+  // possible. Deriving it from this one range against the chapter length could
+  // only ever tell first from not-first, so Luke 1 would have read "Part Two"
+  // twice. Nothing is stored, so no label can drift out of step with a passage.
+  // Themed plans use partial chapters constantly and keep the plain reference.
   const headerLabel = (() => {
     if (!readThrough || !parsed) {
       return verseRange ? passageRef : parsed ? `${parsed.book} Chapter ${parsed.chapter}` : passageRef;
@@ -503,7 +515,20 @@ function BiblePassageCard({ passageRef, readThrough, onPageChange, passageRead, 
     if (!verseRange || allVerses.length === 0) return base;
     const wholeChapter = verseRange.from === 1 && verseRange.to >= allVerses.length;
     if (wholeChapter) return base;
-    return `${base} ${verseRange.from === 1 ? "Part One" : "Part Two"}`;
+
+    const siblings = (planRefs ?? [])
+      .filter((r) => {
+        const p = parsePassageRef(r);
+        return p && p.book === parsed.book && p.chapter === parsed.chapter;
+      })
+      .sort((a, b) => startVerse(a) - startVerse(b));
+    const index = siblings.indexOf(passageRef);
+    // Days not loaded yet, or a reference that does not match its own plan:
+    // fall back to first-or-not, which is right whenever there are only two.
+    if (index < 0 || siblings.length < 2) {
+      return `${base} ${verseRange.from === 1 ? "Part One" : "Part Two"}`;
+    }
+    return `${base} ${PART_WORDS[index] ?? `Part ${index + 1}`}`;
   })();
 
   const totalPages = Math.max(1, Math.ceil(displayVerses.length / VERSES_PER_PAGE));
@@ -898,6 +923,12 @@ export default function DevotionalReader() {
   const input2Ref = useRef<TextInput>(null);
   const input3Ref = useRef<TextInput>(null);
   const inputQ3Ref = useRef<TextInput>(null);
+
+  // The plan's whole passage list, so the passage card can tell Part Two from
+  // Part Three when a chapter is split. Already cached by the day-list screen
+  // in most cases; the header falls back gracefully while it loads.
+  const planDays = useDays(planId);
+  const planDayRefs = (planDays.data ?? []).map((d: { chapter: string }) => d.chapter);
 
   const scrollToInput = (ref: React.RefObject<TextInput | null>) => {
     if (!ref.current || !scrollRef.current) return;
@@ -1533,6 +1564,9 @@ export default function DevotionalReader() {
               // with no reflection. Guarded on `day` so a still-loading themed
               // day never flashes the read-through header.
               readThrough={!!day && !day.reflection}
+              // Every passage in the plan, so a chapter split across days can
+              // count which piece this is instead of guessing first-or-not.
+              planRefs={planDayRefs}
               onPageChange={() => scrollRef.current?.scrollTo({ y: cardYRef.current, animated: true })}
               passageRead={passageRead}
               onMarkRead={day?.reflection ? () => { setPassageRead(true); scrollRef.current?.scrollTo({ y: 0, animated: true }); } : undefined}
