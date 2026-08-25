@@ -43,6 +43,16 @@ export function isIntimate(memberCount: number): boolean {
   return memberCount <= INTIMATE_MAX;
 }
 
+/**
+ * The by-name "X finished" push stops here — deliberately LOWER than
+ * INTIMATE_MAX. A roster of ten costs one screen; pinging ten people every time
+ * one of them finishes costs ninety pushes a day, because the volume is the
+ * square of the group. So 6-to-10 names names on screen and stays quiet in your
+ * pocket. Mirrors PARTNER_PING_MAX on the server, which does the enforcing —
+ * this copy exists only so the settings screen can say the number out loud.
+ */
+export const PARTNER_PING_MAX = 5;
+
 /** Inclusive member cap for a type. Unknown types are uncapped, never wrongly capped. */
 export function maxMembersFor(groupType: string): number {
   return GROUP_TYPE_CONFIG[groupType]?.max ?? Infinity;

@@ -51,15 +51,34 @@ export const OPEN_GROUP_MAX = 30;
 
 /**
  * Above this headcount a group stops being a room where everyone knows everyone.
- * It is the single line behind per-person progress, nudging, the "partner
- * finished" ping, and the "group complete" moment — one number so those four
- * never drift apart.
+ * The line behind per-person progress on screen, nudging, and the "group
+ * complete" moment.
  */
 export const INTIMATE_MAX = 10;
 
 /** Whether a group of this size is still small enough for by-name features. */
 export function isIntimate(memberCount: number): boolean {
   return memberCount <= INTIMATE_MAX;
+}
+
+/**
+ * The by-name "X finished their day" ping stops here — LOWER than INTIMATE_MAX,
+ * deliberately (Juan, 2026-07-31, reaffirmed 2026-08-25).
+ *
+ * The two numbers measure different costs. Showing ten faces on a roster costs
+ * one screen. Pinging ten people every time any of them finishes costs ninety
+ * notifications a day, because the volume is the square of the group, not the
+ * size of it. Six people is still a room where you know everyone — worth naming
+ * on screen — and already too many to hear from every time.
+ *
+ * So a 6-to-10 group names names on its roster and stays quiet in your pocket.
+ * Milestone pings ("a third of the group has read") are the intended
+ * replacement above this line and are not built yet.
+ */
+export const PARTNER_PING_MAX = 5;
+
+export function sendsPartnerPing(memberCount: number): boolean {
+  return memberCount <= PARTNER_PING_MAX;
 }
 
 export type Promotion =

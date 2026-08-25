@@ -6,6 +6,7 @@ import {
   promotionFor,
   maxMembersFor,
   isIntimate,
+  sendsPartnerPing,
 } from "./group-types.js";
 
 test("pacingFor: everything past a small group runs on the calendar", () => {
@@ -77,4 +78,14 @@ test("promotionFor: crossing 30 needs staff, and staff can cross it", () => {
 test("isIntimate: the by-name line sits at ten", () => {
   assert.equal(isIntimate(10), true);
   assert.equal(isIntimate(11), false);
+});
+
+test("the partner ping stops at five, below the by-name line", () => {
+  // Deliberately lower than INTIMATE_MAX: a roster of ten costs one screen,
+  // but pinging ten people every time one finishes costs ninety pushes a day.
+  assert.equal(sendsPartnerPing(5), true);
+  assert.equal(sendsPartnerPing(6), false);
+  // The gap is the point — six people are named on screen and silent in pocket.
+  assert.equal(isIntimate(6), true);
+  assert.equal(sendsPartnerPing(6), false);
 });

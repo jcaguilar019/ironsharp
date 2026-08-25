@@ -7,7 +7,7 @@ import {
   devotionalSubmissions,
   discipleRelationships,
 } from "../db/schema.js";
-import { isIntimate } from "./group-types.js";
+import { isIntimate, sendsPartnerPing } from "./group-types.js";
 
 type PushMessage = {
   to: string;
@@ -80,11 +80,11 @@ export async function notifyPartnerDone(
       )
     );
 
-  // This ping tells you a person you know finished. Past ten people it stops
-  // being that and becomes noise measured in squares: everyone finishing pings
-  // everyone else, so a thirty-person group would fire hundreds of pushes a
-  // day for names half the room doesn't recognise. Milestone pings ("a third of
-  // the group has read") are the intended replacement — not built yet.
+  // This ping tells you a person you know finished. Its volume is the SQUARE of
+  // the group — everyone finishing pings everyone else — so it stops at
+  // PARTNER_PING_MAX (5) rather than at the roster's own line of 10. Six people
+  // is already thirty pushes a day. Milestone pings are the replacement above
+  // that; not built yet.
   //
   // Counted from the whole roster, not from `others`, which is already filtered
   // down to people who kept the notification switched on.
@@ -92,7 +92,7 @@ export async function notifyPartnerDone(
     .select({ value: count() })
     .from(groupMembers)
     .where(eq(groupMembers.groupId, groupId));
-  if (!isIntimate(roster?.value ?? 0)) return;
+  if (!sendsPartnerPing(roster?.value ?? 0)) return;
 
   const tokens = others.map((o) => o.pushToken).filter(Boolean) as string[];
   if (tokens.length === 0) return;

@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { useThemeColor } from "@/components/useThemeColor";
 import { useProfile } from "@/lib/queries";
 import { ApiClient } from "@/lib/api";
+import { INTIMATE_MAX, PARTNER_PING_MAX } from "@/lib/groupTypes";
 import {
   scheduleMorningReminder,
   cancelMorningReminder,
@@ -32,7 +33,9 @@ const ROWS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
   {
     key: "notifPartnerDone",
     label: "Partner finished",
-    hint: "Get notified when your accountability partner completes their day.",
+    // Names the limit rather than going quiet without explanation — someone in a
+    // seven-person group would otherwise read the silence as a broken toggle.
+    hint: `Get notified when someone in your group completes their day. Groups of ${PARTNER_PING_MAX} or fewer only.`,
   },
   {
     key: "notifDailyNudge",
@@ -42,7 +45,7 @@ const ROWS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
   {
     key: "notifGroupComplete",
     label: "Group complete",
-    hint: "Pinged when everyone in your group has submitted.",
+    hint: `Pinged when everyone in your group has submitted. Groups of ${INTIMATE_MAX} or fewer only.`,
   },
   {
     // Distinct from "Daily nudge" above, which is your own reminder to yourself.
