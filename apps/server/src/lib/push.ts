@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   profiles,
@@ -7,7 +7,7 @@ import {
   devotionalSubmissions,
   discipleRelationships,
 } from "../db/schema.js";
-import { isCalendarPaced } from "./group-pacing.js";
+import { isIntimate } from "./group-types.js";
 
 type PushMessage = {
   to: string;
@@ -80,6 +80,20 @@ export async function notifyPartnerDone(
       )
     );
 
+  // This ping tells you a person you know finished. Past ten people it stops
+  // being that and becomes noise measured in squares: everyone finishing pings
+  // everyone else, so a thirty-person group would fire hundreds of pushes a
+  // day for names half the room doesn't recognise. Milestone pings ("a third of
+  // the group has read") are the intended replacement — not built yet.
+  //
+  // Counted from the whole roster, not from `others`, which is already filtered
+  // down to people who kept the notification switched on.
+  const [roster] = await db
+    .select({ value: count() })
+    .from(groupMembers)
+    .where(eq(groupMembers.groupId, groupId));
+  if (!isIntimate(roster?.value ?? 0)) return;
+
   const tokens = others.map((o) => o.pushToken).filter(Boolean) as string[];
   if (tokens.length === 0) return;
 
@@ -134,16 +148,17 @@ export async function notifyGroupCompleteIfDone(
       .limit(1);
     if (!group) continue;
 
-    // "Everyone finished" is not a moment a calendar-paced group ever reaches,
-    // so bail before the member scan rather than running it on every submission
-    // for a push that can't fire. Milestone pings ("a third of the group
-    // finished") are the intended replacement here — not built yet.
-    if (isCalendarPaced(group.groupType)) continue;
-
     const allMembers = await db
       .select({ userId: groupMembers.userId, joinedAt: groupMembers.joinedAt })
       .from(groupMembers)
       .where(eq(groupMembers.groupId, groupId));
+
+    // Gated on SIZE, not on pacing. A Medium Group moves its day on the clock
+    // rather than waiting for everyone, but six people all finishing anyway is
+    // still a moment worth marking — tying this to pacing would have thrown it
+    // away as a side effect of that unrelated choice. Past ten it genuinely
+    // never happens, and scanning for it on every submission is wasted work.
+    if (!isIntimate(allMembers.length)) continue;
 
     // Mid-day joiners aren't required for today's completion — but on the
     // plan's FIRST day everyone is required regardless of join time (mirrors

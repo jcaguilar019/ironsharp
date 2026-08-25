@@ -211,7 +211,10 @@ export const userPlanProgress = pgTable(
 export const groups = pgTable("groups", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  groupType: text("group_type").notNull(), // one-on-one | family | small-group | large-group | community
+  // The ladder in lib/group-types.ts: one-on-one (2) | small-group (5) |
+  // medium-group (10) | large-group (30) | community (unbounded, staff only).
+  // A group is promoted up it as it grows, and never demoted back down.
+  groupType: text("group_type").notNull(),
   currentPlanId: uuid("current_plan_id").references(() => devotionalPlans.id, {
     onDelete: "set null",
   }),
@@ -220,7 +223,7 @@ export const groups = pgTable("groups", {
   currentPlanStartedAt: timestamp("current_plan_started_at", { withTimezone: true }),
   currentDay: integer("current_day").notNull().default(1),
   // When the group landed on `currentDay`. Calendar-paced groups (see
-  // lib/group-pacing.ts) advance off this clock instead of waiting for every
+  // lib/group-types.ts) advance off this clock instead of waiting for every
   // member. Null means no plan is running, or the group predates the column —
   // both are treated as "stamp it, don't advance", so nobody loses a day to
   // the migration.

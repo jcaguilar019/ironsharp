@@ -16,15 +16,25 @@ import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
 import { clientDateString, clientDayWindow } from "../lib/localday.js";
 import { activeGroupRun, closeRun, ensureGroupRun, groupRuns, setRunDay } from "../lib/plan-runs.js";
-import { isCalendarPaced } from "../lib/group-pacing.js";
+import {
+  GROUP_TYPES,
+  RESTRICTED_TYPES,
+  isCalendarPaced,
+  isIntimate,
+  maxMembersFor,
+  promotionFor,
+} from "../lib/group-types.js";
 import { blockedFromStarting } from "../lib/plan-access.js";
+import { isAdmin } from "../lib/admin.js";
 import { notifyNudge } from "../lib/push.js";
 
 export const groupsRoute = new Hono<AppEnv>();
 groupsRoute.use("*", requireAuth);
 
-// Must stay in sync with GROUP_TYPE_CONFIG in apps/mobile/app/(tabs)/groups.tsx.
-const GROUP_TYPES = ["one-on-one", "family", "small-group", "large-group", "community"] as const;
+// Must stay in sync with GROUP_TYPE_CONFIG in apps/mobile/src/lib/groupTypes.ts.
+// The ladder lives in lib/group-types.ts; this schema just accepts what's on it.
+// "family" was retired 2026-08-25 — it named a relationship while every other
+// type named a size, and its rows were migrated to small-group.
 
 const createGroupSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -93,7 +103,7 @@ groupsRoute.get("/", async (c) => {
     memberships.map(async ({ group, membership, plan }) => {
       // Catch-up: move the shared day forward when it should have moved and
       // didn't. What "should have" means depends on the group's pacing
-      // (lib/group-pacing.ts):
+      // (lib/group-types.ts):
       //
       //   convoy   — the day only advances once EVERYONE submits, so one silent
       //              member would freeze the group forever. If the current day
@@ -501,6 +511,15 @@ groupsRoute.post("/", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
   const { name, groupType } = parsed.data;
 
+  // Church-scale groups are staff-only. Everything below 30 is anyone's to make;
+  // a congregation-wide reading is not, so it never starts by accident.
+  if (RESTRICTED_TYPES.has(groupType) && !(await isAdmin(userId))) {
+    return c.json(
+      { error: "Church groups are set up by church staff. Pick a size below that to start your own." },
+      403
+    );
+  }
+
   // Next display_order for this user
   const [maxRow] = await db
     .select({ maxOrder: sql<number>`coalesce(max(${groupMembers.displayOrder}), -1)` })
@@ -569,27 +588,50 @@ groupsRoute.post("/join", async (c) => {
     .where(eq(groupMembers.userId, userId));
   const nextOrder = (maxRow?.maxOrder ?? -1) + 1;
 
+  const staff = await isAdmin(userId);
+
   // Wrap size check + insert in a transaction so two concurrent joins can't
-  // both pass the limit check before either one has committed.
+  // both pass the limit check before either one has committed. Two separate
+  // ceilings apply and the lower one wins: the creator's membership tier (what
+  // they've paid for) and the group's own type (what it says it is).
   let tooFull = false;
+  let laddered: string | null = null;
   await db.transaction(async (tx) => {
-    if (maxSize !== Infinity) {
-      const [sizeRow] = await tx
-        .select({ count: count() })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, group.id));
-      if ((sizeRow?.count ?? 0) >= maxSize) {
-        tooFull = true;
-        return;
-      }
+    const [sizeRow] = await tx
+      .select({ count: count() })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, group.id));
+    const newSize = (sizeRow?.count ?? 0) + 1;
+
+    if (maxSize !== Infinity && newSize > maxSize) {
+      tooFull = true;
+      return;
     }
+
+    const move = promotionFor(group.groupType, newSize, staff);
+    if (move.kind === "blocked") {
+      laddered = move.reason;
+      return;
+    }
+
     await tx.insert(groupMembers).values({
       groupId: group.id,
       userId,
       memberRole: "member",
       displayOrder: nextOrder,
     });
+
+    // The group outgrew its type — move it up a rung in the same transaction,
+    // so its size and its label can never disagree.
+    if (move.kind === "promote") {
+      await tx
+        .update(groups)
+        .set({ groupType: move.to, updatedAt: new Date() })
+        .where(eq(groups.id, group.id));
+    }
   });
+
+  if (laddered) return c.json({ error: laddered }, 403);
 
   if (tooFull) {
     return c.json(
@@ -654,7 +696,7 @@ groupsRoute.post("/:id/members", async (c) => {
 
   // Enforce creator's tier group size limit
   const [group] = await db
-    .select({ createdBy: groups.createdBy })
+    .select({ createdBy: groups.createdBy, groupType: groups.groupType })
     .from(groups)
     .where(eq(groups.id, groupId))
     .limit(1);
@@ -677,25 +719,43 @@ groupsRoute.post("/:id/members", async (c) => {
     .where(eq(groupMembers.groupId, groupId));
   const nextOrder = (maxRow?.maxOrder ?? -1) + 1;
 
-  // Wrap size check + insert in a transaction so two concurrent adds can't
-  // both pass the limit check before either one has committed.
+  const staff = await isAdmin(userId);
+
+  // Same two ceilings as joining by code — see that handler for the reasoning.
   let tooFull = false;
+  let laddered: string | null = null;
   await db.transaction(async (tx) => {
-    if (maxSize !== Infinity) {
-      const [sizeRow] = await tx
-        .select({ count: count() })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, groupId));
-      if ((sizeRow?.count ?? 0) >= maxSize) {
-        tooFull = true;
-        return;
-      }
+    const [sizeRow] = await tx
+      .select({ count: count() })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+    const newSize = (sizeRow?.count ?? 0) + 1;
+
+    if (maxSize !== Infinity && newSize > maxSize) {
+      tooFull = true;
+      return;
     }
+
+    const move = promotionFor(group?.groupType ?? "", newSize, staff);
+    if (move.kind === "blocked") {
+      laddered = move.reason;
+      return;
+    }
+
     await tx
       .insert(groupMembers)
       .values({ groupId, userId: targetUserId, memberRole: "member", displayOrder: nextOrder })
       .onConflictDoNothing();
+
+    if (move.kind === "promote") {
+      await tx
+        .update(groups)
+        .set({ groupType: move.to, updatedAt: new Date() })
+        .where(eq(groups.id, groupId));
+    }
   });
+
+  if (laddered) return c.json({ error: laddered }, 403);
 
   if (tooFull) {
     return c.json(
@@ -734,7 +794,6 @@ groupsRoute.delete("/:id/members/:targetUserId", async (c) => {
 });
 
 const NUDGE_COOLDOWN_HOURS = 4;
-const NUDGE_MAX_GROUP_SIZE = 10;
 /** Quiet window after anyone in a shared group finishes — see the check below. */
 const NUDGE_QUIET_AFTER_FINISH_MINUTES = 30;
 
@@ -792,8 +851,8 @@ groupsRoute.post("/:id/nudge", async (c) => {
     .select({ value: count() })
     .from(groupMembers)
     .where(eq(groupMembers.groupId, groupId));
-  const publicType = group.groupType === "large-group" || group.groupType === "community";
-  if ((sizeRow?.value ?? 0) > NUDGE_MAX_GROUP_SIZE || publicType) {
+  const publicType = !isIntimate(maxMembersFor(group.groupType));
+  if (!isIntimate(sizeRow?.value ?? 0) || publicType) {
     return c.json({ error: "Nudging isn't available in this group." }, 400);
   }
 
@@ -1109,7 +1168,7 @@ groupsRoute.patch("/:id/day", async (c) => {
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
 
   // A calendar-paced group's day is the clock's to move, not a member's (see
-  // lib/group-pacing.ts). Marking done and the member's own streak still apply;
+  // lib/group-types.ts). Marking done and the member's own streak still apply;
   // the advance and the plan close-out both happen in the catch-up pass on
   // GET /api/groups instead. At that size "everyone finished" would never be
   // true anyway, so allDone stays false rather than reporting a fiction.

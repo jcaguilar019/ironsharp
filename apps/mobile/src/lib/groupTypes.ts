@@ -1,41 +1,74 @@
-export const GROUP_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  "one-on-one":  { label: "One-on-One",  color: "#89B4C9" },
-  "family":      { label: "Family",      color: "#7FAF8A" },
-  "small-group": { label: "Small Group", color: "#C49A78" },
-  "large-group": { label: "Large Group", color: "#9B8EC4" },
-  "community":   { label: "Church",      color: "#7A9EAF" },
+/**
+ * Mirror of apps/server/src/lib/group-types.ts — keep the two in sync.
+ *
+ * Type means SIZE. A group climbs this ladder as it grows and is never demoted
+ * back down; the server does the promoting, the app only describes it.
+ */
+export type GroupTypeConfig = {
+  label: string;
+  /** Shown under the label in the picker, so the size rule is never a surprise. */
+  sublabel: string;
+  color: string;
+  /** Inclusive member cap. */
+  max: number;
+};
+
+export const GROUP_TYPE_CONFIG: Record<string, GroupTypeConfig> = {
+  "one-on-one":   { label: "One-on-One",   sublabel: "Just the two of you · discipleship tools", color: "#89B4C9", max: 2 },
+  "small-group":  { label: "Small Group",  sublabel: "Up to 5 people",      color: "#C49A78", max: 5 },
+  // Green inherited from the retired "Family" type.
+  "medium-group": { label: "Medium Group", sublabel: "6 to 10 people",      color: "#7FAF8A", max: 10 },
+  "large-group":  { label: "Large Group",  sublabel: "11 to 30 people",     color: "#9B8EC4", max: 30 },
+  "community":    { label: "Church",       sublabel: "Over 30 · staff only", color: "#7A9EAF", max: Infinity },
 };
 
 export const GROUP_TYPE_KEYS = Object.keys(GROUP_TYPE_CONFIG);
 
-/**
- * Types that are public enough that naming who's behind would single someone
- * out, regardless of how few people are in them. A church group is not an
- * intimate setting even at six people.
- */
-const PUBLIC_TYPES: ReadonlySet<string> = new Set(["large-group", "community"]);
+/** Types only church staff may create. Mirrors RESTRICTED_TYPES on the server. */
+export const RESTRICTED_TYPES: ReadonlySet<string> = new Set(["community"]);
 
-/** Above this headcount, no group is intimate enough for per-person status. */
-export const INDIVIDUAL_STATUS_MAX = 10;
+/** What a member can pick. Church is hidden unless you're staff. */
+export function selectableGroupTypes(isStaff: boolean): string[] {
+  return GROUP_TYPE_KEYS.filter((k) => isStaff || !RESTRICTED_TYPES.has(k));
+}
+
+/**
+ * Above this headcount a group stops being a room where everyone knows everyone.
+ * One number behind per-person progress, nudging, and the group notifications —
+ * so those never drift apart. Mirrors INTIMATE_MAX on the server.
+ */
+export const INTIMATE_MAX = 10;
+
+export function isIntimate(memberCount: number): boolean {
+  return memberCount <= INTIMATE_MAX;
+}
+
+/** Inclusive member cap for a type. Unknown types are uncapped, never wrongly capped. */
+export function maxMembersFor(groupType: string): number {
+  return GROUP_TYPE_CONFIG[groupType]?.max ?? Infinity;
+}
 
 /**
  * Whether a group shows per-person completion — the check, the dim, the
  * unfinished-first ordering, and nudging — or an aggregate bar instead.
  *
- * Headcount AND type both flip it, because neither is sufficient alone: group
- * type doesn't constrain size (limits are per membership tier, so a
- * "one-on-one" can hold twelve people), and a small church group still isn't
- * a place to display who hasn't done their reading.
+ * Headcount AND type both flip it. Type alone isn't enough because a group can
+ * sit below its own ceiling, and headcount alone isn't enough because a church
+ * group is not an intimate setting even on a quiet week.
  *
  * Mirrored server-side in apps/server/src/routes/groups.ts, which refuses a
  * nudge on the same terms.
  */
 export function showsIndividualStatus(groupType: string, memberCount: number): boolean {
-  return memberCount <= INDIVIDUAL_STATUS_MAX && !PUBLIC_TYPES.has(groupType);
+  return isIntimate(memberCount) && isIntimate(maxMembersFor(groupType));
 }
 
-// Mirror of apps/server/src/lib/group-pacing.ts — keep the two in sync.
-const CALENDAR_PACED: ReadonlySet<string> = new Set(["large-group", "community"]);
+// Mirror of apps/server/src/lib/group-types.ts — keep the two in sync.
+const CALENDAR_PACED: ReadonlySet<string> = new Set([
+  "medium-group",
+  "large-group",
+  "community",
+]);
 
 /**
  * Calendar-paced groups advance a day at a time on the clock rather than waiting

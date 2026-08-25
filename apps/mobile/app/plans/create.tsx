@@ -104,8 +104,8 @@ const WHO_TO_GROUP_TYPE: Record<WhoOption, string | null> = {
 // derives the prompt flavor from the group's type instead of asking again.
 const GROUP_TYPE_TO_WHO: Record<string, WhoOption> = {
   "one-on-one": "friend",
-  family: "small-group",
   "small-group": "small-group",
+  "medium-group": "small-group",
   "large-group": "small-group",
   community: "small-group",
 };

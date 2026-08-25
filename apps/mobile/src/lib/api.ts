@@ -257,9 +257,9 @@ export type GroupPlan = {
 export type Group = {
   id: string;
   name: string;
-  // Must stay in sync with GROUP_TYPES in apps/server/src/routes/groups.ts and
+  // Must stay in sync with GROUP_TYPES in apps/server/src/lib/group-types.ts and
   // GROUP_TYPE_CONFIG in src/lib/groupTypes.ts. "community" is labelled "Church".
-  groupType: "one-on-one" | "family" | "small-group" | "large-group" | "community";
+  groupType: "one-on-one" | "small-group" | "medium-group" | "large-group" | "community";
   inviteCode: string;
   /** The group's creator — the only member who can end it or remove others. */
   createdBy: string;

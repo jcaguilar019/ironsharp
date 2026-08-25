@@ -36,15 +36,7 @@ import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
 import { useGroups, usePlans, usePlansByCategory, useProfile } from "@/lib/queries";
 import { ApiClient, ApiError, type Group } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
-import { GROUP_TYPE_KEYS, GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
-
-const TYPE_DESC: Record<string, string> = {
-  "one-on-one": "Mentor one person, with discipleship tools",
-  family: "Your household, reading together",
-  "small-group": "A handful of people",
-  "large-group": "A bigger circle",
-  community: "Your whole church",
-};
+import { GROUP_TYPE_CONFIG, selectableGroupTypes } from "@/lib/groupTypes";
 
 type Step = "group" | "plan" | "invite";
 
@@ -222,7 +214,7 @@ export default function NewPlanFlow() {
               }}
             />
             <View style={{ gap: 10 }}>
-              {GROUP_TYPE_KEYS.map((key) => {
+              {selectableGroupTypes(isAdmin).map((key) => {
                 const val = GROUP_TYPE_CONFIG[key]!;
                 const selected = type === key;
                 return (
@@ -248,7 +240,7 @@ export default function NewPlanFlow() {
                         {val.label}
                       </Text>
                       <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 12, marginTop: 1 }}>
-                        {TYPE_DESC[key] ?? ""}
+                        {val.sublabel}
                       </Text>
                     </View>
                   </Pressable>
