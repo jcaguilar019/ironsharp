@@ -1,0 +1,2 @@
+[startup] ANTHROPIC_API_KEY is not set — endpoints that need it will fail.
+[startup] OPENAI_API_KEY is not set — endpoints that need it will fail.

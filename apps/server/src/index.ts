@@ -29,9 +29,27 @@ app.use("*", logger());
 // CORS can be permissive — auth is enforced by JWT verification, not origin.
 app.use("*", cors({ allowHeaders: ["Content-Type", "Authorization"] }));
 
-// Health check (Railway pings this).
-app.get("/", (c) => c.json({ ok: true, service: "ironsharp-api" }));
-app.get("/health", (c) => c.json({ ok: true }));
+/**
+ * What's actually running, answerable from outside in one request.
+ *
+ * "Did that push deploy?" was unanswerable for three weeks in August 2026 —
+ * /health returned {ok:true} and nothing else, so a stuck auto-deploy looked
+ * exactly like a working one. Railway injects these at build time; locally they
+ * are absent and the fields read "dev", which is itself the answer.
+ *
+ * `startedAt` matters as much as the commit: a redeploy of the SAME commit still
+ * moves it, which is how you tell "Railway ignored me" from "Railway redeployed
+ * and the code was already current."
+ */
+const BUILD = {
+  commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev",
+  branch: process.env.RAILWAY_GIT_BRANCH ?? "dev",
+  startedAt: new Date().toISOString(),
+};
+
+// Health check (Railway pings /health — it stays cheap and always 200).
+app.get("/", (c) => c.json({ ok: true, service: "ironsharp-api", ...BUILD }));
+app.get("/health", (c) => c.json({ ok: true, ...BUILD }));
 
 // Application data routes. Auth (sign up / in / out, sessions) is handled by the
 // managed Neon Auth service directly from the client — not here.
