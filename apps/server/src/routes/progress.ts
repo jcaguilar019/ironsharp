@@ -6,7 +6,7 @@ import { userPlanProgress, devotionalPlans, devotionalDays, devotionalSubmission
 import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { clientDayWindow } from "../lib/localday.js";
 import { activePersonalRun, closeRun, ensurePersonalRun, setRunDay } from "../lib/plan-runs.js";
-import { canReadPlan } from "../lib/plan-access.js";
+import { blockedFromStarting, canReadPlan } from "../lib/plan-access.js";
 import {
   TIER_LIMITS,
   UPGRADE_PATH,
@@ -20,11 +20,26 @@ export const progress = new Hono<AppEnv>();
 progress.use("*", requireAuth);
 
 // GET /api/progress  → all of the user's plan progress rows
+//
+// Carries the plan's title and read-through marker so the Completed screen can
+// name a finished plan without going through the browse list. What you've read
+// is history; it shouldn't blank out to "Devotional" because the plan was later
+// pulled from the shelf.
 progress.get("/", async (c) => {
   const userId = c.var.user.id;
   const rows = await db
-    .select()
+    .select({
+      id: userPlanProgress.id,
+      userId: userPlanProgress.userId,
+      planId: userPlanProgress.planId,
+      currentDay: userPlanProgress.currentDay,
+      startedAt: userPlanProgress.startedAt,
+      completedAt: userPlanProgress.completedAt,
+      planTitle: devotionalPlans.title,
+      planHowToUse: devotionalPlans.howToUse,
+    })
     .from(userPlanProgress)
+    .leftJoin(devotionalPlans, eq(devotionalPlans.id, userPlanProgress.planId))
     .where(eq(userPlanProgress.userId, userId))
     .orderBy(desc(userPlanProgress.startedAt));
   return c.json({ progress: rows });
@@ -120,6 +135,11 @@ progress.post("/", async (c) => {
 
   if (existing) return c.json({ progress: existing });
 
+  // Team-only plans are un-startable — checked after `existing` so someone
+  // already reading one isn't bounced out of their own devotional.
+  const blocked = await blockedFromStarting(userId, planId);
+  if (blocked) return c.json({ error: blocked }, 403);
+
   // New plan — check the monthly unlock limit. Your OWN generated plan is
   // exempt: generating it already cost an AI token, and charging an unlock on
   // top double-bills the same plan.
@@ -210,6 +230,11 @@ progress.post("/:planId/restart", async (c) => {
     .where(eq(devotionalPlans.id, planId))
     .limit(1);
   if (!plan || !(await canReadPlan(userId, plan))) return c.json({ error: "Plan not found" }, 404);
+
+  // A restart is a fresh run, so it faces the same gate as a first start: a
+  // team-only plan can be finished, reviewed, but not taken again.
+  const blocked = await blockedFromStarting(userId, planId);
+  if (blocked) return c.json({ error: blocked }, 403);
 
   // Restart is for plans you've already run — otherwise it would be a start
   // that skips the unlock quota.

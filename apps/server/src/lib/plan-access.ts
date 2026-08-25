@@ -1,5 +1,7 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
+import { devotionalPlans } from "../db/schema.js";
+import { isAdmin } from "./admin.js";
 
 /**
  * Whether a user may read a plan's content. Beyond public/creator, a plan is
@@ -31,4 +33,30 @@ export async function canReadPlan(
     )
   `);
   return (res.rows?.length ?? 0) > 0;
+}
+
+/**
+ * Whether a user may BEGIN a new run of a plan — starting it, restarting it, or
+ * putting it in front of a group.
+ *
+ * The line is drawn at beginning, not at reading. A team-only plan is one the
+ * team has written but hasn't released; nobody new should be handed it, but
+ * pulling it out from under a group already halfway through it would cost real
+ * people their reflections. So `canReadPlan` stays open and this closes.
+ *
+ * Returns a message rather than a bare false so all three call sites say the
+ * same thing. Null means allowed.
+ */
+export async function blockedFromStarting(
+  userId: string,
+  planId: string
+): Promise<string | null> {
+  const [plan] = await db
+    .select({ adminOnly: devotionalPlans.adminOnly })
+    .from(devotionalPlans)
+    .where(eq(devotionalPlans.id, planId))
+    .limit(1);
+  if (!plan?.adminOnly) return null;
+  if (await isAdmin(userId)) return null;
+  return "This plan isn't available yet.";
 }

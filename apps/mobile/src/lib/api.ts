@@ -77,6 +77,11 @@ export type DevotionalPlan = {
   totalDays: number;
   howToUse: string | null;
   imageUrl: string | null;
+  /**
+   * Written but not released. The server never sends these to a non-admin, so
+   * seeing one at all means you're on the team — it's a label, not a gate.
+   */
+  adminOnly?: boolean;
   /** Derived server-side from the plan's daily passages (category list only). */
   bookSummary?: string;
   /**
@@ -153,6 +158,13 @@ export type PlanProgress = {
   currentDay: number;
   startedAt: string;
   completedAt: string | null;
+  /**
+   * The plan's own title, carried on the progress row (list endpoint only) so a
+   * finished plan keeps its name even after it leaves the browsable library.
+   */
+  planTitle?: string | null;
+  /** Read-through marker, for routing a restart to the book introduction. */
+  planHowToUse?: string | null;
 };
 
 /** One book's share of Your Bible Journey for a year. */

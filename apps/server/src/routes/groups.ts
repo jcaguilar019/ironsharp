@@ -17,6 +17,7 @@ import { TIER_LIMITS, TIER_NAMES, type MembershipTier } from "../lib/tiers.js";
 import { clientDateString, clientDayWindow } from "../lib/localday.js";
 import { activeGroupRun, closeRun, ensureGroupRun, groupRuns, setRunDay } from "../lib/plan-runs.js";
 import { isCalendarPaced } from "../lib/group-pacing.js";
+import { blockedFromStarting } from "../lib/plan-access.js";
 import { notifyNudge } from "../lib/push.js";
 
 export const groupsRoute = new Hono<AppEnv>();
@@ -929,6 +930,11 @@ groupsRoute.patch("/:id/plan", async (c) => {
     )
     .limit(1);
   if (!plan) return c.json({ error: "Plan not found" }, 404);
+
+  // Team-only plans can't be put in front of a group either. Groups already
+  // reading one are untouched — this guards the assignment, not the reading.
+  const blocked = await blockedFromStarting(userId, planId);
+  if (blocked) return c.json({ error: blocked }, 403);
 
   // Group limit: 3 active group devotionals at a time. The TARGET group is
   // excluded — swapping the plan in a group you're already active in doesn't

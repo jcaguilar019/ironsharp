@@ -68,6 +68,11 @@ export const devotionalPlans = pgTable(
     source: text("source").notNull().default("curated"),       // "curated" | "generated"
     createdByUserId: text("created_by_user_id"),
     isPublic: boolean("is_public").notNull().default(true),
+    // Written but not released. Hidden from every browse surface for non-admins
+    // and un-startable by them; anyone already reading it keeps it to the end
+    // (see plan-access.ts — access to *content* is deliberately not gated here).
+    // Flip to false when the plan is ready; no deploy needed.
+    adminOnly: boolean("admin_only").notNull().default(false),
     matchKey: text("match_key"),                               // e.g. "book:romans-14" — dedup key
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

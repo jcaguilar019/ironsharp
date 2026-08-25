@@ -6,12 +6,27 @@ import { requireAuth, type AppEnv } from "../middleware/auth.js";
 import { bookCounts, summarizeBooks } from "../lib/book-summary.js";
 import { CANON, normalizeBookName } from "../lib/bible-coverage.js";
 import { canReadPlan } from "../lib/plan-access.js";
+import { isAdmin } from "../lib/admin.js";
 
 export const plans = new Hono<AppEnv>();
 
 plans.use("*", requireAuth);
 
 const CANON_ORDER = new Map(CANON.map((b) => [b.book, b.bookOrder]));
+
+/**
+ * What this user is allowed to see on a browse shelf.
+ *
+ * Two separate gates, deliberately not merged. `isPublic` is ownership — whose
+ * plan is this. `adminOnly` is readiness — is this written well enough to hand
+ * to the congregation yet. A team-only plan is still fully readable to anyone
+ * already in it (canReadPlan), so pulling it from the shelf never strands a
+ * group mid-devotional; it only stops anyone new from finding it.
+ */
+function browsable(userId: string, admin: boolean) {
+  const owned = or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId));
+  return admin ? owned : and(owned, eq(devotionalPlans.adminOnly, false));
+}
 
 /**
  * Where a plan sits in Bible order, for the library listing.
@@ -30,15 +45,19 @@ function canonRank(books: { book: string; days: number }[]): number {
   return (canonical && CANON_ORDER.get(canonical)) || Number.MAX_SAFE_INTEGER;
 }
 
-// GET /api/plans  → all plans visible to this user (public + their own generated)
+// GET /api/plans  → all plans visible to this user (public + their own
+// generated, minus anything still team-only unless they're on the team)
 plans.get("/", async (c) => {
   const userId = c.var.user.id;
+  const admin = await isAdmin(userId);
   const rows = await db
     .select()
     .from(devotionalPlans)
-    .where(or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId)))
+    .where(browsable(userId, admin))
     .orderBy(asc(devotionalPlans.category), asc(devotionalPlans.createdAt));
 
+  // Drives which category tiles the app draws, so it has to be counted after
+  // the filter — a tile whose only plans are team-only is an empty room.
   const countByCategory: Record<string, number> = {};
   for (const p of rows) {
     countByCategory[p.category] = (countByCategory[p.category] ?? 0) + 1;
@@ -53,7 +72,7 @@ plans.get("/", async (c) => {
 plans.get("/category/:category", async (c) => {
   const userId = c.var.user.id;
   const category = c.req.param("category");
-  const visible = or(eq(devotionalPlans.isPublic, true), eq(devotionalPlans.createdByUserId, userId));
+  const visible = browsable(userId, await isAdmin(userId));
   const rows = await db
     .select()
     .from(devotionalPlans)

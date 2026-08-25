@@ -17,7 +17,7 @@ import { BookOpen, MessageSquare, ChevronLeft, Sparkles, Share2, Users } from "l
 import { Screen } from "@/components/Screen";
 import { useThemeColor } from "@/components/useThemeColor";
 import { ApiClient, ApiError } from "@/lib/api";
-import { useGroups, useProgress } from "@/lib/queries";
+import { useGroups, useProfile, useProgress } from "@/lib/queries";
 
 // ─── Bible book validation ────────────────────────────────────────────────────
 
@@ -131,6 +131,12 @@ export default function CreatePlan() {
   // For the same one-active-personal-plan rule the Plans browser enforces.
   const progress = useProgress();
   const groups = useGroups();
+
+  // Generation is team-only. The tile that leads here is already hidden for
+  // everyone else, and the server refuses the request — this closes the last
+  // gap, where a saved link walks someone through six steps to a 403.
+  const profile = useProfile();
+  const isAdmin = profile.data?.isAdmin ?? false;
 
   // Entering from an existing group: the who-step is skipped (already answered).
   const targetGroup = groupId ? ((groups.data ?? []).find((g) => g.id === groupId) ?? null) : null;
@@ -401,6 +407,23 @@ export default function CreatePlan() {
   }
 
   // ── Intake steps ──────────────────────────────────────────────────────────
+  if (!profile.isLoading && !isAdmin) {
+    return (
+      <Screen edges={["top", "bottom"]}>
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={{ padding: 8 }}>
+            <ChevronLeft size={22} color={fg} />
+          </Pressable>
+        </View>
+        <View className="flex-1 items-center justify-center px-8">
+          <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 14, textAlign: "center" }}>
+            Building plans is limited to the IronSharp team. Browse the library to find your next devotional.
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen edges={["top", "bottom"]}>
       {/* Header row */}

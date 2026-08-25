@@ -35,10 +35,18 @@ import { CATEGORIES } from "@/lib/categories";
  */
 export default function NewPlanScreen() {
   const router = useRouter();
-  const { isError, refetch } = usePlans();
+  const { data, isError, refetch } = usePlans();
   // Plan creation (AI generation) is an admin/team capability now — non-admins
   // browse the library only.
   const isAdmin = useProfile().data?.isAdmin ?? false;
+
+  // A tile only earns its place if there's something behind it. The counts are
+  // already filtered for who's asking, so a category holding nothing but
+  // team-only plans simply isn't there for a member — no "Coming Soon" door.
+  // Before the counts land, show everything: an empty grid that fills in reads
+  // worse than a full one that thins out.
+  const counts = data?.countByCategory;
+  const stocked = CATEGORIES.filter((cat) => !counts || (counts[cat.id] ?? 0) > 0);
   const white = "#FFFFFF";
   const primary = useThemeColor("primary");
   const muted = useThemeColor("muted-foreground");
@@ -123,7 +131,7 @@ export default function NewPlanScreen() {
             </Pressable>
           ) : null}
 
-          {CATEGORIES.map((cat) => {
+          {stocked.map((cat) => {
             const img = CATEGORY_IMAGES[cat.id];
             return (
               <Pressable

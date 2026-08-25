@@ -8,7 +8,7 @@ import { Header } from "@/components/Header";
 import { ProgressRing } from "@/components/ProgressRing";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlans, useProgress, useGroups, useJourney } from "@/lib/queries";
-import { ApiClient } from "@/lib/api";
+import { ApiClient, ApiError } from "@/lib/api";
 import { purgePersonalPlanLocalState } from "@/lib/planLocal";
 
 /** Books in the Bible — the denominator the Journey ring fills toward. */
@@ -59,14 +59,21 @@ export default function CompletedPlans() {
             await qc.invalidateQueries({ queryKey: ["progress"] });
             await qc.invalidateQueries({ queryKey: ["progress", "active"] });
             // Taking a read-through again starts at its introduction, same as
-            // a first run — the run is blank, so the threshold repeats.
+            // a first run — the run is blank, so the threshold repeats. Read
+            // off the progress row for the same reason the title is.
+            const row = (progress.data ?? []).find((p) => p.planId === planId);
+            const readThrough = row?.planHowToUse ?? planById.get(planId)?.howToUse;
             router.push(
-              planById.get(planId)?.howToUse
-                ? `/devotional/intro/${planId}`
-                : `/devotional/${planId}`
+              readThrough ? `/devotional/intro/${planId}` : `/devotional/${planId}`
             );
-          } catch {
-            Alert.alert("Something went wrong", "Please try again.");
+          } catch (err) {
+            // A plan can be finished and still not be re-startable — the team
+            // may have pulled it back for rewriting. That isn't "try again".
+            if (err instanceof ApiError && err.status === 403) {
+              Alert.alert("Not available right now", err.message);
+            } else {
+              Alert.alert("Something went wrong", "Please try again.");
+            }
           } finally {
             setBusy(false);
           }
@@ -129,8 +136,9 @@ export default function CompletedPlans() {
           </View>
         ) : (
           completed.map((row) => {
-            const plan = planById.get(row.planId);
-            const title = plan?.title ?? "Devotional";
+            // The row's own title first — the library list won't hold a plan
+            // that's since been pulled from the shelf, but your history does.
+            const title = row.planTitle ?? planById.get(row.planId)?.title ?? "Devotional";
             return (
               <Pressable
                 key={row.id}

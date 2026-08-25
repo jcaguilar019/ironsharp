@@ -17,7 +17,7 @@ import { Header } from "@/components/Header";
 import { ErrorState } from "@/components/ErrorState";
 import { useThemeColor } from "@/components/useThemeColor";
 import { usePlansByCategory, useProgress, useGroups } from "@/lib/queries";
-import { ApiClient } from "@/lib/api";
+import { ApiClient, ApiError } from "@/lib/api";
 import { categoryLabel } from "@/lib/categories";
 import { searchPlans } from "@/lib/planSearch";
 import { purgePersonalPlanLocalState } from "@/lib/planLocal";
@@ -85,8 +85,13 @@ export default function PlanList() {
       router.push(
         again?.howToUse ? `/devotional/intro/${planId}` : `/devotional/${planId}`
       );
-    } catch {
-      Alert.alert("Something went wrong", "Please try again.");
+    } catch (err) {
+      // 403 = the team pulled this plan back; retrying won't change that.
+      if (err instanceof ApiError && err.status === 403) {
+        Alert.alert("Not available right now", err.message);
+      } else {
+        Alert.alert("Something went wrong", "Please try again.");
+      }
     } finally {
       setAssigning(false);
     }
@@ -137,8 +142,12 @@ export default function PlanList() {
       router.push(
         started?.howToUse ? `/devotional/intro/${planId}` : `/devotional/${planId}`
       );
-    } catch {
-      Alert.alert("Something went wrong", "Please try again.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        Alert.alert("Not available right now", err.message);
+      } else {
+        Alert.alert("Something went wrong", "Please try again.");
+      }
     } finally {
       setAssigning(false);
     }
@@ -262,6 +271,16 @@ export default function PlanList() {
                     {!completed ? <ChevronRight size={16} color={primary} /> : null}
                   </View>
                 </View>
+
+                {/* Only the team is ever sent one of these, so its presence is
+                    the whole signal — no need to check who's looking. */}
+                {plan.adminOnly ? (
+                  <View className="mt-1.5 self-start rounded-full border border-border bg-muted/40 px-2 py-0.5">
+                    <Text className="text-[10px] font-sans-medium uppercase tracking-wider text-muted-foreground">
+                      Team only · not released
+                    </Text>
+                  </View>
+                ) : null}
 
                 {plan.description ? (
                   <Text className="mt-1 text-sm leading-relaxed text-muted-foreground">

@@ -33,7 +33,7 @@ import { Button } from "@/components/Button";
 import { useThemeColor } from "@/components/useThemeColor";
 import { withAlpha } from "@/theme/themes";
 import { InviteCodeRow, MemberSearch } from "@/components/GroupInvite";
-import { useGroups, usePlansByCategory, useProfile } from "@/lib/queries";
+import { useGroups, usePlans, usePlansByCategory, useProfile } from "@/lib/queries";
 import { ApiClient, ApiError, type Group } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { GROUP_TYPE_KEYS, GROUP_TYPE_CONFIG } from "@/lib/groupTypes";
@@ -79,6 +79,11 @@ export default function NewPlanFlow() {
   const myId = profileData?.userId;
   // AI generation is team-only now; non-admins pick from the library.
   const isAdmin = profileData?.isAdmin ?? false;
+
+  // Same rule as the solo library: no tile for a category with nothing in it.
+  // Counts come back already filtered for who's asking.
+  const counts = usePlans().data?.countByCategory;
+  const stocked = CATEGORIES.filter((cat) => !counts || (counts[cat.id] ?? 0) > 0);
 
   const [createdGroup, setCreatedGroup] = useState<Group | null>(null);
   const activeGroupId = createdGroup?.id ?? params.groupId ?? null;
@@ -146,10 +151,9 @@ export default function NewPlanFlow() {
       setStep("invite");
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        Alert.alert(
-          "You're at your limit",
-          "You're already in three active group devotionals. Go deeper with the ones you have before adding more."
-        );
+        // A 403 here has two causes now — the three-group limit, or a plan the
+        // team hasn't released. The server words each one; don't guess which.
+        Alert.alert("Can't add this one", err.message);
       } else {
         Alert.alert("Couldn't add the plan", err instanceof ApiError ? err.message : "Please try again.");
       }
@@ -304,7 +308,7 @@ export default function NewPlanFlow() {
                   </Pressable>
                 ) : null}
 
-                {CATEGORIES.map((cat) => {
+                {stocked.map((cat) => {
                   const img = CATEGORY_IMAGES[cat.id];
                   return (
                     <Pressable
@@ -469,6 +473,14 @@ function PlanPicker({
                 {!isCurrent ? <ChevronRight size={16} color={accent} /> : null}
               </View>
             </View>
+            {/* Only the team is ever sent one of these — see [category].tsx. */}
+            {plan.adminOnly ? (
+              <View style={{ alignSelf: "flex-start", marginTop: 6, borderWidth: 1, borderColor: border, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: muted, fontFamily: "DMSans_500Medium", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                  Team only · not released
+                </Text>
+              </View>
+            ) : null}
             {plan.description ? (
               <Text style={{ color: muted, fontFamily: "DMSans_400Regular", fontSize: 13, lineHeight: 19, marginTop: 2 }}>
                 {plan.description}
